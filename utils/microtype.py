@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import supply
+import utils.supply as supply
 
 
 # def

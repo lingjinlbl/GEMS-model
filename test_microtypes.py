@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import numpy as np
-import microtype
+from utils import microtype
+from utils import supply
 import matplotlib.pyplot as plt
+
+from utils.microtype import Microtype
 
 network_params_default = {'lambda': 0.068,
                           'u_f': 15.42,
@@ -22,7 +25,7 @@ car_params_default = {'meanTripDistance': 1000, 'size': 1.0}
 modes = {'car', 'bus'}
 mode_params_default = {'car': car_params_default, 'bus': bus_params_default}
 demands = {'car': 20 / (10 * 60), 'bus': 1. / (10 * 60)}
-m = microtype.Microtype(modes, mode_params_default, network_params_default, demands)
+m = Microtype(modes, mode_params_default, network_params_default, demands)
 m.findEquilibriumDensityAndSpeed()
 
 car_demands = np.arange(0.05, 0.12, 0.0015)
