@@ -106,6 +106,12 @@ class ModeCharacteristics:
     def setDemandCharacteristics(self, demand_characteristics: DemandCharacteristics):
         self.demand_characteristics = demand_characteristics
 
+    def getSpeed(self):
+        return self.demand_characteristics.speed
+
+    def getFlow(self):
+        return self.demand_characteristics.passenger_flow
+
 
 class CollectedModeCharacteristics:
     def __init__(self):
@@ -114,7 +120,7 @@ class CollectedModeCharacteristics:
     def __setitem__(self, mode_name: str, mode_info: ModeCharacteristics):
         self._data[mode_name] = mode_info
 
-    def __getitem__(self, mode_name):
+    def __getitem__(self, mode_name) -> ModeCharacteristics:
         return self._data[mode_name]
 
     def getModes(self):
@@ -123,6 +129,11 @@ class CollectedModeCharacteristics:
     def __str__(self):
         return str([str(self._data[key]) for key in self._data])
 
+    def setModeDemand(self, mode: str, new_demand: float):
+        self._data[mode].demand = new_demand
+
+    def getModeSpeed(self, mode: str) -> float:
+        return self._data[mode].demand_characteristics.passenger_flow
 
 def getDefaultDemandCharacteristics(mode):
     """

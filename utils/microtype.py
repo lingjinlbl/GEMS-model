@@ -7,33 +7,6 @@ import utils.IO as io
 import copy
 
 
-# def
-
-
-def getDefaultDemandCharacteristics(mode, network_params: io.Network):
-    """
-
-    :param mode: str
-    :param network_params: dict
-    :return: io.DemandCharacteristics
-    """
-    if mode == 'car':
-        return io.DemandCharacteristics(network_params.getBaseSpeed(), 0.0)
-    elif mode == 'bus':
-        return io.BusDemandCharacteristics(network_params.getBaseSpeed(), 0.0, 0.0, 0.0, 0.0)
-    else:
-        return io.DemandCharacteristics(network_params.getBaseSpeed(), 0.0)
-
-
-def getDefaultSupplyCharacteristics():
-    print('DEFAULT')
-    return io.SupplyCharacteristics(0.0, 0.0, 0.0)
-
-
-def giveAverageDensities(d1, d2):
-    return {mode: (d1[mode] + d2[mode]) / 2. for mode in d1.keys()}
-
-
 class Microtype:
     def __init__(self, network_params: io.Network, mode_characteristics: io.CollectedModeCharacteristics):
         self.modes = mode_characteristics.getModes()
@@ -113,7 +86,7 @@ class Microtype:
         self.setSpeed(newSpeed)
 
     def getFlows(self):
-        return [np.nan_to_num(np.max([self._modeDemandCharacteristics[mode].get('passengerFlow'), 0.0])) for mode in
+        return [np.nan_to_num(np.max([self.getModeFlow(mode), 0.0])) for mode in
                 self.modes]
 
     def getSpeeds(self):
