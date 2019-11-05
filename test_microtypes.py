@@ -57,13 +57,17 @@ p3 = plt.contour(bus_demands, car_demands, g1[0] / g1[1] - g2[0] / g2[1], 0, lin
 
 
 
-totalDemand = 0.16
-portions = np.arange(0.5, 1.0, 0.02)
+totalDemand = 0.18
+portions = np.arange(0.65, 0.8, 0.005)
 oneDemandCosts = np.zeros(np.shape(portions))
 
+
 bus_params = io.BusParams(mean_trip_distance=1000, road_network_fraction=500, relative_length=3.0,
-                                  fixed_density=95. / 100., min_stop_time=15., stop_spacing=1. / 250.,
+                                  fixed_density=100. / 100., min_stop_time=15., stop_spacing=1. / 250.,
                                   passenger_wait=5.)
+
+modeCharacteristics = io.CollectedModeCharacteristics()
+modeCharacteristics['car'] = io.ModeCharacteristics('car', car_params_default, demand=70 / (10 * 60))
 modeCharacteristics['bus'] = io.ModeCharacteristics('bus', bus_params, demand=17 / (10 * 60))
 
 for ii in range(np.size(portions)):
@@ -74,24 +78,28 @@ for ii in range(np.size(portions)):
     m.findEquilibriumDensityAndSpeed()
     oneDemandCosts[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
 
-totalDemand = 0.16
-portions = np.arange(0.5, 1.0, 0.02)
+totalDemand = 0.18
+portions = np.arange(0.65, 0.8, 0.005)
 oneDemandCosts2 = np.zeros(np.shape(portions))
 
 bus_params = io.BusParams(mean_trip_distance=1000, road_network_fraction=500, relative_length=3.0,
                                   fixed_density=85. / 100., min_stop_time=15., stop_spacing=1. / 250.,
                                   passenger_wait=5.)
+modeCharacteristics = io.CollectedModeCharacteristics()
+modeCharacteristics['car'] = io.ModeCharacteristics('car', car_params_default, demand=70 / (10 * 60))
 modeCharacteristics['bus'] = io.ModeCharacteristics('bus', bus_params, demand=17 / (10 * 60))
 
-fig2 = plt.figure(figsize=(8, 5))
-plt.plot(portions, oneDemandCosts)
-
 for ii in range(np.size(portions)):
-
     modeCharacteristics.setModeDemand('car',  portions[ii] * totalDemand)
     modeCharacteristics.setModeDemand('bus', (1. - portions[ii]) * totalDemand)
     m = Microtype(network_params_default, modeCharacteristics)
     m.findEquilibriumDensityAndSpeed()
     oneDemandCosts2[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
 
-plt.plot(portions, oneDemandCosts2)
+fig2 = plt.figure(figsize=(7, 4))
+plt.plot(portions, oneDemandCosts, label = "More buses")
+plt.plot(portions, oneDemandCosts2, label = "Fewer buses")
+
+plt.legend()
+plt.xlabel('Portion of trips by car')
+plt.ylabel('System average cost')
