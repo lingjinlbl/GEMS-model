@@ -19,10 +19,9 @@ def getBusdwellTime(v, params_bus, modeDemand):
 def getModeDemandCharacteristics(baseSpeed, mode, modeCharacteristics: io.ModeCharacteristics):
     """
 
+    :param modeCharacteristics:
     :param baseSpeed: float
-    :type modeDemand: float
     :type mode: str
-    :type modeParams: io.ModeParams
     :return: io.DemandCharacteristics
     """
     modeParams = modeCharacteristics.params

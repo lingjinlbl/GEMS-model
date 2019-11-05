@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-import numpy as np
-from utils import microtype
-from utils import supply
-import matplotlib.pyplot as plt
 import utils.IO as io
 
 from utils.microtype import Microtype

@@ -28,6 +28,7 @@ class Network:
         else:
             return np.nan
 
+
 class ModeParams:
     def __init__(self, mean_trip_distance, road_network_fraction=1.0, relative_length=1.0):
         self.mean_trip_distance = mean_trip_distance
@@ -105,6 +106,7 @@ class ModeCharacteristics:
     def setDemandCharacteristics(self, demand_characteristics: DemandCharacteristics):
         self.demand_characteristics = demand_characteristics
 
+
 class CollectedModeCharacteristics:
     def __init__(self):
         self._data = dict()
@@ -121,11 +123,11 @@ class CollectedModeCharacteristics:
     def __str__(self):
         return str([str(self._data[key]) for key in self._data])
 
+
 def getDefaultDemandCharacteristics(mode):
     """
 
     :param mode: str
-    :param network_params: dict
     :return: io.DemandCharacteristics
     """
     if mode == 'car':

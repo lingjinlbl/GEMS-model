@@ -91,11 +91,6 @@ class Microtype:
             [self.getModeCharacteristics(mode).supply_characteristics.getL() for mode in self.modes])
         return self.network_params.MFD(N_eq, L_eq)
 
-    def setDemand(self, demands):
-        self._demands = demands
-        self.updateSupplyCharacteristics()
-        self.updateDemandCharacteristics()
-
     def setSpeed(self, speed):
         self._baseSpeed = speed
         self.updateDemandCharacteristics()
