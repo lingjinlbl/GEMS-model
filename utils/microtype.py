@@ -3,26 +3,31 @@
 
 import numpy as np
 import utils.supply as supply
+import utils.IO as io
+import copy
 
 
 # def
 
 
-def getDefaultDemandCharacteristics(mode, network_params):
+def getDefaultDemandCharacteristics(mode, network_params: io.Network):
+    """
+
+    :param mode: str
+    :param network_params: dict
+    :return: io.DemandCharacteristics
+    """
     if mode == 'car':
-        return {'speed': network_params['u_f'], 'passengerFlow': 0}
+        return io.DemandCharacteristics(network_params.getBaseSpeed(), 0.0)
     elif mode == 'bus':
-        return {'speed': network_params['u_f'],
-                'dwellTime': 0,
-                'headway': 0,
-                'occupancy': 0,
-                'passengerFlow': 0}
+        return io.BusDemandCharacteristics(network_params.getBaseSpeed(), 0.0, 0.0, 0.0, 0.0)
     else:
-        return {'speed': network_params['u_f'], 'passengerFlow': 0}
+        return io.DemandCharacteristics(network_params.getBaseSpeed(), 0.0)
 
 
 def getDefaultSupplyCharacteristics():
-    return {'density': 0.0, 'N_eq': 0.0, 'L_eq': 0.0}
+    print('DEFAULT')
+    return io.SupplyCharacteristics(0.0, 0.0, 0.0)
 
 
 def giveAverageDensities(d1, d2):
@@ -30,45 +35,61 @@ def giveAverageDensities(d1, d2):
 
 
 class Microtype:
-    def __init__(self, modes, mode_params, network_params, demands):
-        self.modes = modes
+    def __init__(self, network_params: io.Network, mode_characteristics: io.CollectedModeCharacteristics):
+        self.modes = mode_characteristics.getModes()
         self.network_params = network_params
-        self.mode_params = mode_params
-        self._baseSpeed = network_params['u_f']
-        self._modeDemandCharacteristics = {mode: getDefaultDemandCharacteristics(mode, network_params) for mode in
-                                           modes}
-        self._modeSupplyCharacteristics = {mode: getDefaultSupplyCharacteristics() for mode in modes}
-        self._demands = {mode: 0.0 for mode in modes}
-        self.setDemand(demands)
+        self._baseSpeed = network_params.getBaseSpeed()
+        self._mode_characteristics = mode_characteristics
+        self.updateSupplyCharacteristics()
+        self.updateDemandCharacteristics()
 
-    def copy(self):
-        out = Microtype(self.modes, self.mode_params, self.network_params, self._demands)
-        out.setSpeed(self._baseSpeed)
-        return out
+    def getModeSpeed(self, mode) -> float:
+        return self.getModeCharacteristics(mode).demand_characteristics.getSpeed()
+
+    def getModeFlow(self, mode) -> float:
+        return self.getModeCharacteristics(mode).demand_characteristics.passenger_flow
+
+    def getModeDemand(self, mode):
+        return self.getModeCharacteristics(mode).demand
+
+    def getModeCharacteristics(self, mode: str) -> io.ModeCharacteristics:
+        return self._mode_characteristics[mode]
+
+    def getModeMeanDistance(self, mode: str):
+        return self.getModeCharacteristics(mode).params.mean_trip_distance
+
+    def setModeSupplyCharacteristics(self, mode: str, supply_characteristics: io.SupplyCharacteristics):
+        self.getModeCharacteristics(mode).setSupplyCharacteristics(supply_characteristics)
+
+    def setModeDemandCharacteristics(self, mode: str, demand_characteristics: io.DemandCharacteristics):
+        self.getModeCharacteristics(mode).setDemandCharacteristics(demand_characteristics)
+
+    def getModeDensity(self, mode):
+        mc = self.getModeCharacteristics(mode)
+        fixed_density = mc.params.getFixedDensity()
+        littles_law_density = mc.demand * mc.params.mean_trip_distance / mc.demand_characteristics.getSpeed()
+        return fixed_density or littles_law_density
 
     def updateDemandCharacteristics(self):
         for mode in self.modes:
-            self._modeDemandCharacteristics[mode] = supply.getModeDemandCharacteristics(self._baseSpeed, mode,
-                                                                                        self.mode_params[mode],
-                                                                                        self._demands[mode])
+            self.setModeDemandCharacteristics(mode,
+                                              copy.deepcopy(supply.getModeDemandCharacteristics(self._baseSpeed, mode,
+                                                                                                self.getModeCharacteristics(
+                                                                                                    mode))))
 
     def updateSupplyCharacteristics(self):
         for mode in self.modes:
-            k = self.mode_params[mode].get('k')
-            littlesLawDensity = self._demands[mode] * self.mode_params[mode].get('meanTripDistance') / (
-                    self._modeDemandCharacteristics[mode].get('speed') or np.nan)
-            density = k or littlesLawDensity
+            density = self.getModeDensity(mode)
             L_eq = supply.getModeBlockedDistance(self, mode)
-            N_eq = (self.mode_params[mode].get('size') or 1.0) * density
-            supplyCharacteristics = {'density': density, 'N_eq': N_eq, 'L_eq': L_eq}
-            self._modeSupplyCharacteristics[mode] = supplyCharacteristics
+            N_eq = (self.getModeCharacteristics(mode).params.size or 1.0) * density
+            supplyCharacteristics = io.SupplyCharacteristics(density, N_eq, L_eq)
+            self.setModeSupplyCharacteristics(mode, supplyCharacteristics)
 
     def getNewSpeedFromDensities(self):
-        N_eq = np.sum([self._modeSupplyCharacteristics[mode].get('N_eq') for mode in self.modes])
-        L_eq = self.network_params['L'] - np.sum(
-            [self._modeSupplyCharacteristics[mode].get('N_eq') for mode in self.modes])
-        print('MFD: ', N_eq, L_eq)
-        return supply.MFD(N_eq, L_eq, self.network_params)
+        N_eq = np.sum([self.getModeCharacteristics(mode).supply_characteristics.getN() for mode in self.modes])
+        L_eq = self.network_params.L - np.sum(
+            [self.getModeCharacteristics(mode).supply_characteristics.getL() for mode in self.modes])
+        return self.network_params.MFD(N_eq, L_eq)
 
     def setDemand(self, demands):
         self._demands = demands
@@ -80,19 +101,18 @@ class Microtype:
         self.updateDemandCharacteristics()
 
     def findEquilibriumDensityAndSpeed(self):
-        newData = self.copy()
-        oldData = self.copy()
+        newData = copy.deepcopy(self)
+        oldData = copy.deepcopy(self)
         keepGoing = True
         ii = 0
         while keepGoing:
             newSpeed = newData.getNewSpeedFromDensities()
-            print(newData._modeDemandCharacteristics)
-            print(newData._modeSupplyCharacteristics)
+            print(str(newData._mode_characteristics))
             print('New Speed: ', newSpeed)
             newData.setSpeed(newSpeed)
             newData.updateSupplyCharacteristics()
             keepGoing = (np.abs(newData._baseSpeed - oldData._baseSpeed) > 0.001) & (ii < 20)
-            oldData = newData.copy()
+            oldData = copy.deepcopy(newData)
             if ii == 20:
                 newSpeed = 0.0
         self.setSpeed(newSpeed)
@@ -102,14 +122,14 @@ class Microtype:
                 self.modes]
 
     def getSpeeds(self):
-        return [self._modeDemandCharacteristics[mode].get('speed') for mode in self.modes]
+        return [self.getModeSpeed(mode) for mode in self.modes]
 
     def getDemands(self):
-        return [self._demands[mode] for mode in self.modes]
+        return [self.getModeDemand(mode) for mode in self.modes]
 
     def getTravelTimes(self):
         speeds = self.getSpeeds()
-        distances = [self.mode_params[mode].get('meanTripDistance') for mode in self.modes]
+        distances = [self.getModeMeanDistance(mode) for mode in self.modes]
         return np.array(distances) / np.array(speeds)
 
     def getTotalTimes(self):

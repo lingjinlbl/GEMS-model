@@ -1,78 +1,61 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import utils.IO as io
 
-
-def MFD(N_eq, L_eq, params):
-    maxDensity = 0.25
-    if (N_eq/L_eq < maxDensity) & (N_eq/L_eq > 0.0):
-        l = params['lambda']
-        u = params['u_f']
-        Q = params['Q']
-        w = params['w']
-        k = params['kappa']
-        noCongestionN = (k * L_eq * w - L_eq * Q) / (u + w)
-        N_eq = np.clip(N_eq, noCongestionN, None)
-        v = - L_eq * l / N_eq * np.log(
-            np.exp(- u * N_eq / (L_eq * l)) +
-            np.exp(- Q / l) +
-            np.exp(-(k - N_eq / L_eq) * w / l))
-        return np.maximum(v, 0.0)
-    else:
-        return np.nan
 
 
 def getBusdwellTime(v, params_bus, modeDemand):
     if v > 0:
-        out = 1. / (params_bus['s_b'] * v) * (
-                v * params_bus['k'] * params_bus['t_0'] * params_bus['s_b'] +
-                params_bus['gamma_s'] * 2 * modeDemand) / (
-                      params_bus['k'] - params_bus['gamma_s'] * 2 * modeDemand)
+        out = 1. / (params_bus.s_b * v) * (
+                v * params_bus.k * params_bus.t_0 * params_bus.s_b +
+                params_bus.gamma_s * 2 * modeDemand) / (
+                      params_bus.k - params_bus.gamma_s * 2 * modeDemand)
     else:
         out = np.nan
     return out
 
 
-def getModeDemandCharacteristics(baseSpeed, mode, modeParams, modeDemand):
+def getModeDemandCharacteristics(baseSpeed, mode, modeCharacteristics: io.ModeCharacteristics):
     """
 
     :param baseSpeed: float
     :type modeDemand: float
     :type mode: str
-    :type modeParams: dict
-    :return: float
+    :type modeParams: io.ModeParams
+    :return: io.DemandCharacteristics
     """
+    modeParams = modeCharacteristics.params
+    modeDemand = modeCharacteristics.demand
     if mode == 'car':
-        return {'speed': baseSpeed,
-                'passengerFlow': modeDemand * modeParams['meanTripDistance']}
+        return io.DemandCharacteristics(baseSpeed, modeDemand * modeParams.mean_trip_distance)
     elif mode == 'bus':
+        assert (isinstance(modeParams, io.BusParams))
         dwellTime = getBusdwellTime(baseSpeed, modeParams, modeDemand)
         if dwellTime > 0:
-            speed = baseSpeed / (1 + dwellTime * baseSpeed * modeParams['s_b'])
-            headway = modeParams['L_mode'] / speed
+            speed = baseSpeed / (1 + dwellTime * baseSpeed * modeParams.s_b)
+            headway = modeParams.road_network_fraction / speed
         else:
             speed = 0.0
             headway = np.nan
 
         if (dwellTime > 0) & (baseSpeed > 0):
-            passengerFlow: float = modeDemand * modeParams['meanTripDistance']
-            occupancy: float = passengerFlow / modeParams['k'] / speed
+            passengerFlow: float = modeDemand * modeParams.mean_trip_distance
+            occupancy: float = passengerFlow / modeParams.k / speed
         else:
             passengerFlow: float = 0.0
             occupancy: float = np.nan
 
-        return {'speed': speed,
-                'dwellTime': dwellTime,
-                'headway': headway,
-                'occupancy': occupancy,
-                'passengerFlow': passengerFlow}
+        return io.BusDemandCharacteristics(speed, passengerFlow, dwellTime, headway, occupancy)
+
     else:
-        return baseSpeed
+        return io.DemandCharacteristics(baseSpeed, modeDemand * modeParams.mean_trip_distance)
 
 
 def getModeBlockedDistance(microtype, mode):
     """
 
+    :rtype: float
     :param microtype: Microtype
     :param mode: str
     :return: float
@@ -80,11 +63,10 @@ def getModeBlockedDistance(microtype, mode):
     if mode == 'car':
         return 0.0
     elif mode == 'bus':
-        modeParams = microtype.mode_params[mode]
-        modeSpeed = microtype._modeDemandCharacteristics[mode].get('speed')
-        modeDemand = microtype._demands[mode]
+        modeParams = microtype.getModeCharacteristics(mode).params
+        modeSpeed = microtype.getModeSpeed(mode)
+        modeDemand = microtype.getModeDemand(mode)
         dwellTime = getBusdwellTime(microtype._baseSpeed, modeParams, modeDemand)
-        return microtype.network_params['l'] * modeParams['L_mode'] * modeParams['s_b'] * modeParams[
-            'k'] * dwellTime * modeSpeed
+        return microtype.network_params.l * modeParams.road_network_fraction * modeParams.s_b * modeParams.k * dwellTime * modeSpeed /microtype.network_params.L
     else:
         return 0.0
