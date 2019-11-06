@@ -113,6 +113,8 @@ class ModeCharacteristics:
         return self.demand_characteristics.passenger_flow
 
 
+
+
 class CollectedModeCharacteristics:
     def __init__(self):
         self._data = dict()
@@ -131,6 +133,9 @@ class CollectedModeCharacteristics:
 
     def setModeDemand(self, mode: str, new_demand: float):
         self._data[mode].demand = new_demand
+
+    def addModeDemand(self, mode: str, demand: float):
+        self._data[mode].demand += demand
 
     def getModeSpeed(self, mode: str) -> float:
         return self._data[mode].demand_characteristics.passenger_flow
