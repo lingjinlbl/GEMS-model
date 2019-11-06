@@ -20,9 +20,9 @@ m = Microtype(network_params_default, modeCharacteristics)
 ODtest = od.OD(m, m)
 
 DUtest = od.DemandUnit(distance=1000, demand=0.1, allocation=od.Allocation({m: 1.0}),
-                       mode_split=od.ModeSplit({'car': 0.5, 'bus': 0.5}))
+                       mode_split=od.ModeSplit({'car': 0.75, 'bus': 0.25}))
 
 DUtest2 = od.DemandUnit(distance=2000, demand=0.1, allocation=od.Allocation({m: 1.0}),
-                       mode_split=od.ModeSplit({'car': 0.5, 'bus': 0.5}))
+                       mode_split=od.ModeSplit({'car': 0.75, 'bus': 0.25}))
 ODtest.append(DUtest)
 ODtest.append(DUtest2)

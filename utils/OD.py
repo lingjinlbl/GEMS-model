@@ -6,9 +6,9 @@ from typing import Dict, List
 class Allocation:
     def __init__(self, mapping=None):
         if mapping is None:
-            self._mapping = Dict[Microtype,float]
+            self._mapping = Dict[Microtype, float]
         else:
-            assert(isinstance(mapping, Dict))
+            assert (isinstance(mapping, Dict))
             self._mapping = mapping
 
     def __setitem__(self, key, value):
@@ -38,6 +38,7 @@ class ModeSplit:
     def keys(self):
         return self._mapping.keys()
 
+
 class DemandUnit:
     def __init__(self, distance: float, demand: float, allocation=None, mode_split=None):
         if allocation is None:
@@ -56,8 +57,15 @@ class DemandUnit:
         return self.allocation[item]
 
 
+class ODindex:
+    def __init__(self, o: Microtype, d: Microtype, distBin: int):
+        self.o = o
+        self.d = d
+        self.distBin = distBin
+
+
 class OD:
-    def __init__(self, origin_microtype: Microtype, destination_microtype:Microtype, distance_bins=None):
+    def __init__(self, origin_microtype: Microtype, destination_microtype: Microtype, distance_bins=None):
         if distance_bins is None:
             distance_bins = []
         else:

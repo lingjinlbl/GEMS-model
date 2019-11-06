@@ -28,6 +28,9 @@ class Microtype:
     def addModeDemand(self, mode, demand):
         self._mode_characteristics.addModeDemand(mode, demand)
 
+    def setModeDemand(self, mode, demand):
+        self._mode_characteristics.setModeDemand(mode, demand)
+
     def getModeCharacteristics(self, mode: str) -> io.ModeCharacteristics:
         return self._mode_characteristics[mode]
 
