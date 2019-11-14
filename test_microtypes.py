@@ -13,8 +13,8 @@ bus_params_default = BusParams(mean_trip_distance=1000, road_network_fraction=10
 car_params_default = ModeParams(mean_trip_distance=1000, relative_length=1.0)
 
 modeCharacteristics = CollectedModeCharacteristics()
-modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default, demand=70 / (10 * 60))
-modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default, demand=17 / (10 * 60))
+modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
+modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default)
 
 m = Microtype(network_params_default, modeCharacteristics)
 m.setModeDemand('car', 70 / (10 * 60), 1000.0)

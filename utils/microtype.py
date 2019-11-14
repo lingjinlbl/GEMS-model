@@ -10,7 +10,7 @@ import utils.supply as supply
 
 
 class ModeCharacteristics:
-    def __init__(self, mode_name: str, params: supply.ModeParams, demand: float):
+    def __init__(self, mode_name: str, params: supply.ModeParams, demand: float = 0.0):
         self.mode_name = mode_name
         self.params = params
         self.demand_characteristics = getDefaultDemandCharacteristics(mode_name)
@@ -18,7 +18,8 @@ class ModeCharacteristics:
         self.demand = demand
 
     def __str__(self):
-        return self.mode_name.upper() + ': ' + str(self.demand_characteristics) + ', ' + str(self.supply_characteristics)
+        return self.mode_name.upper() + ': ' + str(self.demand_characteristics) + ', ' + str(
+            self.supply_characteristics)
 
     def setSupplyCharacteristics(self, supply_characteristics: supply.SupplyCharacteristics):
         self.supply_characteristics = supply_characteristics
@@ -180,35 +181,27 @@ class Microtype:
         print('Modes:')
         print(self.modes)
         print('Supply Characteristics:')
-        print(self._modeSupplyCharacteristics)
+        print(self._mode_characteristics)
         print('Demand Characteristics:')
-        print(self._modeDemandCharacteristics)
-        print('Demand Density:')
-        print(self._demands)
+        print(self._travel_demand)
         print('------------')
 
 
 def main():
-    network_params_default = {'lambda': 0.068,
-                              'u_f': 15.42,
-                              'w': 1.88,
-                              'kappa': 0.145,
-                              'Q': 0.177,
-                              'L': 100,
-                              'l': 50}
-    bus_params_default = {'k': 1. / 100.,
-                          't_0': 10,
-                          's_b': 1. / 250.,
-                          'gamma_s': 5.,
-                          'size': 3.0,
-                          'meanTripDistance': 1000,
-                          'L_mode': 25
-                          }
-    car_params_default = {'meanTripDistance': 1000, 'size': 1.0}
-    modes = {'car', 'bus'}
-    mode_params_default = {'car': car_params_default, 'bus': bus_params_default}
-    demands = {'car': 5. / (10 * 60), 'bus': 1. / (100 * 60)}
-    m = Microtype(modes, mode_params_default, network_params_default, demands)
+    network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
+    bus_params_default = BusParams(mean_trip_distance=1000, road_network_fraction=1000, relative_length=3.0,
+                                   fixed_density=150. / 100., min_stop_time=15., stop_spacing=1. / 500.,
+                                   passenger_wait=5.)
+
+    car_params_default = ModeParams(mean_trip_distance=1000, relative_length=1.0)
+
+    modeCharacteristics = CollectedModeCharacteristics()
+    modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
+    modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default)
+
+    m = Microtype(network_params_default, modeCharacteristics)
+    m.setModeDemand('car', 70 / (10 * 60), 1000.0)
+    m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
     m.print()
 
 
