@@ -10,12 +10,23 @@ from utils.microtype import Microtype
 from typing import Dict, List
 
 class Geotype:
-    def __init__(self, microtypes = None):
+    def __init__(self, distbins:Dict[int, float], microtypes = None):
         if microtypes is None:
             self._microtypes = []
         else:
-            self._microtypes = microtypes
-        self.demand_structure = Dict[od.ODindex,od.DemandUnit]
+            print('NOT READY YET')
+            self._microtypes = List[Microtype]()
+        self.demand_structure = dict()
+        self.distbins = distbins
+
+    def init_ODs(self):
+        for m_o in self._microtypes:
+            for m_d in self._microtypes:
+                for distbin in self.distbins.keys():
+                    odi = od.ODindex(m_o, m_d, distbin)
+                    du_default = od.DemandUnit(distance=self.distbins[distbin], demand=0.0)
+                    self.demand_structure[odi] = du_default
+
 
     def appendMicrotype(self, microtype: Microtype):
         self._microtypes.append(microtype)
