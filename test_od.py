@@ -8,8 +8,8 @@ from utils.geotype import Geotype
 
 network_params = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
 bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
-                                  fixed_density=95. / 100., min_stop_time=15., stop_spacing=1. / 250.,
-                                  passenger_wait=5.)
+                               fixed_density=95. / 100., min_stop_time=15., stop_spacing=1. / 250.,
+                               passenger_wait=5.)
 
 car_params_default = ModeParams(relative_length=1.0)
 
@@ -28,6 +28,10 @@ DUtest = od.DemandUnit(distance=1000, demand=0.1, allocation=od.Allocation({m: 1
 
 ODtest.append(DUtest)
 
-g = Geotype(distbins={0: 1000.0, 1: 2000})
+distbins = {0: 1000.0, 1: 2000}
+demandbydistbin = {0: 40 / 600., 1: 40 / 600.}
+
+g = Geotype(distbins=distbins)
 g.appendMicrotype(m)
-#g.appendDemandData(ODtest)
+g.appendDemandData(od.ODindex(m, m, 0), od.DemandUnit(distbins[0], demandbydistbin[0], od.Allocation({m: 1.0})))
+g.appendDemandData(od.ODindex(m, m, 1), od.DemandUnit(distbins[1], demandbydistbin[1], od.Allocation({m: 1.0})))

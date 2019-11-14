@@ -44,7 +44,7 @@ class DemandUnit:
         if allocation is None:
             allocation = Allocation()
         if mode_split is None:
-            mode_split = ModeSplit
+            mode_split = ModeSplit({'car': 1.0})
         self.distance = distance
         self.demand = demand
         self.allocation = allocation
@@ -63,6 +63,17 @@ class ODindex:
         self.d = d
         self.distBin = distBin
 
+    def __eq__(self, other):
+        if isinstance(other, ODindex):
+            if (self.o == other.o) & (self.distBin == other.distBin) & (self.d == other.d):
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def __hash__(self):
+        return hash((self.o, self.d, self.distBin))
 
 class OD:
     def __init__(self, origin_microtype: Microtype, destination_microtype: Microtype, distance_bins=None):
