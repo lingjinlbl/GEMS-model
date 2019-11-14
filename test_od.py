@@ -21,17 +21,16 @@ m = Microtype(network_params, modeCharacteristics)
 m.setModeDemand('car', 70 / (10 * 60), 1000.0)
 m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
 
-ODtest = od.OD(m, m)
-
 DUtest = od.DemandUnit(distance=1000, demand=0.1, allocation=od.Allocation({m: 1.0}),
                        mode_split=od.ModeSplit({'car': 0.75, 'bus': 0.25}))
 
-ODtest.append(DUtest)
-
 distbins = {0: 1000.0, 1: 2000}
 demandbydistbin = {0: 40 / 600., 1: 40 / 600.}
+all_car = od.ModeSplit({'car': 1.0})
+split = od.ModeSplit({'car': 0.8, 'bus': 0.2})
 
 g = Geotype(distbins=distbins)
-g.appendMicrotype(m)
-g.appendDemandData(od.ODindex(m, m, 0), od.DemandUnit(distbins[0], demandbydistbin[0], od.Allocation({m: 1.0})))
-g.appendDemandData(od.ODindex(m, m, 1), od.DemandUnit(distbins[1], demandbydistbin[1], od.Allocation({m: 1.0})))
+g += m
+g.appendDemandData(od.ODindex(m, m, 0), od.DemandUnit(distbins[0], demandbydistbin[0], od.Allocation({m: 1.0}), split))
+g.appendDemandData(od.ODindex(m, m, 1),
+                   od.DemandUnit(distbins[1], demandbydistbin[1], od.Allocation({m: 1.0}), all_car))

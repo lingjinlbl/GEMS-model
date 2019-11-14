@@ -30,6 +30,14 @@ class Geotype:
     def appendMicrotype(self, microtype: Microtype):
         self._microtypes.append(microtype)
 
+    def __iadd__(self, other):
+        if isinstance(other, Microtype):
+            self.appendMicrotype(other)
+            return self
+        else:
+            print('BAD NEWS, BUDDY')
+            return self
+
     def appendDemandData(self, odi: od.ODindex, demand: od.DemandUnit):
         self.demand_structure[odi] = demand
 
@@ -37,3 +45,19 @@ class Geotype:
         for microtype in self._microtypes:
             for mode in microtype.modes:
                 microtype.setModeDemand(mode, 0.)
+
+    def allocateDemandToMicrotypes(self):
+        for mt in self._microtypes:
+            assert (isinstance(mt, Microtype))
+            mt.resetDemand()
+        for odi in self.demand_structure.keys():
+            du = self.demand_structure[odi]
+            assert (isinstance(du, od.DemandUnit))
+            assert (isinstance(odi, od.ODindex))
+            for mode in du.mode_split.keys():
+                odi.o.addModeStarts(mode, du.demand * du.mode_split[mode])
+                odi.d.addModeEnds(mode, du.demand * du.mode_split[mode])
+                for mt in du.allocation.keys():
+                    assert (isinstance(mt, Microtype))
+                    mt.addModeDemandForPMT(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
+                                           self.distbins[odi.distBin])

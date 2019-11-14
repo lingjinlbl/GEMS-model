@@ -74,33 +74,3 @@ class ODindex:
 
     def __hash__(self):
         return hash((self.o, self.d, self.distBin))
-
-class OD:
-    def __init__(self, origin_microtype: Microtype, destination_microtype: Microtype, distance_bins=None):
-        if distance_bins is None:
-            distance_bins = []
-        else:
-            assert (isinstance(distance_bins, List[DemandUnit]))
-        self.origin = origin_microtype
-        self.destination = destination_microtype
-        self.distance_bins = distance_bins
-
-    def __setitem__(self, key, value: DemandUnit):
-        self.distance_bins[key] = value
-
-    def __len__(self):
-        return len(self.distance_bins)
-
-    def __getitem__(self, item):
-        return self.distance_bins[item]
-
-    def append(self, demand_unit: DemandUnit):
-        self.distance_bins.append(demand_unit)
-
-    def updateDemandInMicrotypes(self):
-        for dist_bin in self.distance_bins:
-            assert (isinstance(dist_bin, DemandUnit))
-            mode_split = dist_bin.mode_split
-            for microtype in dist_bin.allocation.keys():
-                for mode in mode_split.keys():
-                    microtype.addModeDemand(mode, dist_bin.demand * mode_split[mode])

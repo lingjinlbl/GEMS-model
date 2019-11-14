@@ -82,11 +82,20 @@ class Microtype:
     def getModeDemandForPMT(self, mode):
         return self._travel_demand.getRateOfPMT(mode)
 
-    def addModeDemand(self, mode, demand):
-        self._mode_characteristics.addModeDemand(mode, demand)
+    def addModeStarts(self, mode, demand):
+        self._travel_demand.addModeStarts(mode, demand)
+
+    def addModeEnds(self, mode, demand):
+        self._travel_demand.addModeEnds(mode, demand)
+
+    def addModeDemandForPMT(self, mode, demand, trip_distance):
+        self._travel_demand.addModePMT(mode, demand, trip_distance)
 
     def setModeDemand(self, mode, demand, trip_distance):
         self._travel_demand.setSingleDemand(mode, demand, trip_distance)
+
+    def resetDemand(self):
+        self._travel_demand.resetDemand()
 
     def getModeCharacteristics(self, mode: str) -> ModeCharacteristics:
         return self._mode_characteristics[mode]

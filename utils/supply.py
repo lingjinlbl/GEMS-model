@@ -93,11 +93,30 @@ class TravelDemand:
     def getAverageDistance(self, mode: str):
         return self._averageDistanceInSystem[mode]
 
+    def resetDemand(self):
+        for mode in self._modes:
+            self._tripStartRate[mode] = 0.
+            self._tripEndRate[mode] = 0.
+            self._rateOfPMT[mode] = 0.
+
     def setSingleDemand(self, mode, demand: float, trip_distance: float):
         self._tripStartRate[mode] = demand
         self._tripEndRate[mode] = demand
         self._rateOfPMT[mode] = demand * trip_distance
         self._averageDistanceInSystem[mode] = trip_distance
+
+    def addModeStarts(self, mode: str, demand: float):
+        self._tripStartRate[mode] += demand
+
+    def addModeEnds(self, mode: str, demand: float):
+        self._tripEndRate[mode] += demand
+
+    def addModePMT(self, mode: str, demand: float, trip_distance: float):
+        current_demand = self._rateOfPMT[mode]
+        current_distance = self._averageDistanceInSystem[mode]
+        self._rateOfPMT[mode] += demand * trip_distance
+        self._averageDistanceInSystem[mode] = (current_demand * current_distance + demand * trip_distance) / (
+                    current_demand + demand)
 
     def __str__(self):
         return 'Start Rate: ' + str(
