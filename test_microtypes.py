@@ -2,7 +2,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from utils.Network import Network
-from utils.microtype import Microtype, BusParams, ModeParams, CollectedModeCharacteristics, ModeCharacteristics
+from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
+from utils.supply import BusParams, ModeParams
 
 network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
 bus_params_default = BusParams(mean_trip_distance=1000, road_network_fraction=1000, relative_length=3.0,
@@ -16,6 +17,8 @@ modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default, dema
 modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default, demand=17 / (10 * 60))
 
 m = Microtype(network_params_default, modeCharacteristics)
+m.setModeDemand('car', 70 / (10 * 60), 1000.0)
+m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
 
 total_demands = np.arange(0.02, 0.15, 0.002)
 mode_splits = np.arange(0.3, 1.0, 0.01)
@@ -28,9 +31,9 @@ for ii in range(np.size(total_demands)):
     for jj in range(np.size(mode_splits)):
         car_demand = total_demands[ii] * mode_splits[jj]
         bus_demand = total_demands[ii] * (1.0 - mode_splits[jj])
-        modeCharacteristics.setModeDemand('car', car_demand, 1000.0)
-        modeCharacteristics.setModeDemand('bus', bus_demand, 1000.0)
         m = Microtype(network_params_default, modeCharacteristics)
+        m.setModeDemand('car', car_demand, 1000.0)
+        m.setModeDemand('bus', bus_demand, 1000.0)
         m.findEquilibriumDensityAndSpeed()
         flows[ii, jj] = np.sum(m.getFlows())
         car_speeds[ii, jj] = m.getModeSpeed('car')

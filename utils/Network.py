@@ -1,3 +1,5 @@
+import numpy as np
+
 class Network:
     def __init__(self, smoothing, free_flow_speed, wave_velocity, jam_density, max_flow, network_length,
                  avg_link_length):
