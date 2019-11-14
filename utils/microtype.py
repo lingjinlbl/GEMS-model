@@ -149,6 +149,7 @@ class Microtype:
             newSpeed = newData.getNewSpeedFromDensities()
             print('New Speed: ', newSpeed)
             newData.setSpeed(newSpeed)
+            print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))
             keepGoing = (np.abs(newData._baseSpeed - oldData._baseSpeed) > 0.001) & (ii < 20)
             oldData = copy.deepcopy(newData)
             if ii == 20:
@@ -189,11 +190,11 @@ class Microtype:
 
 def main():
     network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
-    bus_params_default = BusParams(mean_trip_distance=1000, road_network_fraction=1000, relative_length=3.0,
+    bus_params_default = BusParams(road_network_fraction=1000, relative_length=3.0,
                                    fixed_density=150. / 100., min_stop_time=15., stop_spacing=1. / 500.,
                                    passenger_wait=5.)
 
-    car_params_default = ModeParams(mean_trip_distance=1000, relative_length=1.0)
+    car_params_default = ModeParams(relative_length=1.0)
 
     modeCharacteristics = CollectedModeCharacteristics()
     modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)

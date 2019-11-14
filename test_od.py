@@ -1,22 +1,25 @@
 import utils.IO as io
 import utils.OD as od
-from utils.IO import CollectedModeCharacteristics
 
-from utils.microtype import Microtype
+from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
+from utils.supply import ModeParams, BusParams
+from utils.Network import Network
 from utils.geotype import Geotype
 
-network_params = io.Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
-bus_params_default = io.BusParams(mean_trip_distance=1000, road_network_fraction=500, relative_length=3.0,
+network_params = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
+bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
                                   fixed_density=95. / 100., min_stop_time=15., stop_spacing=1. / 250.,
                                   passenger_wait=5.)
 
-car_params_default = io.ModeParams(mean_trip_distance=1000, relative_length=1.0)
+car_params_default = ModeParams(relative_length=1.0)
 
-modeCharacteristics: CollectedModeCharacteristics = io.CollectedModeCharacteristics()
-modeCharacteristics['car'] = io.ModeCharacteristics('car', car_params_default, demand=0.)#70 / (10 * 60)
-modeCharacteristics['bus'] = io.ModeCharacteristics('bus', bus_params_default, demand=0.)#17 / (10 * 60)
+modeCharacteristics = CollectedModeCharacteristics()
+modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
+modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default)
 
 m = Microtype(network_params, modeCharacteristics)
+m.setModeDemand('car', 70 / (10 * 60), 1000.0)
+m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
 
 ODtest = od.OD(m, m)
 

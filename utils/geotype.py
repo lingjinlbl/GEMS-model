@@ -4,13 +4,13 @@ import utils.IO as io
 import copy
 import utils.IO as io
 import utils.OD as od
-from utils.IO import CollectedModeCharacteristics
+from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
 
-from utils.microtype import Microtype
 from typing import Dict, List
 
+
 class Geotype:
-    def __init__(self, distbins:Dict[int, float], microtypes = None):
+    def __init__(self, distbins: Dict[int, float], microtypes=None):
         if microtypes is None:
             self._microtypes = []
         else:
@@ -27,11 +27,10 @@ class Geotype:
                     du_default = od.DemandUnit(distance=self.distbins[distbin], demand=0.0)
                     self.demand_structure[odi] = du_default
 
-
     def appendMicrotype(self, microtype: Microtype):
         self._microtypes.append(microtype)
 
-    def appendDemandData(self, odi:od.ODindex, demand:od.DemandUnit):
+    def appendDemandData(self, odi: od.ODindex, demand: od.DemandUnit):
         self.demand_structure[odi] = demand
 
     def resetDemand(self):

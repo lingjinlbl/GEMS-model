@@ -2,8 +2,7 @@
 
 
 class ModeParams:
-    def __init__(self, mean_trip_distance, road_network_fraction=1.0, relative_length=1.0):
-        self.mean_trip_distance = mean_trip_distance
+    def __init__(self, road_network_fraction=1.0, relative_length=1.0):
         self.road_network_fraction = road_network_fraction
         self.size = relative_length
 
@@ -15,10 +14,10 @@ class ModeParams:
 
 
 class BusParams(ModeParams):
-    def __init__(self, mean_trip_distance: float, road_network_fraction: float, relative_length: float,
+    def __init__(self, road_network_fraction: float, relative_length: float,
                  fixed_density: float, min_stop_time: float,
                  stop_spacing: float, passenger_wait: float) -> None:
-        super().__init__(mean_trip_distance, road_network_fraction, relative_length)
+        super().__init__(road_network_fraction, relative_length)
         self.k = fixed_density
         self.t_0 = min_stop_time
         self.s_b = stop_spacing
