@@ -9,6 +9,14 @@ from utils.supply import DemandCharacteristics, BusDemandCharacteristics, Travel
 import utils.supply as supply
 
 
+class Costs:
+    def __init__(self, per_meter, per_start, per_end, vott_multiplier):
+        self.per_meter = per_meter
+        self.per_start = per_start
+        self.per_end = per_end
+        self.vott_multiplier = vott_multiplier
+
+
 class ModeCharacteristics:
     def __init__(self, mode_name: str, params: supply.ModeParams, demand: float = 0.0):
         self.mode_name = mode_name
@@ -87,12 +95,16 @@ class CollectedModeCharacteristics:
 #        return self._data[mode].demand_characteristics.passenger_flow
 
 class Microtype:
-    def __init__(self, network_params: Network, mode_characteristics: CollectedModeCharacteristics):
+    def __init__(self, network_params: Network, mode_characteristics: CollectedModeCharacteristics,
+                 costs=None):
+        if costs is None:
+            costs = dict()
         self.modes = mode_characteristics.getModes()
         self.network_params = network_params
         self._baseSpeed = network_params.getBaseSpeed()
         self._mode_characteristics = mode_characteristics
         self._travel_demand = TravelDemand(self.modes)
+        self.costs = costs
         self.updateSupplyCharacteristics()
         self.updateDemandCharacteristics()
 
@@ -137,6 +149,27 @@ class Microtype:
 
     def setModeDemandCharacteristics(self, mode: str, demand_characteristics: supply.DemandCharacteristics):
         self.getModeCharacteristics(mode).setDemandCharacteristics(demand_characteristics)
+
+    def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
+        time = distance / self.getModeSpeed(mode) * self.costs[mode].vott_multiplier
+        cost = distance * self.costs[mode].per_meter
+        wait = 0.
+        return time, cost, wait
+
+    def getStartTimeCostWait(self, mode: str) -> (float, float, float):
+        time = 0.
+        cost = self.costs[mode].per_start
+        if mode == 'bus':
+            wait = self.getModeCharacteristics('bus').demand_characteristics.headway / 2.
+        else:
+            wait = 0.
+        return time, cost, wait
+
+    def getEndTimeCostWait(self, mode: str) -> (float, float, float):
+        time = 0.
+        cost = self.costs[mode].per_end
+        wait = 0.
+        return time, cost, wait
 
     def getModeDensity(self, mode):
         mc = self.getModeCharacteristics(mode)

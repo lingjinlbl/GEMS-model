@@ -95,6 +95,19 @@ class DemandUnit:
     def __getitem__(self, item: Microtype):
         return self.allocation[item]
 
+    def getChoiceCharacteristics(self) -> ModeCharacteristics:
+        mode_characteristics = ModeCharacteristics(list(self.mode_split.keys()))
+        for mode in self.mode_split.keys():
+            choice_characteristics = ChoiceCharacteristics()
+            for microtype in self.allocation.keys():
+                time, cost, wait = microtype.getThroughTimeCostWait(mode, self.distance * self.allocation[microtype])
+                choice_characteristics += ChoiceCharacteristics(time, cost, wait)
+                time, cost, wait = microtype.getStartTimeCostWait(mode)
+                choice_characteristics += ChoiceCharacteristics(time, cost, wait)
+                time, cost, wait = microtype.getEndTimeCostWait(mode)
+                choice_characteristics += ChoiceCharacteristics(time, cost, wait)
+            mode_characteristics[mode] = choice_characteristics
+        return mode_characteristics
 
 class ODindex:
     def __init__(self, o: Microtype, d: Microtype, distBin: int):

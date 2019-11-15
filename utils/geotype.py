@@ -80,3 +80,9 @@ class Geotype:
         for mt in self._microtypes:
             assert isinstance(mt, Microtype)
             mt.findEquilibriumDensityAndSpeed(iter_max)
+
+    def updateChoiceCharacteristics(self):
+        for odi in self.demand_structure.keys():
+            du = self.demand_structure[odi]
+            assert isinstance(du, od.DemandUnit)
+            self.mode_choice_characteristics[odi] = du.getChoiceCharacteristics()
