@@ -97,6 +97,7 @@ class CollectedModeCharacteristics:
 class Microtype:
     def __init__(self, network_params: Network, mode_characteristics: CollectedModeCharacteristics,
                  costs=None):
+        mode_characteristics = copy.deepcopy(mode_characteristics)
         if costs is None:
             costs = dict()
         self.modes = mode_characteristics.getModes()

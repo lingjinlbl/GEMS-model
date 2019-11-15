@@ -27,7 +27,8 @@ class Geotype:
                 assert isinstance(m_d, Microtype)
                 for distbin in self.distbins.keys():
                     odi = od.ODindex(m_o, m_d, distbin)
-                    du_default = od.DemandUnit(distance=self.distbins[distbin], demand=0.0)
+                    du_default = od.DemandUnit(distance=self.distbins[distbin], demand=0.0,
+                                               allocation=od.Allocation({m_o: 0.5, m_d: 0.5}))
                     self.demand_structure[odi] = du_default
                     modes = list(set(m_o.modes).intersection(m_d.modes))
                     choice_characteristics_default = od.ModeCharacteristics(modes)
