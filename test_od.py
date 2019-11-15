@@ -28,8 +28,8 @@ demandbydistbin = {0: 30 / 600., 1: 15 / 600., 2: 50 / 600.}
 modesplitbydistbin = {0: od.ModeSplit({'car': 0.75, 'bus': 0.25}), 1: od.ModeSplit({'car': 1.0}),
                       2: od.ModeSplit({'car': 0.75, 'bus': 0.25})}
 
-g = Geotype(distbins=distbins) + m
-#g.init_ODs()
+g = Geotype(distbins=distbins) + m + m2
+
 g.appendDemandData(od.ODindex(m, m, 0),
                    od.DemandUnit(distbins[0], demandbydistbin[0], od.Allocation({m: 1.0}), modesplitbydistbin[0]))
 g.appendDemandData(od.ODindex(m, m, 1),
