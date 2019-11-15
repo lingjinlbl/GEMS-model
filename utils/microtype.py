@@ -256,6 +256,8 @@ class Microtype:
         print(self._travel_demand)
         print('------------')
 
+    def __str__(self):
+        return 'Demand: ' + str(self._travel_demand) + ' , Speed: ' + str(self._baseSpeed)
 
 def main():
     network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)

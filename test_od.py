@@ -33,7 +33,7 @@ g = Geotype(distbins=distbins) + m + m2
 g.appendDemandData(od.ODindex(m, m, 0),
                    od.DemandUnit(distbins[0], demandbydistbin[0], od.Allocation({m: 1.0}), modesplitbydistbin[0]))
 g.appendDemandData(od.ODindex(m, m, 1),
-                   od.DemandUnit(distbins[1], demandbydistbin[1], od.Allocation({m: 1.0}), modesplitbydistbin[1]))
+                   od.DemandUnit(distbins[1], demandbydistbin[1], od.Allocation({m: 0.7, m2: 0.3}), modesplitbydistbin[1]))
 g.appendDemandData(od.ODindex(m, m2, 2),
                    od.DemandUnit(distbins[2], demandbydistbin[2], od.Allocation({m: 0.15, m2: 0.85}),
                                  modesplitbydistbin[2]))

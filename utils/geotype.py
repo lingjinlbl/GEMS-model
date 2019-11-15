@@ -87,3 +87,6 @@ class Geotype:
             du = self.demand_structure[odi]
             assert isinstance(du, od.DemandUnit)
             self.mode_choice_characteristics[odi] = du.getChoiceCharacteristics()
+
+    def __str__(self):
+        return 'Speeds: ' + str([str(mt._baseSpeed) + ' ,' for mt in self._microtypes])
