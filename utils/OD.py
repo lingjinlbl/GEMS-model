@@ -38,6 +38,45 @@ class ModeSplit:
     def keys(self):
         return self._mapping.keys()
 
+class ChoiceCharacteristics:
+    def __init__(self, travel_time=0., cost=0., wait_time=0.):
+        self.travel_time = travel_time
+        self.cost = cost
+        self.wait_time = wait_time
+
+    def __add__(self, other):
+        if isinstance(other, ChoiceCharacteristics):
+            self.travel_time += other.travel_time
+            self.cost += other.cost
+            self.wait_time += other.wait_time
+            return self
+        else:
+            print('TOUGH LUCK, BUDDY')
+            return self
+
+    def __iadd__(self, other):
+        if isinstance(other, ChoiceCharacteristics):
+            self.travel_time += other.travel_time
+            self.cost += other.cost
+            self.wait_time += other.wait_time
+            return self
+        else:
+            print('TOUGH LUCK, BUDDY')
+            return self
+
+class ModeCharacteristics:
+    def __init__(self, modes: List[str]):
+        self._modes = modes
+        self.characteristics = dict()
+        for mode in modes:
+            self.characteristics[mode] = ChoiceCharacteristics()
+
+    def __getitem__(self, item):
+        if item in self._modes:
+            return self.characteristics[item]
+
+    def __setitem__(self, key, value):
+        self.characteristics[key] = value
 
 class DemandUnit:
     def __init__(self, distance: float, demand: float, allocation=None, mode_split=None):

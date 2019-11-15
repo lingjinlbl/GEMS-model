@@ -112,11 +112,17 @@ class TravelDemand:
         self._tripEndRate[mode] += demand
 
     def addModePMT(self, mode: str, demand: float, trip_distance: float):
-        current_demand = self._rateOfPMT[mode]
-        current_distance = self._averageDistanceInSystem[mode]
+        try:
+            current_demand = self._rateOfPMT[mode]
+        except:
+            current_demand = 0.0
+        try:
+            current_distance = self._averageDistanceInSystem[mode]
+        except:
+            current_distance = 0.0
         self._rateOfPMT[mode] += demand * trip_distance
         self._averageDistanceInSystem[mode] = (current_demand * current_distance + demand * trip_distance) / (
-                    current_demand + demand)
+                current_demand + demand)
 
     def __str__(self):
         return 'Start Rate: ' + str(

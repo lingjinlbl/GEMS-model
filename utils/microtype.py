@@ -33,6 +33,16 @@ class ModeCharacteristics:
     def getFlow(self):
         return self.demand_characteristics.passenger_flow
 
+    def __add__(self, other):
+        if isinstance(other, CollectedModeCharacteristics):
+            other[self.mode_name] = self
+            return other
+        elif isinstance(other, ModeCharacteristics):
+            out = CollectedModeCharacteristics()
+            out += self
+            out += other
+            return out
+
 
 class CollectedModeCharacteristics:
     def __init__(self):
@@ -55,6 +65,22 @@ class CollectedModeCharacteristics:
 
     def addModeDemand(self, mode: str, demand: float):
         self._data[mode].demand += demand
+
+    def __iadd__(self, other):
+        if isinstance(other, ModeCharacteristics):
+            self[other.mode_name] = other
+            return self
+        else:
+            print('TOUGH LUCK, BUDDY')
+            return self
+
+    def __add__(self, other):
+        if isinstance(other, ModeCharacteristics):
+            self[other.mode_name] = other
+            return self
+        else:
+            print('TOUGH LUCK, BUDDY')
+            return self
 
 
 #    def getModeSpeed(self, mode: str) -> float:
@@ -149,17 +175,17 @@ class Microtype:
         self.updateDemandCharacteristics()
         self.updateSupplyCharacteristics()
 
-    def findEquilibriumDensityAndSpeed(self):
+    def findEquilibriumDensityAndSpeed(self, iter_max=20):
         newData = copy.deepcopy(self)
         oldData = copy.deepcopy(self)
         keepGoing = True
-        ii = 0
+        ii = 1
         while keepGoing:
             newSpeed = newData.getNewSpeedFromDensities()
             print('New Speed: ', newSpeed)
             newData.setSpeed(newSpeed)
             print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))
-            keepGoing = (np.abs(newData._baseSpeed - oldData._baseSpeed) > 0.001) & (ii < 20)
+            keepGoing = (np.abs(newData._baseSpeed - oldData._baseSpeed) > 0.001) & (ii < iter_max)
             oldData = copy.deepcopy(newData)
             if ii == 20:
                 newSpeed = 0.0

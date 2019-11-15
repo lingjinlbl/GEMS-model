@@ -17,20 +17,34 @@ class Geotype:
             print('NOT READY YET')
             self._microtypes = List[Microtype]()
         self.demand_structure = dict()
+        self.mode_choice_characteristics = dict()
         self.distbins = distbins
 
     def init_ODs(self):
         for m_o in self._microtypes:
+            assert isinstance(m_o, Microtype)
             for m_d in self._microtypes:
+                assert isinstance(m_d, Microtype)
                 for distbin in self.distbins.keys():
                     odi = od.ODindex(m_o, m_d, distbin)
                     du_default = od.DemandUnit(distance=self.distbins[distbin], demand=0.0)
                     self.demand_structure[odi] = du_default
+                    modes = list(set(m_o.modes).intersection(m_d.modes))
+                    choice_characteristics_default = od.ModeCharacteristics(modes)
+                    self.mode_choice_characteristics[odi] = choice_characteristics_default
 
     def appendMicrotype(self, microtype: Microtype):
         self._microtypes.append(microtype)
 
     def __iadd__(self, other):
+        if isinstance(other, Microtype):
+            self.appendMicrotype(other)
+            return self
+        else:
+            print('BAD NEWS, BUDDY')
+            return self
+
+    def __add__(self, other):
         if isinstance(other, Microtype):
             self.appendMicrotype(other)
             return self
@@ -61,3 +75,8 @@ class Geotype:
                     assert (isinstance(mt, Microtype))
                     mt.addModeDemandForPMT(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
                                            self.distbins[odi.distBin])
+
+    def updateMicrotypeModeCharacteristics(self, iter_max=20):
+        for mt in self._microtypes:
+            assert isinstance(mt, Microtype)
+            mt.findEquilibriumDensityAndSpeed(iter_max)
