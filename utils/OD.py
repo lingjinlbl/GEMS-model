@@ -33,7 +33,10 @@ class ModeSplit:
         self._mapping[key] = value
 
     def __getitem__(self, item):
-        return self._mapping[item]
+        if item in self._mapping.keys():
+            return self._mapping[item]
+        else:
+            return 0.0
 
     def keys(self) -> List:
         return list(self._mapping.keys())

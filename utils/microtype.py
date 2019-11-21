@@ -217,6 +217,8 @@ class Microtype:
         ii = 1
         while keepGoing:
             newSpeed = newData.getNewSpeedFromDensities()
+            if np.isnan(newSpeed):
+                newSpeed = 0.0
             print('New Speed: ', newSpeed)
             newData.setSpeed(newSpeed)
             print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))

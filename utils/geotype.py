@@ -21,7 +21,6 @@ def getModeSplit(mcc: od.ModeCharacteristics) -> od.ModeSplit:
         utils = np.append(utils, util)
     exp_utils = np.exp(utils * k)
     probs = exp_utils / np.sum(exp_utils)
-    print(probs)
     mode_split = dict()
     for ind in range(np.size(probs)):
         print(modes[ind])
@@ -78,8 +77,9 @@ class Geotype:
 
     def resetDemand(self):
         for microtype in self._microtypes:
+            microtype._baseSpeed = microtype.network_params.getBaseSpeed()
             for mode in microtype.modes:
-                microtype.setModeDemand(mode, 0.)
+                microtype.setModeDemand(mode, 0., 1000.)
 
     def allocateDemandToMicrotypes(self):
         for mt in self._microtypes:
@@ -116,6 +116,23 @@ class Geotype:
             print(du.mode_split)
             du.updateModeSplit(getModeSplit(self.mode_choice_characteristics[odi]))
             print(du.mode_split)
+
+    def equilibriumModeChoice(self, n_iters=20):
+        for iter in range(n_iters):
+            self.allocateDemandToMicrotypes()
+            self.updateMicrotypeModeCharacteristics()
+            self.updateChoiceCharacteristics()
+            self.updateModeSplit()
+
+    def getModeSplit(self, mode):
+        total_demand = 0.0
+        mode_demand = 0.0
+        for odi in self.demand_structure.keys():
+            du = self.demand_structure[odi]
+            assert isinstance(du, od.DemandUnit)
+            total_demand += du.demand * du.distance
+            mode_demand += du.demand * du.distance * du.mode_split[mode]
+        return mode_demand / total_demand
 
     def __str__(self):
         return 'Speeds: ' + str([str(mt._baseSpeed) + ' ,' for mt in self._microtypes])
