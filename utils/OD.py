@@ -116,7 +116,8 @@ class DemandUnit:
         return mode_characteristics
 
     def updateModeSplit(self, mode_split: ModeSplit):
-        self.mode_split = mode_split
+        for key in self.mode_split.keys():
+            self.mode_split[key] = (mode_split[key] + self.mode_split[key])/2.0
 
 class ODindex:
     def __init__(self, o: Microtype, d: Microtype, distBin: int):

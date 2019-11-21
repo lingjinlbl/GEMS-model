@@ -152,7 +152,8 @@ class Microtype:
         self.getModeCharacteristics(mode).setDemandCharacteristics(demand_characteristics)
 
     def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
-        time = distance / self.getModeSpeed(mode) * self.costs[mode].vott_multiplier
+        speed = np.max([self.getModeSpeed(mode) , 0.01])
+        time = distance / speed * self.costs[mode].vott_multiplier
         cost = distance * self.costs[mode].per_meter
         wait = 0.
         return time, cost, wait
