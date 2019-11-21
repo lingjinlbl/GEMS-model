@@ -4,9 +4,9 @@ import utils.OD as od
 from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics, Costs
 from utils.supply import ModeParams, BusParams
 from utils.Network import Network
-from utils.geotype import Geotype
+from utils.geotype import Geotype, getModeSplit
 
-costs = {'car': Costs(0.0003778, 0., 10., 1.0), 'bus': Costs(0., 2.5, 0., 1.)}
+costs = {'car': Costs(0.0003778, 0., 1., 1.0), 'bus': Costs(0., 20.5, 0., 1.)}
 
 network_params = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
 bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
@@ -41,3 +41,4 @@ g.appendDemandData(od.ODindex(m, m2, 2),
 g.allocateDemandToMicrotypes()
 g.updateMicrotypeModeCharacteristics()
 g.updateChoiceCharacteristics()
+g.updateModeSplit()

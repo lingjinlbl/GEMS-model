@@ -35,8 +35,11 @@ class ModeSplit:
     def __getitem__(self, item):
         return self._mapping[item]
 
-    def keys(self):
-        return self._mapping.keys()
+    def keys(self) -> List:
+        return list(self._mapping.keys())
+
+    def __str__(self):
+        return str([mode + ': ' + str(self[mode]) + '| ' for mode in self.keys()])
 
 class ChoiceCharacteristics:
     def __init__(self, travel_time=0., cost=0., wait_time=0.):
@@ -78,6 +81,9 @@ class ModeCharacteristics:
     def __setitem__(self, key, value):
         self.characteristics[key] = value
 
+    def keys(self) -> List:
+        return list(self._modes)
+
 class DemandUnit:
     def __init__(self, distance: float, demand: float, allocation=None, mode_split=None):
         if allocation is None:
@@ -108,6 +114,9 @@ class DemandUnit:
                 choice_characteristics += ChoiceCharacteristics(time, cost, wait)
             mode_characteristics[mode] = choice_characteristics
         return mode_characteristics
+
+    def updateModeSplit(self, mode_split: ModeSplit):
+        self.mode_split = mode_split
 
 class ODindex:
     def __init__(self, o: Microtype, d: Microtype, distBin: int):

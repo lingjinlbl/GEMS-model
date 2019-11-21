@@ -8,6 +8,26 @@ from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharact
 
 from typing import Dict, List
 
+def getModeSplit(mcc: od.ModeCharacteristics) -> od.ModeSplit:
+    VOTT = 18/3600.
+    utils = np.array([])
+    k = 1.0
+    modes = list(mcc.keys())
+    for mode in modes:
+        util = 0.
+        util += -mcc[mode].travel_time * VOTT
+        util += -mcc[mode].wait_time * VOTT
+        util += -mcc[mode].cost
+        utils = np.append(utils, util)
+    exp_utils = np.exp(utils * k)
+    probs = exp_utils / np.sum(exp_utils)
+    print(probs)
+    mode_split = dict()
+    for ind in range(np.size(probs)):
+        print(modes[ind])
+        mode_split[modes[ind]] = probs[ind]
+    return od.ModeSplit(mode_split)
+
 
 class Geotype:
     def __init__(self, distbins: Dict[int, float], microtypes=None):
@@ -87,6 +107,15 @@ class Geotype:
             du = self.demand_structure[odi]
             assert isinstance(du, od.DemandUnit)
             self.mode_choice_characteristics[odi] = du.getChoiceCharacteristics()
+
+    def updateModeSplit(self):
+        for odi in self.demand_structure.keys():
+            du = self.demand_structure[odi]
+            assert isinstance(du, od.DemandUnit)
+            print('-----')
+            print(du.mode_split)
+            du.updateModeSplit(getModeSplit(self.mode_choice_characteristics[odi]))
+            print(du.mode_split)
 
     def __str__(self):
         return 'Speeds: ' + str([str(mt._baseSpeed) + ' ,' for mt in self._microtypes])
