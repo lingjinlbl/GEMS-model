@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from utils.Network import Network
 from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
 from utils.supply import BusParams, ModeParams
+import scipy.ndimage as sp
 
 network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
 bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
@@ -20,7 +21,7 @@ m = Microtype(network_params_default, modeCharacteristics)
 m.setModeDemand('car', 70 / (10 * 60), 1000.0)
 m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
 
-total_demands = np.arange(0.02, 0.15, 0.005)
+total_demands = np.arange(0.02, 0.2, 0.005)
 mode_splits = np.arange(0.3, 1.0, 0.05)
 
 average_costs = np.zeros((np.size(total_demands), np.size(mode_splits)))
@@ -46,22 +47,24 @@ p1 = plt.contourf(mode_splits, total_demands, average_costs)  # , np.arange(0.08
 cb1 = plt.colorbar(p1)
 #cb2 = plt.colorbar(p2)
 
-cb1.set_label('Social Cost per Passenger Trip')
+cb1.set_label('Average Internal Cost per Passenger Trip')
 #cb2.set_label('Total Passenger Flow')
 
-plt.xlabel('Bus Demand (trips / time)')
-plt.ylabel('Car Demand (trips / time)')
+plt.ylabel('Total Demand (trip starts / time)')
+plt.xlabel('Car Mode Share')
 
 g1 = np.gradient(average_costs)
 
-p3 = plt.contour(mode_splits, total_demands, g1[0] / g1[1], 0, linestyles='dashed', linewidths=2,
+slope = g1[1] / g1[0]
+
+p3 = plt.contour(mode_splits, total_demands, slope, 0, linestyles='dashed', linewidths=2,
                  cmap='Reds')
 
 
 
 
 totalDemand = 0.18
-portions = np.arange(0.65, 0.8, 0.005)
+portions = np.arange(0.55, 0.7, 0.005)
 oneDemandCosts = np.zeros(np.shape(portions))
 
 
@@ -81,7 +84,7 @@ for ii in range(np.size(portions)):
     oneDemandCosts[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
 
 totalDemand = 0.18
-portions = np.arange(0.65, 0.8, 0.005)
+portions = np.arange(0.55, 0.7, 0.005)
 oneDemandCosts2 = np.zeros(np.shape(portions))
 
 bus_params = BusParams(road_network_fraction=500, relative_length=3.0,
