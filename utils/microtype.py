@@ -322,7 +322,7 @@ def getModeDemandCharacteristics(base_speed: float, mode_characteristics: ModeCh
             headway = mode_params.road_network_fraction / speed
         else:
             speed = 0.0
-            headway = np.nan
+            headway = 60*60
 
         if (dwellTime > 0) & (base_speed > 0):
             passengerFlow: float = td.getRateOfPMT(mode)

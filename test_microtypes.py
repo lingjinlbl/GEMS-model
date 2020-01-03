@@ -47,7 +47,7 @@ p1 = plt.contourf(mode_splits, total_demands, average_costs)  # , np.arange(0.08
 cb1 = plt.colorbar(p1)
 #cb2 = plt.colorbar(p2)
 
-cb1.set_label('Average Internal Cost per Passenger Trip')
+cb1.set_label('Average Travel Speed (m/s)')
 #cb2.set_label('Total Passenger Flow')
 
 plt.ylabel('Total Demand (trip starts / time)')
@@ -107,4 +107,4 @@ plt.plot(portions, oneDemandCosts2, label = "Fewer buses")
 
 plt.legend()
 plt.xlabel('Portion of trips by car')
-plt.ylabel('System average cost')
+plt.ylabel('Average Travel Speed')
