@@ -112,6 +112,9 @@ class Microtype:
         self.updateSupplyCharacteristics()
         self.updateDemandCharacteristics()
 
+    def copy(self):
+        return copy.deepcopy(self)
+
     def getModeSpeed(self, mode) -> float:
         return self.getModeCharacteristics(mode).demand_characteristics.getSpeed()
 
@@ -225,11 +228,11 @@ class Microtype:
             newSpeed = newData.getNewSpeedFromDensities()
             if np.isnan(newSpeed):
                 newSpeed = 0.0
-            print('New Speed: ', newSpeed)
+            #print('New Speed: ', newSpeed)
             newData.setSpeed(newSpeed)
-            print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))
+            #print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))
             keepGoing = (np.abs(newData._baseSpeed - oldData._baseSpeed) > 0.001) & (ii < iter_max)
-            oldData = copy.deepcopy(newData)
+            oldData.setSpeed(newSpeed)
             if ii == 20:
                 newSpeed = 0.0
         self.setSpeed(newSpeed)
