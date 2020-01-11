@@ -41,6 +41,9 @@ class ModeCharacteristics:
     def getFlow(self):
         return self.demand_characteristics.passenger_flow
 
+    def getPassengerOccupancy(self):
+        return self.demand_characteristics.passenger_flow / self.demand_characteristics.speed
+
     def __add__(self, other):
         if isinstance(other, CollectedModeCharacteristics):
             other[self.mode_name] = self
@@ -111,6 +114,9 @@ class Microtype:
 
     def getModeSpeed(self, mode) -> float:
         return self.getModeCharacteristics(mode).demand_characteristics.getSpeed()
+
+    def getModeOccupancy(self, mode) -> float:
+        return self.getModeCharacteristics(mode).getPassengerOccupancy()
 
     def getBaseSpeed(self) -> float:
         return self._baseSpeed
@@ -238,6 +244,9 @@ class Microtype:
     def getDemandsForPMT(self):
         return [self.getModeDemandForPMT(mode) for mode in self.modes]
 
+    def getPassengerOccupancy(self):
+        return [self.getModeOccupancy(mode) for mode in self.modes]
+
     def getTravelTimes(self):
         speeds = np.array(self.getSpeeds())
         speeds[~(speeds > 0)] = np.nan
@@ -245,9 +254,11 @@ class Microtype:
         return distances / speeds
 
     def getTotalTimes(self):
-        speeds = self.getSpeeds()
-        demands = self.getDemandsForPMT()
-        return np.array(speeds) * np.array(demands)
+        speeds = np.array(self.getSpeeds())
+        demands = np.array(self.getDemandsForPMT())
+        times = speeds * demands
+        times[speeds == 0.] = np.inf
+        return times
 
     def print(self):
         print('------------')
@@ -298,7 +309,7 @@ def getDefaultSupplyCharacteristics():
     return supply.SupplyCharacteristics(0.0, 0.0, 0.0)
 
 
-def getBusdwellTime(v, params_bus, trip_start_rate, trip_end_rate):
+def getBusDwellTime(v, params_bus, trip_start_rate, trip_end_rate):
     if v > 0:
         out = 1. / (params_bus.s_b * v) * (
                 v * params_bus.k * params_bus.t_0 * params_bus.s_b +
@@ -316,7 +327,7 @@ def getModeDemandCharacteristics(base_speed: float, mode_characteristics: ModeCh
         return DemandCharacteristics(base_speed, td.getRateOfPMT(mode))
     elif mode == 'bus':
         assert (isinstance(mode_params, BusParams))
-        dwellTime = getBusdwellTime(base_speed, mode_params, td.getStartRate(mode), td.getEndRate(mode))
+        dwellTime = getBusDwellTime(base_speed, mode_params, td.getStartRate(mode), td.getEndRate(mode))
         if dwellTime > 0:
             speed = base_speed / (1 + dwellTime * base_speed * mode_params.s_b)
             headway = mode_params.road_network_fraction / speed
@@ -351,7 +362,7 @@ def getModeBlockedDistance(microtype, mode):
         modeParams = microtype.getModeCharacteristics(mode).params
         modeSpeed = microtype.getModeSpeed(mode)
         trip_start_rate, trip_end_rate = microtype.getStartAndEndRate(mode)
-        dwellTime = getBusdwellTime(microtype.getBaseSpeed(), modeParams, trip_start_rate, trip_end_rate)
+        dwellTime = getBusDwellTime(microtype.getBaseSpeed(), modeParams, trip_start_rate, trip_end_rate)
         return microtype.network_params.l * modeParams.road_network_fraction * modeParams.s_b * modeParams.k * dwellTime * modeSpeed / microtype.network_params.L
     else:
         return 0.0
