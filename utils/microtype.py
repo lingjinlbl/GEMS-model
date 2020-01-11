@@ -113,7 +113,25 @@ class Microtype:
         self.updateDemandCharacteristics()
 
     def copy(self):
-        return copy.deepcopy(self)
+        out = Microtype(copy.deepcopy(self.network_params), self._mode_characteristics,
+                        copy.deepcopy(self.costs))
+        for mode in self.modes:
+            out.setModeDemand(mode, self.getModeDemandForPMT(mode) / self.getModeMeanDistance(mode),
+                              self.getModeMeanDistance(mode))
+        out.updateSupplyCharacteristics()
+        out.updateDemandCharacteristics()
+        return out
+
+    def getModeFullTripMarginalCost(self, mode, distance):
+        delta = 0.01
+        m1: Microtype = self.copy()
+        m1.findEquilibriumDensityAndSpeed()
+        m1.addModeEnds(mode, delta)
+        m1.addModeStarts(mode, delta)
+        m1.addModeDemandForTrips(mode, delta, distance)
+        m1.findEquilibriumDensityAndSpeed()
+        print(m1.getModeCharacteristics(mode).demand_characteristics)
+        return (np.sum(m1.getPassengerOccupancy()) - np.sum(self.getPassengerOccupancy())) / delta
 
     def getModeSpeed(self, mode) -> float:
         return self.getModeCharacteristics(mode).demand_characteristics.getSpeed()
@@ -136,11 +154,14 @@ class Microtype:
     def addModeEnds(self, mode, demand):
         self._travel_demand.addModeEnds(mode, demand)
 
-    def addModeDemandForPMT(self, mode, demand, trip_distance):
-        self._travel_demand.addModePMT(mode, demand, trip_distance)
+    def addModeDemandForTrips(self, mode, demand, trip_distance):
+        self._travel_demand.addModeThroughTrips(mode, demand, trip_distance)
 
     def setModeDemand(self, mode, demand, trip_distance):
-        self._travel_demand.setSingleDemand(mode, demand, trip_distance)
+        self.addModeStarts(mode, demand)
+        self.addModeEnds(mode, demand)
+        self.addModeDemandForTrips(mode, demand, trip_distance)
+        #elf._travel_demand.setSingleDemand(mode, demand, trip_distance)
 
     def resetDemand(self):
         self._travel_demand.resetDemand()
@@ -161,7 +182,7 @@ class Microtype:
         self.getModeCharacteristics(mode).setDemandCharacteristics(demand_characteristics)
 
     def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
-        speed = np.max([self.getModeSpeed(mode) , 0.01])
+        speed = np.max([self.getModeSpeed(mode), 0.01])
         time = distance / speed * self.costs[mode].vott_multiplier
         cost = distance * self.costs[mode].per_meter
         wait = 0.
@@ -228,9 +249,9 @@ class Microtype:
             newSpeed = newData.getNewSpeedFromDensities()
             if np.isnan(newSpeed):
                 newSpeed = 0.0
-            #print('New Speed: ', newSpeed)
+            print('New Speed: ', newSpeed)
             newData.setSpeed(newSpeed)
-            #print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))
+            print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))
             keepGoing = (np.abs(newData._baseSpeed - oldData._baseSpeed) > 0.001) & (ii < iter_max)
             oldData.setSpeed(newSpeed)
             if ii == 20:
@@ -275,6 +296,7 @@ class Microtype:
 
     def __str__(self):
         return 'Demand: ' + str(self._travel_demand) + ' , Speed: ' + str(self._baseSpeed)
+
 
 def main():
     network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
@@ -336,7 +358,7 @@ def getModeDemandCharacteristics(base_speed: float, mode_characteristics: ModeCh
             headway = mode_params.road_network_fraction / speed
         else:
             speed = 0.0
-            headway = 60*60
+            headway = 60 * 60
 
         if (dwellTime > 0) & (base_speed > 0):
             passengerFlow: float = td.getRateOfPMT(mode)

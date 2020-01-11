@@ -23,7 +23,6 @@ def getModeSplit(mcc: od.ModeCharacteristics) -> od.ModeSplit:
     probs = exp_utils / np.sum(exp_utils)
     mode_split = dict()
     for ind in range(np.size(probs)):
-        print(modes[ind])
         mode_split[modes[ind]] = probs[ind]
     return od.ModeSplit(mode_split)
 
@@ -94,8 +93,8 @@ class Geotype:
                 odi.d.addModeEnds(mode, du.demand * du.mode_split[mode])
                 for mt in du.allocation.keys():
                     assert (isinstance(mt, Microtype))
-                    mt.addModeDemandForPMT(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
-                                           self.distbins[odi.distBin])
+                    mt.addModeDemandForTrips(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
+                                             self.distbins[odi.distBin])
 
     def updateMicrotypeModeCharacteristics(self, iter_max=20):
         for mt in self._microtypes:
@@ -112,10 +111,10 @@ class Geotype:
         for odi in self.demand_structure.keys():
             du = self.demand_structure[odi]
             assert isinstance(du, od.DemandUnit)
-            print('-----')
-            print(du.mode_split)
+            #print('-----')
+            #print(du.mode_split)
             du.updateModeSplit(getModeSplit(self.mode_choice_characteristics[odi]))
-            print(du.mode_split)
+            #print(du.mode_split)
 
     def equilibriumModeChoice(self, n_iters=20):
         for iter in range(n_iters):

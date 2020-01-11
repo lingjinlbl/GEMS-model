@@ -10,7 +10,7 @@ costs = {'car': Costs(0.0003778, 0., 1.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.)}
 
 network_params = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
 bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
-                               fixed_density=95. / 100., min_stop_time=15., stop_spacing=1. / 250.,
+                               fixed_density=100. / 100., min_stop_time=15., stop_spacing=1. / 250.,
                                passenger_wait=5.)
 
 car_params_default = ModeParams(relative_length=1.0)
@@ -56,7 +56,7 @@ p_low = ax2.plot(parking_costs, road_speeds)
 
 
 bus_params = BusParams(road_network_fraction=500, relative_length=3.0,
-                                  fixed_density=130. / 100., min_stop_time=15., stop_spacing=1. / 250.,
+                                  fixed_density=150. / 100., min_stop_time=15., stop_spacing=1. / 250.,
                                   passenger_wait=5.)
 
 m._mode_characteristics['bus'] = ModeCharacteristics('bus', bus_params)
