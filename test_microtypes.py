@@ -113,12 +113,13 @@ m = Microtype(network_params_default, modeCharacteristics)
 m.setModeDemand('car', 70 / (10 * 60), 1000.0)
 m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
 
-car_demands = np.arange(0.02, 0.1, 0.005)
-bus_demands = np.arange(0.02, 0.06, 0.005)
+car_demands = np.arange(0.02, 0.12, 0.005)
+bus_demands = np.arange(0.02, 0.08, 0.005)
 
 average_costs = np.zeros((np.size(car_demands), np.size(bus_demands)))
 flows = np.zeros((np.size(car_demands), np.size(bus_demands)))
 car_speeds = np.zeros((np.size(car_demands), np.size(bus_demands)))
+bus_speeds = np.zeros((np.size(car_demands), np.size(bus_demands)))
 total_costs = np.zeros((np.size(car_demands), np.size(bus_demands)))
 
 for ii in range(np.size(car_demands)):
@@ -131,31 +132,47 @@ for ii in range(np.size(car_demands)):
         m.findEquilibriumDensityAndSpeed()
         flows[ii, jj] = np.sum(m.getFlows())
         car_speeds[ii, jj] = m.getModeSpeed('car')
+        bus_speeds[ii, jj] = m.getModeSpeed('bus')
         average_costs[ii, jj] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
         total_costs[ii, jj] = np.sum(m.getPassengerOccupancy())
 
 fig3 = plt.figure(figsize=(8, 5))
 
 g3 = np.gradient(total_costs)
-plt.subplot(211)
-p3 = plt.contourf(bus_demands, car_demands, g3[0], vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
+
+p3 = plt.contourf(bus_demands, car_demands, g3[0])# - car_speeds / 1000.0)#, vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
 # p2 = plt.contour(bus_demands, car_demands, flows, np.arange(45, 200, 10), cmap='Greys')
 cb3 = plt.colorbar(p3)
 # cb2 = plt.colorbar(p2)
 
-cb3.set_label('Average Travel Speed (m/s)')
+cb3.set_label('Change in total cost per additional unit of car demand')
 # cb2.set_label('Total Passenger Flow')
 
 plt.ylabel('Car demand')
 plt.xlabel('Bus demand')
 
-plt.subplot(212)
-p3 = plt.contourf(bus_demands, car_demands, g3[1], vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
+fig4 = plt.figure(figsize=(8, 5))
+p4 = plt.contourf(bus_demands, car_demands, g3[1])# - bus_speeds / 1000.0)#, vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
 # p2 = plt.contour(bus_demands, car_demands, flows, np.arange(45, 200, 10), cmap='Greys')
-cb3 = plt.colorbar(p3)
+cb4 = plt.colorbar(p3)
 # cb2 = plt.colorbar(p2)
 
-cb3.set_label('Average Travel Speed (m/s)')
+cb4.set_label('Change in total cost per additional unit of bus demand')
+# cb2.set_label('Total Passenger Flow')
+
+plt.ylabel('Car demand')
+plt.xlabel('Bus demand')
+
+plt.ylabel('Car demand')
+plt.xlabel('Bus demand')
+
+fig5 = plt.figure(figsize=(8, 5))
+p5 = plt.contourf(bus_demands, car_demands, total_costs)# - bus_speeds / 1000.0)#, vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
+# p2 = plt.contour(bus_demands, car_demands, flows, np.arange(45, 200, 10), cmap='Greys')
+cb5 = plt.colorbar(p3)
+# cb2 = plt.colorbar(p2)
+
+cb5.set_label('Network Occupancy (passengers/distance)')
 # cb2.set_label('Total Passenger Flow')
 
 plt.ylabel('Car demand')

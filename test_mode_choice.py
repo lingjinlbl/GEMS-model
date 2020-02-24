@@ -34,6 +34,7 @@ g.appendDemandData(od.ODindex(m, m, 1),
 
 parking_costs = np.arange(0., 8, 0.1)
 road_speeds = np.zeros((np.size(parking_costs)))
+bus_speeds = np.zeros((np.size(parking_costs)))
 car_mode_share = np.zeros((np.size(parking_costs)))
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
@@ -49,10 +50,13 @@ for ii in range(np.size(parking_costs)):
     g.equilibriumModeChoice(20)
     road_speeds[ii] = m.getBaseSpeed()
     car_mode_share[ii] = g.getModeSplit('car')
+    bus_speeds[ii] = m.getModeSpeed('bus')
 
 
-ax1.plot(parking_costs, car_mode_share)
-p_low = ax2.plot(parking_costs, road_speeds)
+ax1.plot(parking_costs[:65], car_mode_share[:65])
+
+p_low = ax2.plot(parking_costs[:65], road_speeds[:65])
+#ax2.plot(parking_costs, bus_speeds, ':')
 
 
 bus_params = BusParams(road_network_fraction=500, relative_length=3.0,
@@ -74,12 +78,14 @@ for ii in range(np.size(parking_costs)):
     g.equilibriumModeChoice(20)
     road_speeds[ii] = m.getBaseSpeed()
     car_mode_share[ii] = g.getModeSplit('car')
+    bus_speeds[ii] = m.getModeSpeed('bus')
 
 ax1.plot(parking_costs, car_mode_share)
 ax1.set_xlabel('Parking Cost ($)')
 ax1.set_ylabel('Car Mode Share')
 
 p_high = ax2.plot(parking_costs, road_speeds)
+#ax2.plot(parking_costs, bus_speeds, ':')
 ax2.set_xlabel('Parking Cost ($)')
 ax2.set_ylabel('Road Speed (m/s)')
 
