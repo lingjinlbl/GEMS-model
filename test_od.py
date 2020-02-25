@@ -3,7 +3,7 @@ import utils.OD as od
 
 from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics, Costs
 from utils.supply import ModeParams, BusParams
-from utils.Network import Network
+from utils.network import Network
 from utils.geotype import Geotype, getModeSplit
 
 costs = {'car': Costs(0.0003778, 0., 2.5, 1.0), 'bus': Costs(0., 2.5, 0., 1.)}

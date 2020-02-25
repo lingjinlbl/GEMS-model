@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.Network import Network
+from utils.network import Network
 from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
 from utils.supply import BusParams, ModeParams
 import scipy.ndimage as sp

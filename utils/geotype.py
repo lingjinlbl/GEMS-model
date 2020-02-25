@@ -8,8 +8,9 @@ from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharact
 
 from typing import Dict, List
 
+
 def getModeSplit(mcc: od.ModeCharacteristics) -> od.ModeSplit:
-    VOTT = 18/3600.
+    VOTT = 18 / 3600.
     utils = np.array([])
     k = 1.0
     modes = list(mcc.keys())

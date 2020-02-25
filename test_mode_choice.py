@@ -2,7 +2,7 @@ import utils.OD as od
 import numpy as np
 from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics, Costs
 from utils.supply import ModeParams, BusParams
-from utils.Network import Network
+from utils.network import Network
 from utils.geotype import Geotype, getModeSplit
 import matplotlib.pyplot as plt
 

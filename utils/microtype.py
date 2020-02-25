@@ -4,7 +4,7 @@
 import numpy as np
 import copy
 
-from utils.Network import Network
+from utils.network import Network
 from utils.supply import DemandCharacteristics, BusDemandCharacteristics, TravelDemand, ModeParams, BusParams
 import utils.supply as supply
 
@@ -95,14 +95,14 @@ class CollectedModeCharacteristics:
 #        return self._data[mode].demand_characteristics.passenger_flow
 
 class Microtype:
-    def __init__(self, network_params: Network, mode_characteristics: CollectedModeCharacteristics,
+    def __init__(self, network: Network, mode_characteristics: CollectedModeCharacteristics,
                  costs=None):
         mode_characteristics = copy.deepcopy(mode_characteristics)
         if costs is None:
             costs = dict()
         self.modes = mode_characteristics.getModes()
-        self.network_params = network_params
-        self._baseSpeed = network_params.getBaseSpeed()
+        self.network = network
+        self._baseSpeed = network.getBaseSpeed()
         self._mode_characteristics = mode_characteristics
         self._travel_demand = TravelDemand(self.modes)
         self.costs = costs
@@ -152,7 +152,7 @@ class Microtype:
         self.getModeCharacteristics(mode).setDemandCharacteristics(demand_characteristics)
 
     def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
-        speed = np.max([self.getModeSpeed(mode) , 0.01])
+        speed = np.max([self.getModeSpeed(mode), 0.01])
         time = distance / speed * self.costs[mode].vott_multiplier
         cost = distance * self.costs[mode].per_meter
         wait = 0.
@@ -201,9 +201,9 @@ class Microtype:
 
     def getNewSpeedFromDensities(self):
         N_eq = np.sum([self.getModeCharacteristics(mode).supply_characteristics.getN() for mode in self.modes])
-        L_eq = self.network_params.L - np.sum(
+        L_eq = self.network.L - np.sum(
             [self.getModeCharacteristics(mode).supply_characteristics.getL() for mode in self.modes])
-        return self.network_params.MFD(N_eq, L_eq)
+        return self.network.MFD(N_eq, L_eq)
 
     def setSpeed(self, speed):
         self._baseSpeed = speed
@@ -261,6 +261,7 @@ class Microtype:
 
     def __str__(self):
         return 'Demand: ' + str(self._travel_demand) + ' , Speed: ' + str(self._baseSpeed)
+
 
 def main():
     network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
@@ -322,7 +323,7 @@ def getModeDemandCharacteristics(base_speed: float, mode_characteristics: ModeCh
             headway = mode_params.road_network_fraction / speed
         else:
             speed = 0.0
-            headway = 60*60
+            headway = 60 * 60
 
         if (dwellTime > 0) & (base_speed > 0):
             passengerFlow: float = td.getRateOfPMT(mode)
