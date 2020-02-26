@@ -120,6 +120,9 @@ class Network:
         self.modes = dict()
         self.car_speed = networkFlowParams.u_f
 
+    def __str__(self):
+        return str(list(self.N_eq.keys()))
+
     def resetModes(self):
         for mode in self.modes.values():
             self.N_eq[mode.name] = mode.N[self] * mode.relative_length
