@@ -52,18 +52,25 @@ class Mode:
         return sum([n for n in self.N.values()])
 
     def allocateVehicles(self, n_tot):
+        "for constant car speed"
         current_allocation = []
         blocked_lengths = []
         lengths = []
+        other_mode_n = []
         for n in self.networks:
+            other_modes = list(n.N_eq.keys())
+            if self.name in other_modes:
+                other_modes.remove(self.name)
             current_allocation.append(self.N[n])
             blocked_lengths.append(n.getBlockedDistance())
             lengths.append(n.L)
+            other_mode_n.append(sum([n.N_eq[m] for m in other_modes]))
+        n_other = sum(other_mode_n)
         L_tot = sum(lengths)
         L_blocked_tot = sum(blocked_lengths)
-        density_av = n_tot / (L_tot - L_blocked_tot)
+        density_av = (n_tot + n_other) / (L_tot - L_blocked_tot)
         if n_tot > 0:
-            n_new = [density_av * (lengths[i] - blocked_lengths[i]) for i in range(len(lengths))]
+            n_new = [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n[i] for i in range(len(lengths))]
         else:
             n_new = [0] * len(lengths)
         for ind, n in enumerate(self.networks):
@@ -112,6 +119,7 @@ class BusMode(Mode):
             n.L_blocked[self.name] = L_blocked * self.getRouteLength() / n.L
 
     def allocateVehicles(self, n_tot):
+        "Poisson likelihood"
         speeds = []
         times = []
         lengths = []
