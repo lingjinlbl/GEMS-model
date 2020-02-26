@@ -9,7 +9,7 @@ network_bus = Network(750, network_params_bus)
 network_mixed = Network(500, network_params_mixed)
 
 car = Mode([network_mixed, network_car], 'car')
-bus = BusMode([network_mixed, network_bus], BusModeParams(2.0))
+bus = BusMode([network_mixed, network_bus], BusModeParams(0.1))
 nc = NetworkCollection([network_mixed, network_car, network_bus])
 
 nc.updateMFD()
