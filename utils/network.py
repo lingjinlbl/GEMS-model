@@ -52,16 +52,21 @@ class Mode:
         return sum([n for n in self.N.values()])
 
     def allocateVehicles(self, n_tot):
+        current_allocation = []
         speeds = []
         times = []
         lengths = []
         for n in self.networks:
+            current_allocation.append(self.N[n])
             speeds.append(n.car_speed)
             times.append(n.L / n.car_speed)
             lengths.append(n.L)
+        L_tot = sum(lengths)
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
+        v_av = L_tot / T_tot
+        n_new = [lengths[i] / speeds[i] / T_tot * n_tot for i in range(len(lengths))]
         for ind, n in enumerate(self.networks):
-            n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot
+            n.N_eq[self.name] = n_new[ind]
             self.N[n] = n.N_eq[self.name]
 
     def __str__(self):
@@ -104,6 +109,20 @@ class BusMode(Mode):
             assert (isinstance(n, Network))
             L_blocked = self.getBlockedDistance(n)
             n.L_blocked[self.name] = L_blocked * self.getRouteLength() / n.L
+
+    def allocateVehicles(self, n_tot):
+        speeds = []
+        times = []
+        lengths = []
+        for n in self.networks:
+            spd = self.getSpeed(n.car_speed)
+            speeds.append(spd)
+            times.append(n.L / spd)
+            lengths.append(n.L)
+        T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
+        for ind, n in enumerate(self.networks):
+            n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot
+            self.N[n] = n.N_eq[self.name]
 
 
 class Network:
