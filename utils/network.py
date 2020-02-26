@@ -64,7 +64,12 @@ class Mode:
         L_tot = sum(lengths)
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         v_av = L_tot / T_tot
-        n_new = [lengths[i] / speeds[i] / T_tot * n_tot for i in range(len(lengths))]
+        portion_to_move = 0.1
+        diff = [(lengths[i] / v_av - lengths[i] / speeds[i])/v_av for i in range(len(lengths))]
+        if n_tot > 0:
+            n_new = [current_allocation[i] + diff[i]*portion_to_move * n_tot for i in range(len(lengths))]
+        else:
+            n_new = [times[ind] / T_tot * n_tot for ind in range(len(lengths))]
         for ind, n in enumerate(self.networks):
             n.N_eq[self.name] = n_new[ind]
             self.N[n] = n.N_eq[self.name]
