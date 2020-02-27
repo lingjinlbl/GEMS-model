@@ -80,6 +80,9 @@ class Mode:
     def __str__(self):
         return str([self.name + ': N=' + str(self.N) + ', L_blocked=' + str(self.L_blocked)])
 
+    def getSpeed(self):
+        return max(self.N, key=self.N.get).car_speed
+
 
 class BusMode(Mode):
     def __init__(self, networks, busNetworkParams: BusModeParams) -> None:
@@ -103,14 +106,22 @@ class BusMode(Mode):
     def getFixedDensity(self):
         return self.N_fixed / self.getRouteLength()
 
-    def getSpeed(self, carSpeed: float):
-        return carSpeed * (
+    def getBusSpeed(self, car_speed):
+        return car_speed * (
                 1 - self.passenger_wait * (self.trip_start_rate + self.trip_end_rate) / self.fixed_density) / (
-                       1 + carSpeed / self.stop_spacing * self.min_stop_time)
+                       1 + car_speed / self.stop_spacing * self.min_stop_time)
+
+    def getSpeeds(self):
+        speeds = []
+        for n in self.networks:
+            carSpeed = n.car_speed
+            bus_speed = self.getBusSpeed(carSpeed)
+            speeds.append(bus_speed)
+        return speeds
 
     def getBlockedDistance(self, network):
         if network.car_speed > 0:
-            busSpeed = self.getSpeed(network.car_speed)
+            busSpeed = self.getBusSpeed(network.car_speed)
             out = busSpeed / self.stop_spacing * self.fixed_density * network.L * self.min_stop_time * network.l
         else:
             out = 0
@@ -124,12 +135,11 @@ class BusMode(Mode):
 
     def allocateVehicles(self, n_tot: float):
         "Poisson likelihood"
-        speeds = []
+        speeds = self.getSpeeds()
         times = []
         lengths = []
-        for n in self.networks:
-            spd = self.getSpeed(n.car_speed)
-            speeds.append(spd)
+        for ind, n in enumerate(self.networks):
+            spd = speeds[ind]
             times.append(n.L / spd)
             lengths.append(n.L)
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
@@ -161,7 +171,7 @@ class Network:
             self.L_blocked[mode.name] = mode.L_blocked[self]
 
     def getBaseSpeed(self):
-        return self.u_f
+        return self.car_speed
 
     def updateBlockedDistance(self):
         for mode in self.modes.values():
@@ -264,6 +274,9 @@ class NetworkCollection:
                 self.append(network)
             self.modes[mode.name] = mode
         return self
+
+    def getModeNames(self) -> list:
+        return list(self._modes.keys())
 
 
 def main():
