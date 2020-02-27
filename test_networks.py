@@ -1,4 +1,3 @@
-import numpy as np
 from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams
 
 network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
@@ -12,9 +11,6 @@ car = Mode([network_mixed, network_car], 'car')
 bus = BusMode([network_mixed, network_bus], BusModeParams(1.0))
 nc = NetworkCollection([network_mixed, network_car, network_bus])
 
-nc.updateMFD()
-nc.addVehicles('car', 2.0)
-carnc = nc['car']
-busnc = nc['bus']
+nc.addVehicles('car', 6.0)
 nc.updateMFD()
 print('DONE')

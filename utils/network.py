@@ -93,13 +93,17 @@ class BusMode(Mode):
         self.trip_end_rate = 0.0
         self.fixed_density = self.getFixedDensity()
 
+    def addVehicles(self, n: float):
+        self.N_fixed = n
+        self.allocateVehicles(n)
+
     def getRouteLength(self):
         return sum([n.L for n in self.networks])
 
     def getFixedDensity(self):
         return self.N_fixed / self.getRouteLength()
 
-    def getSpeed(self, carSpeed):
+    def getSpeed(self, carSpeed: float):
         return carSpeed * (
                 1 - self.passenger_wait * (self.trip_start_rate + self.trip_end_rate) / self.fixed_density) / (
                        1 + carSpeed / self.stop_spacing * self.min_stop_time)
@@ -118,7 +122,7 @@ class BusMode(Mode):
             L_blocked = self.getBlockedDistance(n)
             n.L_blocked[self.name] = L_blocked * self.getRouteLength() / n.L
 
-    def allocateVehicles(self, n_tot):
+    def allocateVehicles(self, n_tot: float):
         "Poisson likelihood"
         speeds = []
         times = []
@@ -191,13 +195,13 @@ class Network:
     def addDensity(self, mode, N_eq):
         self.modes[mode].N_eq += N_eq
 
-    def getBlockedDistance(self):
+    def getBlockedDistance(self) -> float:
         if self.L_blocked:
             return sum(list(self.L_blocked.values()))
         else:
             return 0.0
 
-    def getN_eq(self):
+    def getN_eq(self) -> float:
         if self.N_eq:
             return sum(list(self.N_eq.values()))
         else:
@@ -238,16 +242,17 @@ class NetworkCollection:
     def __getitem__(self, item):
         return self._modes[item]
 
-    def addVehicles(self, mode, N):
+    def addVehicles(self, mode: str, N: float, n=5):
         self[mode].addVehicles(N)
-        self.updateMFD()
+        self.updateMFD(n)
 
-    def updateMFD(self):
-        for n in self._networks:
-            n.updateBlockedDistance()
-            n.MFD()
-        for m in self._modes.values():
-            m.allocateVehicles(m.getTotalNumberOfVehicles())
+    def updateMFD(self, n=1):
+        for i in range(n):
+            for n in self._networks:
+                n.updateBlockedDistance()
+                n.MFD()
+            for m in self._modes.values():
+                m.allocateVehicles(m.getTotalNumberOfVehicles())
 
     def __str__(self):
         return str([n.car_speed for n in self._networks])
