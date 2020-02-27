@@ -32,24 +32,24 @@ class Mode:
     def __init__(self, networks: List, name: str):
         self.name = name
         self.N_fixed = 0.0
-        self.N = dict()
-        self.L_blocked = dict()
+        self._N = dict()
+        self._L_blocked = dict()
         self.relative_length = 1.0
-        self.networks = networks
+        self._networks = networks
         for n in networks:
             n.addMode(self)
-            self.N[n] = 0.0
-            self.L_blocked[n] = 0.0
+            self._N[n] = 0.0
+            self._L_blocked[n] = 0.0
 
     def updateBlockedDistance(self):
-        for n in self.networks:
-            self.L_blocked[n] = n.L_blocked[self.name]
+        for n in self._networks:
+            self._L_blocked[n] = n.L_blocked[self.name]
 
     def addVehicles(self, n):
         self.allocateVehicles(n)
 
     def getTotalNumberOfVehicles(self):
-        return sum([n for n in self.N.values()])
+        return sum([n for n in self._N.values()])
 
     def allocateVehicles(self, n_tot):
         "for constant car speed"
@@ -57,11 +57,11 @@ class Mode:
         blocked_lengths = []
         lengths = []
         other_mode_n = []
-        for n in self.networks:
+        for n in self._networks:
             other_modes = list(n.N_eq.keys())
             if self.name in other_modes:
                 other_modes.remove(self.name)
-            current_allocation.append(self.N[n])
+            current_allocation.append(self._N[n])
             blocked_lengths.append(n.getBlockedDistance())
             lengths.append(n.L)
             other_mode_n.append(sum([n.N_eq[m] for m in other_modes]))
@@ -73,15 +73,15 @@ class Mode:
             n_new = [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n[i] for i in range(len(lengths))]
         else:
             n_new = [0] * len(lengths)
-        for ind, n in enumerate(self.networks):
+        for ind, n in enumerate(self._networks):
             n.N_eq[self.name] = n_new[ind]
-            self.N[n] = n.N_eq[self.name]
+            self._N[n] = n.N_eq[self.name]
 
     def __str__(self):
-        return str([self.name + ': N=' + str(self.N) + ', L_blocked=' + str(self.L_blocked)])
+        return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
 
     def getSpeed(self):
-        return max(self.N, key=self.N.get).car_speed
+        return max(self._N, key=self._N.get).car_speed
 
 
 class BusMode(Mode):
@@ -101,7 +101,7 @@ class BusMode(Mode):
         self.allocateVehicles(n)
 
     def getRouteLength(self):
-        return sum([n.L for n in self.networks])
+        return sum([n.L for n in self._networks])
 
     def getFixedDensity(self):
         return self.N_fixed / self.getRouteLength()
@@ -113,7 +113,7 @@ class BusMode(Mode):
 
     def getSpeeds(self):
         speeds = []
-        for n in self.networks:
+        for n in self._networks:
             carSpeed = n.car_speed
             bus_speed = self.getBusSpeed(carSpeed)
             speeds.append(bus_speed)
@@ -128,7 +128,7 @@ class BusMode(Mode):
         return out
 
     def updateBlockedDistance(self):
-        for n in self.networks:
+        for n in self._networks:
             assert (isinstance(n, Network))
             L_blocked = self.getBlockedDistance(n)
             n.L_blocked[self.name] = L_blocked * self.getRouteLength() / n.L
@@ -138,14 +138,14 @@ class BusMode(Mode):
         speeds = self.getSpeeds()
         times = []
         lengths = []
-        for ind, n in enumerate(self.networks):
+        for ind, n in enumerate(self._networks):
             spd = speeds[ind]
             times.append(n.L / spd)
             lengths.append(n.L)
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
-        for ind, n in enumerate(self.networks):
+        for ind, n in enumerate(self._networks):
             n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot
-            self.N[n] = n.N_eq[self.name]
+            self._N[n] = n.N_eq[self.name]
 
 
 class Network:
@@ -159,14 +159,14 @@ class Network:
         self.l = networkFlowParams.l
         self.N_eq = dict()
         self.L_blocked = dict()
-        self.modes = dict()
+        self._modes = dict()
         self.car_speed = networkFlowParams.u_f
 
     def __str__(self):
         return str(list(self.N_eq.keys()))
 
     def resetModes(self):
-        for mode in self.modes.values():
+        for mode in self._modes.values():
             self.N_eq[mode.name] = mode.N[self] * mode.relative_length
             self.L_blocked[mode.name] = mode.L_blocked[self]
 
@@ -174,7 +174,7 @@ class Network:
         return self.car_speed
 
     def updateBlockedDistance(self):
-        for mode in self.modes.values():
+        for mode in self._modes.values():
             # assert(isinstance(mode, Mode) | issubclass(mode, Mode))
             mode.updateBlockedDistance()
 
@@ -200,10 +200,10 @@ class Network:
             self.car_speed = np.nan
 
     def containsMode(self, mode: str) -> bool:
-        return mode in self.modes.keys()
+        return mode in self._modes.keys()
 
     def addDensity(self, mode, N_eq):
-        self.modes[mode].N_eq += N_eq
+        self._modes[mode].N_eq += N_eq
 
     def getBlockedDistance(self) -> float:
         if self.L_blocked:
@@ -218,7 +218,7 @@ class Network:
             return 0.0
 
     def addMode(self, mode: Mode):
-        self.modes[mode.name] = mode
+        self._modes[mode.name] = mode
         return self
 
 
@@ -229,16 +229,16 @@ class NetworkCollection:
             self._networks.append(network)
         elif isinstance(network, List):
             self._networks = network
-        self._modes = dict()
+        self.modes = dict()
         self.updateModes()
 
     def updateModes(self):
         allModes = [list(n.modes.values()) for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
-        self._modes = dict()
+        self.modes = dict()
         for m in uniqueModes:
             m.allocateVehicles(m.N_fixed)
-            self._modes[m.name] = m
+            self.modes[m.name] = m
         self.updateNetworks()
 
     def updateNetworks(self):
@@ -250,7 +250,7 @@ class NetworkCollection:
         self.updateModes()
 
     def __getitem__(self, item):
-        return self._modes[item]
+        return self.modes[item]
 
     def addVehicles(self, mode: str, N: float, n=5):
         self[mode].addVehicles(N)
@@ -261,7 +261,7 @@ class NetworkCollection:
             for n in self._networks:
                 n.updateBlockedDistance()
                 n.MFD()
-            for m in self._modes.values():
+            for m in self.modes.values():
                 m.allocateVehicles(m.getTotalNumberOfVehicles())
 
     def __str__(self):
@@ -276,7 +276,7 @@ class NetworkCollection:
         return self
 
     def getModeNames(self) -> list:
-        return list(self._modes.keys())
+        return list(self.modes.keys())
 
 
 def main():
