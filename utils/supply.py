@@ -88,7 +88,7 @@ class TravelDemands:
         self._demands[key] = value
 
     def __getitem__(self, item: str) -> TravelDemand:
-        return self._demands[key]
+        return self._demands[item]
 
     def setEndRate(self, mode: str, rate: float):
         self._demands[mode].tripEndRate = rate

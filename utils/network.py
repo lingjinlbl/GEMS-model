@@ -43,6 +43,7 @@ class Mode:
             self._N[n] = 0.0
             self._L_blocked[n] = 0.0
         self.travelDemand = TravelDemand()
+        self.densityFixed = False
 
     def updateBlockedDistance(self):
         for n in self._networks:
@@ -92,6 +93,14 @@ class Mode:
     def getLblocked(self, network):
         return self._L_blocked[network]
 
+    def getLittlesLawN(self, rateOfPMT: float, averageDistanceInSystem: float):
+        if self.densityFixed:
+            return self.N_fixed
+        else:
+            speed = self.getSpeed()
+            averageTimeInSystem = averageDistanceInSystem / speed
+            return rateOfPMT / averageDistanceInSystem * averageTimeInSystem
+
 
 class BusMode(Mode):
     def __init__(self, networks, busNetworkParams: BusModeParams) -> None:
@@ -102,6 +111,7 @@ class BusMode(Mode):
         self.stop_spacing = busNetworkParams.stop_spacing
         self.passenger_wait = busNetworkParams.passenger_wait
         self.fixed_density = self.getFixedDensity()
+        self.densityFixed = True
 
     def addVehicles(self, n: float):
         self.N_fixed = n
@@ -113,7 +123,7 @@ class BusMode(Mode):
     def getFixedDensity(self):
         return self.N_fixed / self.getRouteLength()
 
-    def getBusSpeed(self, car_speed):
+    def getSubNetworkSpeed(self, car_speed):
         return car_speed * (1 - self.passenger_wait * (
                     self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / self.fixed_density) / (
                            1 + car_speed / self.stop_spacing * self.min_stop_time)
@@ -122,13 +132,25 @@ class BusMode(Mode):
         speeds = []
         for n in self._networks:
             carSpeed = n.car_speed
-            bus_speed = self.getBusSpeed(carSpeed)
+            bus_speed = self.getSubNetworkSpeed(carSpeed)
             speeds.append(bus_speed)
         return speeds
 
+    def getSpeed(self):
+        meters = []
+        seconds = []
+        for n in self._networks:
+            n_bus = self._N[n]
+            bus_speed = self.getSubNetworkSpeed(carSpeed)
+            seconds.append(n_bus)
+            meters.append(n_bus * bus_speed)
+        if sum(seconds) == 0:
+            return next(iter(self._networks)).car_speed
+        return sum(meters) / sum(seconds)
+
     def getBlockedDistance(self, network):
         if network.car_speed > 0:
-            busSpeed = self.getBusSpeed(network.car_speed)
+            busSpeed = self.getSubNetworkSpeed(network.car_speed)
             out = busSpeed / self.stop_spacing * self.fixed_density * network.L * self.min_stop_time * network.l
         else:
             out = 0
@@ -256,12 +278,16 @@ class NetworkCollection:
             self.demands[m.name] = m.travelDemand
         self.updateNetworks()
 
-    def updateModes(self):
+    def updateModes(self, n: int=10):
         allModes = [n.getModeValues() for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
-        for m in uniqueModes:
-            m.allocateVehicles(m.N_fixed)
-        self.updateNetworks()
+        for it in range(n):
+            for m in uniqueModes:
+                mode_demand = self.demands[m.name]
+                n_new = m.getLittlesLawN(mode_demand.rateOfPMT, mode_demand.averageDistanceInSystem)
+                m.allocateVehicles(n_new)
+            self.updateNetworks()
+            self.updateMFD()
 
     def updateNetworks(self):
         for n in self._networks:

@@ -20,7 +20,7 @@ nc = NetworkCollection([network_mixed, network_car, network_bus])
 
 
 m = Microtype(nc)
-m.setModeDemand('car', 70 / (10 * 60), 1000.0)
+m.setModeDemand('car', 40 / (10 * 60), 1000.0)
 m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
 
 total_demands = np.arange(0.02, 0.2, 0.005)
