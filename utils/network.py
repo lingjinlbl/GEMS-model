@@ -125,8 +125,8 @@ class BusMode(Mode):
 
     def getSubNetworkSpeed(self, car_speed):
         return car_speed * (1 - self.passenger_wait * (
-                    self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / self.fixed_density) / (
-                           1 + car_speed / self.stop_spacing * self.min_stop_time)
+                self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / self.fixed_density) / (
+                       1 + car_speed / self.stop_spacing * self.min_stop_time)
 
     def getSpeeds(self):
         speeds = []
@@ -278,7 +278,7 @@ class NetworkCollection:
             self.demands[m.name] = m.travelDemand
         self.updateNetworks()
 
-    def updateModes(self, n: int=10):
+    def updateModes(self, n: int = 10):
         allModes = [n.getModeValues() for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
         for it in range(n):
@@ -332,19 +332,14 @@ def main():
     network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
     network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
     network_car = Network(250, network_params_car)
-    network_car.addMode(ModeParams("car"))
     network_bus = Network(750, network_params_bus)
-    network_bus.addMode(BusModeParams())
     network_mixed = Network(500, network_params_mixed)
-    network_mixed.addMode(BusModeParams())
-    network_mixed.addMode(ModeParams("car"))
 
+    car = Mode([network_mixed, network_car], 'car')
+    bus = BusMode([network_mixed, network_bus], BusModeParams(1.0))
     nc = NetworkCollection([network_mixed, network_car, network_bus])
-    nc.updateMFD()
-    nc.addVehicles('bus', 1.0)
-    nc.addVehicles('car', 2.0)
-    carnc = nc['car']
-    busnc = nc['bus']
+
+    nc.addVehicles('car', 6.0)
     nc.updateMFD()
     print('DONE')
 
