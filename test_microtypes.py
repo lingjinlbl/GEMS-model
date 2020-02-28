@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.network import Network
 from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
 from utils.supply import BusParams, ModeParams
+from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams
+
 import scipy.ndimage as sp
 
-network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
-bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
-                                  fixed_density=150. / 100., min_stop_time=15., stop_spacing=1. / 500.,
-                                  passenger_wait=5.)
+network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_car = Network(250, network_params_car)
+network_bus = Network(750, network_params_bus)
+network_mixed = Network(500, network_params_mixed)
 
-car_params_default = ModeParams(relative_length=1.0)
+car = Mode([network_mixed, network_car], 'car')
+bus = BusMode([network_mixed, network_bus], BusModeParams(1.0))
+nc = NetworkCollection([network_mixed, network_car, network_bus])
 
-modeCharacteristics = CollectedModeCharacteristics()
-modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
-modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default)
 
-m = Microtype(network_params_default, modeCharacteristics)
+m = Microtype(nc)
 m.setModeDemand('car', 70 / (10 * 60), 1000.0)
 m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
 

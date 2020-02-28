@@ -1,5 +1,6 @@
 import numpy as np
 from typing import List, Dict
+from utils.supply import TravelDemand, TravelDemands
 
 
 class NetworkFlowParams:
@@ -36,10 +37,12 @@ class Mode:
         self._L_blocked = dict()
         self.relative_length = 1.0
         self._networks = networks
+        self._averageDistanceInSystem = 0.0
         for n in networks:
             n.addMode(self)
             self._N[n] = 0.0
             self._L_blocked[n] = 0.0
+        self.travelDemand = TravelDemand()
 
     def updateBlockedDistance(self):
         for n in self._networks:
@@ -75,13 +78,19 @@ class Mode:
             n_new = [0] * len(lengths)
         for ind, n in enumerate(self._networks):
             n.N_eq[self.name] = n_new[ind]
-            self._N[n] = n.N_eq[self.name]
+            self._N[n] = n.N_eq[self.name] / self.relative_length
 
     def __str__(self):
         return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
 
     def getSpeed(self):
         return max(self._N, key=self._N.get).car_speed
+
+    def getN(self, network):
+        return self._N[network]
+
+    def getLblocked(self, network):
+        return self._L_blocked[network]
 
 
 class BusMode(Mode):
@@ -92,8 +101,6 @@ class BusMode(Mode):
         self.min_stop_time = busNetworkParams.min_stop_time
         self.stop_spacing = busNetworkParams.stop_spacing
         self.passenger_wait = busNetworkParams.passenger_wait
-        self.trip_start_rate = 0.0
-        self.trip_end_rate = 0.0
         self.fixed_density = self.getFixedDensity()
 
     def addVehicles(self, n: float):
@@ -107,9 +114,9 @@ class BusMode(Mode):
         return self.N_fixed / self.getRouteLength()
 
     def getBusSpeed(self, car_speed):
-        return car_speed * (
-                1 - self.passenger_wait * (self.trip_start_rate + self.trip_end_rate) / self.fixed_density) / (
-                       1 + car_speed / self.stop_spacing * self.min_stop_time)
+        return car_speed * (1 - self.passenger_wait * (
+                    self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / self.fixed_density) / (
+                           1 + car_speed / self.stop_spacing * self.min_stop_time)
 
     def getSpeeds(self):
         speeds = []
@@ -167,8 +174,8 @@ class Network:
 
     def resetModes(self):
         for mode in self._modes.values():
-            self.N_eq[mode.name] = mode.N[self] * mode.relative_length
-            self.L_blocked[mode.name] = mode.L_blocked[self]
+            self.N_eq[mode.name] = mode.getN(self) * mode.relative_length
+            self.L_blocked[mode.name] = mode.getLblocked(self)
 
     def getBaseSpeed(self):
         return self.car_speed
@@ -221,6 +228,12 @@ class Network:
         self._modes[mode.name] = mode
         return self
 
+    def getModeNames(self) -> list:
+        return list(self._modes.keys())
+
+    def getModeValues(self) -> list:
+        return list(self._modes.values())
+
 
 class NetworkCollection:
     def __init__(self, network=None):
@@ -230,15 +243,24 @@ class NetworkCollection:
         elif isinstance(network, List):
             self._networks = network
         self.modes = dict()
-        self.updateModes()
+        self.demands = TravelDemands([])
+        self.resetModes()
 
-    def updateModes(self):
-        allModes = [list(n.modes.values()) for n in self._networks]
+    def resetModes(self):
+        allModes = [n.getModeValues() for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
         self.modes = dict()
         for m in uniqueModes:
             m.allocateVehicles(m.N_fixed)
             self.modes[m.name] = m
+            self.demands[m.name] = m.travelDemand
+        self.updateNetworks()
+
+    def updateModes(self):
+        allModes = [n.getModeValues() for n in self._networks]
+        uniqueModes = set([item for sublist in allModes for item in sublist])
+        for m in uniqueModes:
+            m.allocateVehicles(m.N_fixed)
         self.updateNetworks()
 
     def updateNetworks(self):
@@ -247,7 +269,7 @@ class NetworkCollection:
 
     def append(self, network: Network):
         self._networks.append(network)
-        self.updateModes()
+        self.resetModes()
 
     def __getitem__(self, item):
         return self.modes[item]

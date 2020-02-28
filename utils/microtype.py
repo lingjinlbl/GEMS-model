@@ -4,8 +4,8 @@
 import numpy as np
 import copy
 
-from utils.network import Network
-from utils.supply import DemandCharacteristics, BusDemandCharacteristics, TravelDemand, ModeParams, BusParams
+from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams
+from utils.supply import DemandCharacteristics, BusDemandCharacteristics, TravelDemand, ModeParams, BusParams, TravelDemands
 import utils.supply as supply
 
 
@@ -18,19 +18,14 @@ class Costs:
 
 
 class ModeCharacteristics:
-    def __init__(self, mode_name: str, params: supply.ModeParams, demand: float = 0.0):
-        self.mode_name = mode_name
-        self.params = params
-        self.demand_characteristics = getDefaultDemandCharacteristics(mode_name)
-        self.supply_characteristics = getDefaultSupplyCharacteristics()
+    def __init__(self, mode: Mode, demand: float = 0.0):
+        self.mode_name = mode.name
+        self.params = mode
         self.demand = demand
+        self.demand_characteristics = getDefaultDemandCharacteristics(self.mode_name)
 
     def __str__(self):
-        return self.mode_name.upper() + ': ' + str(self.demand_characteristics) + ', ' + str(
-            self.supply_characteristics)
-
-    def setSupplyCharacteristics(self, supply_characteristics: supply.SupplyCharacteristics):
-        self.supply_characteristics = supply_characteristics
+        return self.mode_name.upper() + ': ' + str(self.demand_characteristics)
 
     def setDemandCharacteristics(self, demand_characteristics: supply.DemandCharacteristics):
         self.demand_characteristics = demand_characteristics
@@ -91,23 +86,14 @@ class CollectedModeCharacteristics:
             return self
 
 
-#    def getModeSpeed(self, mode: str) -> float:
-#        return self._data[mode].demand_characteristics.passenger_flow
-
 class Microtype:
-    def __init__(self, network: Network, mode_characteristics: CollectedModeCharacteristics,
-                 costs=None):
-        mode_characteristics = copy.deepcopy(mode_characteristics)
+    def __init__(self, networks: NetworkCollection, costs=None):
         if costs is None:
             costs = dict()
-        self.modes = mode_characteristics.getModes()
-        self.network = network
-        self._baseSpeed = network.getBaseSpeed()
-        self._mode_characteristics = mode_characteristics
-        self._travel_demand = TravelDemand(self.modes)
+        self.mode_names = list(networks.getModeNames())
+        self.networks = networks
         self.costs = costs
-        self.updateSupplyCharacteristics()
-        self.updateDemandCharacteristics()
+        #self.updateDemandCharacteristics()
 
     def getModeSpeed(self, mode) -> float:
         return self.getModeCharacteristics(mode).demand_characteristics.getSpeed()
@@ -116,34 +102,35 @@ class Microtype:
         return self._baseSpeed
 
     def getModeFlow(self, mode) -> float:
-        return self._travel_demand.getRateOfPMT(mode)
+        return self.networks.demands.getRateOfPMT(mode)
 
     def getModeDemandForPMT(self, mode):
-        return self._travel_demand.getRateOfPMT(mode)
+        return self.networks.demands.getRateOfPMT(mode)
 
     def addModeStarts(self, mode, demand):
-        self._travel_demand.addModeStarts(mode, demand)
+        self.networks.demands.addModeStarts(mode, demand)
 
     def addModeEnds(self, mode, demand):
-        self._travel_demand.addModeEnds(mode, demand)
+        self.networks.demands.addModeEnds(mode, demand)
 
     def addModeDemandForPMT(self, mode, demand, trip_distance):
-        self._travel_demand.addModePMT(mode, demand, trip_distance)
+        self.networks.demands.addModePMT(mode, demand, trip_distance)
 
     def setModeDemand(self, mode, demand, trip_distance):
-        self._travel_demand.setSingleDemand(mode, demand, trip_distance)
+        self.networks.demands.setSingleDemand(mode, demand, trip_distance)
+        self.networks.updateModes()
 
     def resetDemand(self):
-        self._travel_demand.resetDemand()
+        self.networks.demands.resetDemand()
 
     def getModeCharacteristics(self, mode: str) -> ModeCharacteristics:
-        return self._mode_characteristics[mode]
+        return self.networks[mode]
 
     def getStartAndEndRate(self, mode: str) -> (float, float):
-        return self._travel_demand.getStartRate(mode), self._travel_demand.getStartRate(mode)
+        return self.networks.demands.getStartRate(mode), self.networks.demands.getStartRate(mode)
 
     def getModeMeanDistance(self, mode: str):
-        return self._travel_demand.getAverageDistance(mode)
+        return self.networks.demands.getAverageDistance(mode)
 
     def setModeSupplyCharacteristics(self, mode: str, supply_characteristics: supply.SupplyCharacteristics):
         self.getModeCharacteristics(mode).setSupplyCharacteristics(supply_characteristics)
