@@ -15,13 +15,13 @@ network_bus = Network(750, network_params_bus)
 network_mixed = Network(500, network_params_mixed)
 
 car = Mode([network_mixed, network_car], 'car')
-bus = BusMode([network_mixed, network_bus], BusModeParams(1.0))
+bus = BusMode([network_mixed, network_bus], BusModeParams(0.4))
 nc = NetworkCollection([network_mixed, network_car, network_bus])
 
 
 m = Microtype(nc)
 m.setModeDemand('car', 40 / (10 * 60), 1000.0)
-m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
+m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
 
 total_demands = np.arange(0.02, 0.2, 0.005)
 mode_splits = np.arange(0.3, 1.0, 0.05)

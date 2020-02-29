@@ -60,7 +60,7 @@ class Mode:
         current_allocation = []
         blocked_lengths = []
         lengths = []
-        other_mode_n = []
+        other_mode_n_eq = []
         for n in self._networks:
             other_modes = list(n.N_eq.keys())
             if self.name in other_modes:
@@ -68,18 +68,18 @@ class Mode:
             current_allocation.append(self._N[n])
             blocked_lengths.append(n.getBlockedDistance())
             lengths.append(n.L)
-            other_mode_n.append(sum([n.N_eq[m] for m in other_modes]))
-        n_other = sum(other_mode_n)
+            other_mode_n_eq.append(sum([n.N_eq[m] for m in other_modes]))
+        n_eq_other = sum(other_mode_n_eq)
         L_tot = sum(lengths)
         L_blocked_tot = sum(blocked_lengths)
-        density_av = (n_tot + n_other) / (L_tot - L_blocked_tot)
+        density_av = (n_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.relative_length
         if n_tot > 0:
-            n_new = [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n[i] for i in range(len(lengths))]
+            n_new = [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]
         else:
             n_new = [0] * len(lengths)
         for ind, n in enumerate(self._networks):
-            n.N_eq[self.name] = n_new[ind]
-            self._N[n] = n.N_eq[self.name] / self.relative_length
+            n.N_eq[self.name] = n_new[ind] * self.relative_length
+            self._N[n] = n.N_eq[self.name]
 
     def __str__(self):
         return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
@@ -112,6 +112,7 @@ class BusMode(Mode):
         self.passenger_wait = busNetworkParams.passenger_wait
         self.fixed_density = self.getFixedDensity()
         self.densityFixed = True
+        self.routeAveragedSpeed = super().getSpeed()
 
     def addVehicles(self, n: float):
         self.N_fixed = n
@@ -124,9 +125,10 @@ class BusMode(Mode):
         return self.N_fixed / self.getRouteLength()
 
     def getSubNetworkSpeed(self, car_speed):
-        return car_speed * (1 - self.passenger_wait * (
-                self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / self.fixed_density) / (
-                       1 + car_speed / self.stop_spacing * self.min_stop_time)
+        averageStopDuration = self.min_stop_time + self.passenger_wait * (
+                self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
+                                      self.routeAveragedSpeed / self.stop_spacing * self.N_fixed)
+        return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
 
     def getSpeeds(self):
         speeds = []
@@ -141,12 +143,13 @@ class BusMode(Mode):
         seconds = []
         for n in self._networks:
             n_bus = self._N[n]
-            bus_speed = self.getSubNetworkSpeed(carSpeed)
+            bus_speed = self.getSubNetworkSpeed(n.car_speed)
             seconds.append(n_bus)
             meters.append(n_bus * bus_speed)
         if sum(seconds) == 0:
             return next(iter(self._networks)).car_speed
-        return sum(meters) / sum(seconds)
+        spd = sum(meters) / sum(seconds)
+        return spd
 
     def getBlockedDistance(self, network):
         if network.car_speed > 0:
@@ -173,8 +176,9 @@ class BusMode(Mode):
             lengths.append(n.L)
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         for ind, n in enumerate(self._networks):
-            n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot
-            self._N[n] = n.N_eq[self.name] / self.relative_length
+            n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot * self.relative_length
+            self._N[n] = n.N_eq[self.name] * self.relative_length
+        self.routeAveragedSpeed = self.getSpeed()
 
 
 class Network:
@@ -276,7 +280,7 @@ class NetworkCollection:
             m.allocateVehicles(m.N_fixed)
             self.modes[m.name] = m
             self.demands[m.name] = m.travelDemand
-        #self.updateNetworks()
+        # self.updateNetworks()
 
     def updateModes(self, n: int = 10):
         allModes = [n.getModeValues() for n in self._networks]

@@ -86,6 +86,8 @@ class TravelDemands:
 
     def __setitem__(self, key: str, value: TravelDemand):
         self._demands[key] = value
+        if key not in self._modes:
+            self._modes.append(key)
 
     def __getitem__(self, item: str) -> TravelDemand:
         return self._demands[item]
