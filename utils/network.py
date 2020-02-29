@@ -174,7 +174,7 @@ class BusMode(Mode):
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         for ind, n in enumerate(self._networks):
             n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot
-            self._N[n] = n.N_eq[self.name]
+            self._N[n] = n.N_eq[self.name] / self.relative_length
 
 
 class Network:
@@ -276,7 +276,7 @@ class NetworkCollection:
             m.allocateVehicles(m.N_fixed)
             self.modes[m.name] = m
             self.demands[m.name] = m.travelDemand
-        self.updateNetworks()
+        #self.updateNetworks()
 
     def updateModes(self, n: int = 10):
         allModes = [n.getModeValues() for n in self._networks]
@@ -288,6 +288,7 @@ class NetworkCollection:
                 m.allocateVehicles(n_new)
             self.updateNetworks()
             self.updateMFD()
+            print(str(self))
 
     def updateNetworks(self):
         for n in self._networks:
