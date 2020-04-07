@@ -11,6 +11,6 @@ car = Mode([network_mixed, network_car], 'car')
 bus = BusMode([network_mixed, network_bus], BusModeParams(1.0))
 nc = NetworkCollection([network_mixed, network_car, network_bus])
 
-nc.addVehicles('car', 6.0)
+nc.addVehicles('car', 2.0)
 nc.updateMFD()
 print('DONE')

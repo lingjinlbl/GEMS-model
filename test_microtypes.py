@@ -15,7 +15,7 @@ network_bus = Network(750, network_params_bus)
 network_mixed = Network(500, network_params_mixed)
 
 car = Mode([network_mixed, network_car], 'car')
-bus = BusMode([network_mixed, network_bus], BusModeParams(0.4))
+bus = BusMode([network_mixed, network_bus], BusModeParams(0.6))
 nc = NetworkCollection([network_mixed, network_car, network_bus])
 
 
@@ -23,7 +23,7 @@ m = Microtype(nc)
 m.setModeDemand('car', 40 / (10 * 60), 1000.0)
 m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
 
-total_demands = np.arange(0.02, 0.2, 0.005)
+total_demands = np.arange(0.005, 0.1, 0.005)
 mode_splits = np.arange(0.3, 1.0, 0.05)
 
 average_costs = np.zeros((np.size(total_demands), np.size(mode_splits)))
@@ -34,10 +34,10 @@ for ii in range(np.size(total_demands)):
     for jj in range(np.size(mode_splits)):
         car_demand = total_demands[ii] * mode_splits[jj]
         bus_demand = total_demands[ii] * (1.0 - mode_splits[jj])
-        m = Microtype(network_params_default, modeCharacteristics)
+        nc = NetworkCollection([network_mixed, network_car, network_bus])
+        m = Microtype(nc)
         m.setModeDemand('car', car_demand, 1000.0)
         m.setModeDemand('bus', bus_demand, 1000.0)
-        m.findEquilibriumDensityAndSpeed()
         flows[ii, jj] = np.sum(m.getFlows())
         car_speeds[ii, jj] = m.getModeSpeed('car')
         average_costs[ii, jj] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())

@@ -5,7 +5,8 @@ import numpy as np
 import copy
 
 from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams
-from utils.supply import DemandCharacteristics, BusDemandCharacteristics, TravelDemand, ModeParams, BusParams, TravelDemands
+from utils.supply import DemandCharacteristics, BusDemandCharacteristics, TravelDemand, ModeParams, BusParams, \
+    TravelDemands
 import utils.supply as supply
 
 
@@ -93,10 +94,10 @@ class Microtype:
         self.mode_names = list(networks.getModeNames())
         self.networks = networks
         self.costs = costs
-        #self.updateDemandCharacteristics()
+        # self.updateDemandCharacteristics()
 
     def getModeSpeed(self, mode) -> float:
-        return self.getModeCharacteristics(mode).demand_characteristics.getSpeed()
+        return self.networks.modes[mode].getSpeed()
 
     def getBaseSpeed(self) -> float:
         return self._baseSpeed
@@ -132,12 +133,6 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    def setModeSupplyCharacteristics(self, mode: str, supply_characteristics: supply.SupplyCharacteristics):
-        self.getModeCharacteristics(mode).setSupplyCharacteristics(supply_characteristics)
-
-    def setModeDemandCharacteristics(self, mode: str, demand_characteristics: supply.DemandCharacteristics):
-        self.getModeCharacteristics(mode).setDemandCharacteristics(demand_characteristics)
-
     def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
         speed = np.max([self.getModeSpeed(mode), 0.01])
         time = distance / speed * self.costs[mode].vott_multiplier
@@ -160,70 +155,17 @@ class Microtype:
         wait = 0.
         return time, cost, wait
 
-    def getModeDensity(self, mode):
-        mc = self.getModeCharacteristics(mode)
-        fixed_density = mc.params.getFixedDensity()
-        mode_speed = mc.demand_characteristics.getSpeed()
-        if mode_speed > 0:
-            littles_law_density = self._travel_demand.getRateOfPMT(mode) / mode_speed
-        else:
-            littles_law_density = np.nan
-        return fixed_density or littles_law_density
-
-    def updateDemandCharacteristics(self):
-        for mode in self.modes:
-            self.setModeDemandCharacteristics(mode,
-                                              copy.deepcopy(getModeDemandCharacteristics(self._baseSpeed,
-                                                                                         self.getModeCharacteristics(
-                                                                                             mode),
-                                                                                         self._travel_demand)))
-
-    def updateSupplyCharacteristics(self):
-        for mode in self.modes:
-            density = self.getModeDensity(mode)
-            L_eq = getModeBlockedDistance(self, mode)
-            N_eq = (self.getModeCharacteristics(mode).params.size or 1.0) * density
-            supplyCharacteristics = supply.SupplyCharacteristics(density, N_eq, L_eq)
-            self.setModeSupplyCharacteristics(mode, supplyCharacteristics)
-
-    def getNewSpeedFromDensities(self):
-        N_eq = np.sum([self.getModeCharacteristics(mode).supply_characteristics.getN() for mode in self.modes])
-        L_eq = self.network.L - np.sum(
-            [self.getModeCharacteristics(mode).supply_characteristics.getL() for mode in self.modes])
-        return self.network.MFD(N_eq, L_eq)
-
-    def setSpeed(self, speed):
-        self._baseSpeed = speed
-        self.updateDemandCharacteristics()
-        self.updateSupplyCharacteristics()
-
-    def findEquilibriumDensityAndSpeed(self, iter_max=20):
-        newData = copy.deepcopy(self)
-        oldData = copy.deepcopy(self)
-        keepGoing = True
-        ii = 1
-        while keepGoing:
-            newSpeed = newData.getNewSpeedFromDensities()
-            if np.isnan(newSpeed):
-                newSpeed = 0.0
-            print('New Speed: ', newSpeed)
-            newData.setSpeed(newSpeed)
-            print('Diff: ', np.abs(newData._baseSpeed - oldData._baseSpeed))
-            keepGoing = (np.abs(newData._baseSpeed - oldData._baseSpeed) > 0.001) & (ii < iter_max)
-            oldData = copy.deepcopy(newData)
-            if ii == 20:
-                newSpeed = 0.0
-        self.setSpeed(newSpeed)
-
     def getFlows(self):
-        return [np.nan_to_num(np.max([self.getModeFlow(mode), 0.0])) for mode in
-                self.modes]
+        return [mode.getPassengerFlow() for mode in
+                self.networks.modes.values()]
 
     def getSpeeds(self):
-        return [self.getModeSpeed(mode) for mode in self.modes]
+        return [mode.getSpeed() for mode in
+                self.networks.modes.values()]
 
     def getDemandsForPMT(self):
-        return [self.getModeDemandForPMT(mode) for mode in self.modes]
+        return [mode.getPassengerFlow() for mode in
+                self.networks.modes.values()]
 
     def getTravelTimes(self):
         speeds = np.array(self.getSpeeds())

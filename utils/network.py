@@ -101,6 +101,10 @@ class Mode:
             averageTimeInSystem = averageDistanceInSystem / speed
             return rateOfPMT / averageDistanceInSystem * averageTimeInSystem
 
+    def getPassengerFlow(self) -> float:
+        return self.getSpeed()
+
+
 
 class BusMode(Mode):
     def __init__(self, networks, busNetworkParams: BusModeParams) -> None:
@@ -180,6 +184,9 @@ class BusMode(Mode):
             self._N[n] = n.N_eq[self.name] * self.relative_length
         self.routeAveragedSpeed = self.getSpeed()
 
+    def getPassengerFlow(self) -> float:
+        return self.travelDemand.rateOfPMT
+
 
 class Network:
     def __init__(self, L: float, networkFlowParams: NetworkFlowParams):
@@ -252,6 +259,8 @@ class Network:
 
     def addMode(self, mode: Mode):
         self._modes[mode.name] = mode
+        self.L_blocked[mode.name] = 0.0
+        self.N_eq[mode.name] = 0.0
         return self
 
     def getModeNames(self) -> list:
