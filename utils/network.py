@@ -99,6 +99,9 @@ class Mode:
     def getN(self, network):
         return self._N[network]
 
+    def getNs(self, network):
+        return list(self._N.values())
+
     def getLblocked(self, network):
         return self._L_blocked[network]
 
@@ -111,8 +114,10 @@ class Mode:
             return rateOfPMT / averageDistanceInSystem * averageTimeInSystem
 
     def getPassengerFlow(self) -> float:
-        return self.getSpeed()
-
+        if np.any([n.isJammed for n in self._networks]):
+            return 0.0
+        else:
+            return self.travelDemand.rateOfPMT
 
 class BusMode(Mode):
     def __init__(self, networks, busNetworkParams: BusModeParams) -> None:
@@ -202,9 +207,6 @@ class BusMode(Mode):
             self._N[n] = n.N_eq[self.name] / self.relative_length
         self.routeAveragedSpeed = self.getSpeed()
 
-    def getPassengerFlow(self) -> float:
-        return self.travelDemand.rateOfPMT
-
     def getHeadway(self) -> float:
         return self.getRouteLength() / self.N_fixed / self.routeAveragedSpeed
 
@@ -222,6 +224,7 @@ class Network:
         self.L_blocked = dict()
         self._modes = dict()
         self.car_speed = networkFlowParams.u_f
+        self.isJammed = False
 
     def __str__(self):
         return str(list(self.N_eq.keys()))
@@ -342,16 +345,20 @@ class NetworkCollection:
         self[mode].addVehicles(N)
         self.updateMFD(n)
 
-    def updateMFD(self, n=1):
-        for i in range(n):
+    def updateMFD(self, iters=1):
+        for i in range(iters):
             for n in self._networks:
                 n.updateBlockedDistance()
                 n.MFD()
+                if np.isnan(n.car_speed):
+                    n.isJammed = True
             for m in self.modes.values():
                 if m.densityFixed:
                     m.allocateVehicles(m.N_fixed)
                 else:
                     m.allocateVehicles(m.getTotalNumberOfVehicles())
+
+
 
     def __str__(self):
         return str([n.car_speed for n in self._networks])
