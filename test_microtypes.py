@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
+from utils.microtype import Microtype
 from utils.supply import BusParams, ModeParams
 from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams
 

@@ -2,7 +2,6 @@ import numpy as np
 from typing import List, Dict
 from utils.supply import TravelDemand, TravelDemands
 
-
 class NetworkFlowParams:
     def __init__(self, smoothing, free_flow_speed, wave_velocity, jam_density, max_flow, avg_link_length):
         self.lam = smoothing
@@ -28,6 +27,12 @@ class BusModeParams(ModeParams):
         self.stop_spacing = stop_spacing
         self.passenger_wait = passenger_wait
 
+class Costs:
+    def __init__(self, per_meter, per_start, per_end, vott_multiplier):
+        self.per_meter = per_meter
+        self.per_start = per_start
+        self.per_end = per_end
+        self.vott_multiplier = vott_multiplier
 
 class Mode:
     def __init__(self, networks: List, name: str):
@@ -38,6 +43,7 @@ class Mode:
         self.relative_length = 1.0
         self._networks = networks
         self._averageDistanceInSystem = 0.0
+        self.costs = Costs(0.0, 0.0, 0.0, 1.0)
         for n in networks:
             n.addMode(self)
             self._N[n] = 0.0
@@ -186,6 +192,9 @@ class BusMode(Mode):
 
     def getPassengerFlow(self) -> float:
         return self.travelDemand.rateOfPMT
+
+    def getHeadway(self) -> float:
+        return self.getRouteLength() / self.N_fixed / self.routeAveragedSpeed
 
 
 class Network:
