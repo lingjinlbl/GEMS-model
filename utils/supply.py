@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import Dict, List
 
+
 class ModeParams:
     def __init__(self, road_network_fraction=1.0, relative_length=1.0):
         self.road_network_fraction = road_network_fraction
@@ -25,42 +26,6 @@ class BusParams(ModeParams):
 
     def getFixedDensity(self):
         return self.k
-
-
-class SupplyCharacteristics:
-    def __init__(self, density, N_eq, L_eq):
-        self.density = density
-        self.N_eq = N_eq
-        self.L_eq = L_eq
-
-    def getN(self):
-        return self.N_eq
-
-    def getL(self):
-        return self.L_eq
-
-    def __str__(self):
-        return 'N_eq: ' + str(self.N_eq) + ' , L_eq: ' + str(self.L_eq)
-
-
-class DemandCharacteristics:
-    def __init__(self, speed, passenger_flow):
-        self.speed = speed
-        self.passenger_flow = passenger_flow
-
-    def getSpeed(self):
-        return self.speed
-
-    def __str__(self):
-        return 'Speed: ' + str(self.speed) + ' , Flow: ' + str(self.passenger_flow)
-
-
-class BusDemandCharacteristics(DemandCharacteristics):
-    def __init__(self, speed, passenger_flow, dwell_time, headway, occupancy):
-        super().__init__(speed, passenger_flow)
-        self.dwell_time = dwell_time
-        self.headway = headway
-        self.occupancy = occupancy
 
 
 class TravelDemand:

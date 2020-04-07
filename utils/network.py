@@ -2,6 +2,7 @@ import numpy as np
 from typing import List, Dict
 from utils.supply import TravelDemand, TravelDemands
 
+
 class NetworkFlowParams:
     def __init__(self, smoothing, free_flow_speed, wave_velocity, jam_density, max_flow, avg_link_length):
         self.lam = smoothing
@@ -27,12 +28,14 @@ class BusModeParams(ModeParams):
         self.stop_spacing = stop_spacing
         self.passenger_wait = passenger_wait
 
+
 class Costs:
     def __init__(self, per_meter, per_start, per_end, vott_multiplier):
         self.per_meter = per_meter
         self.per_start = per_start
         self.per_end = per_end
         self.vott_multiplier = vott_multiplier
+
 
 class Mode:
     def __init__(self, networks: List, name: str):
@@ -111,7 +114,6 @@ class Mode:
         return self.getSpeed()
 
 
-
 class BusMode(Mode):
     def __init__(self, networks, busNetworkParams: BusModeParams) -> None:
         super().__init__(networks, "bus")
@@ -123,6 +125,16 @@ class BusMode(Mode):
         self.fixed_density = self.getFixedDensity()
         self.densityFixed = True
         self.routeAveragedSpeed = super().getSpeed()
+        self.routeAveragedSpeed = self.getSpeed()
+        self.allocateVehicles(self.N_fixed)
+        self.updateBlockedDistance()
+
+    def initLocations(self):
+        distTot = self.getRouteLength()
+        for n in self._networks:
+            n_new = n.L / distTot * self.fixed_density
+            self._N[n] = n_new
+            n.N_eq['bus'] = n_new * self.relative_length
 
     def addVehicles(self, n: float):
         self.N_fixed = n
@@ -187,7 +199,7 @@ class BusMode(Mode):
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         for ind, n in enumerate(self._networks):
             n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot * self.relative_length
-            self._N[n] = n.N_eq[self.name] * self.relative_length
+            self._N[n] = n.N_eq[self.name] / self.relative_length
         self.routeAveragedSpeed = self.getSpeed()
 
     def getPassengerFlow(self) -> float:
@@ -305,9 +317,12 @@ class NetworkCollection:
         uniqueModes = set([item for sublist in allModes for item in sublist])
         for it in range(n):
             for m in uniqueModes:
-                mode_demand = self.demands[m.name]
-                n_new = m.getLittlesLawN(mode_demand.rateOfPMT, mode_demand.averageDistanceInSystem)
-                m.allocateVehicles(n_new)
+                if m.densityFixed:
+                    m.allocateVehicles(m.getTotalNumberOfVehicles())
+                else:
+                    mode_demand = self.demands[m.name]
+                    n_new = m.getLittlesLawN(mode_demand.rateOfPMT, mode_demand.averageDistanceInSystem)
+                    m.allocateVehicles(n_new)
             self.updateNetworks()
             self.updateMFD()
             print(str(self))
@@ -321,7 +336,7 @@ class NetworkCollection:
         self.resetModes()
 
     def __getitem__(self, item):
-        return self.modes[item]
+        return [n for n in self._networks if item in n.getModeNames()]
 
     def addVehicles(self, mode: str, N: float, n=5):
         self[mode].addVehicles(N)
@@ -333,7 +348,10 @@ class NetworkCollection:
                 n.updateBlockedDistance()
                 n.MFD()
             for m in self.modes.values():
-                m.allocateVehicles(m.getTotalNumberOfVehicles())
+                if m.densityFixed:
+                    m.allocateVehicles(m.N_fixed)
+                else:
+                    m.allocateVehicles(m.getTotalNumberOfVehicles())
 
     def __str__(self):
         return str([n.car_speed for n in self._networks])

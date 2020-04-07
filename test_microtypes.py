@@ -10,12 +10,12 @@ import scipy.ndimage as sp
 network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-network_car = Network(250, network_params_car)
-network_bus = Network(750, network_params_bus)
-network_mixed = Network(500, network_params_mixed)
+network_car = Network(750, network_params_car)
+network_bus = Network(250, network_params_bus)
+network_mixed = Network(250, network_params_mixed)
 
 car = Mode([network_mixed, network_car], 'car')
-bus = BusMode([network_mixed, network_bus], BusModeParams(0.6))
+bus = BusMode([network_mixed, network_bus], BusModeParams(2.5))
 nc = NetworkCollection([network_mixed, network_car, network_bus])
 
 
@@ -23,7 +23,7 @@ m = Microtype(nc)
 m.setModeDemand('car', 40 / (10 * 60), 1000.0)
 m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
 
-total_demands = np.arange(0.005, 0.1, 0.005)
+total_demands = np.arange(0.005, 0.18, 0.002)
 mode_splits = np.arange(0.3, 1.0, 0.05)
 
 average_costs = np.zeros((np.size(total_demands), np.size(mode_splits)))
@@ -34,6 +34,9 @@ for ii in range(np.size(total_demands)):
     for jj in range(np.size(mode_splits)):
         car_demand = total_demands[ii] * mode_splits[jj]
         bus_demand = total_demands[ii] * (1.0 - mode_splits[jj])
+        network_mixed.resetModes()
+        network_car.resetModes()
+        network_bus.resetModes()
         nc = NetworkCollection([network_mixed, network_car, network_bus])
         m = Microtype(nc)
         m.setModeDemand('car', car_demand, 1000.0)

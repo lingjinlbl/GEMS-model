@@ -5,8 +5,7 @@ import numpy as np
 import copy
 
 from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams, Costs
-from utils.supply import DemandCharacteristics, BusDemandCharacteristics, TravelDemand, ModeParams, BusParams, \
-    TravelDemands
+from utils.supply import ModeParams, BusParams, TravelDemands
 import utils.supply as supply
 
 
@@ -17,7 +16,6 @@ class Microtype:
         self.mode_names = list(networks.getModeNames())
         self.networks = networks
         self.costs = costs
-        # self.updateDemandCharacteristics()
 
     def getModeSpeed(self, mode) -> float:
         return self.networks.modes[mode].getSpeed()
@@ -110,50 +108,21 @@ class Microtype:
 
 
 def main():
-    network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
-    bus_params_default = BusParams(road_network_fraction=1000, relative_length=3.0,
-                                   fixed_density=150. / 100., min_stop_time=15., stop_spacing=1. / 500.,
-                                   passenger_wait=5.)
+    network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+    network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+    network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+    network_car = Network(250, network_params_car)
+    network_bus = Network(750, network_params_bus)
+    network_mixed = Network(500, network_params_mixed)
 
-    car_params_default = ModeParams(relative_length=1.0)
+    Mode([network_mixed, network_car], 'car')
+    BusMode([network_mixed, network_bus], BusModeParams(0.6))
+    nc = NetworkCollection([network_mixed, network_car, network_bus])
 
-    modeCharacteristics = CollectedModeCharacteristics()
-    modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
-    modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default)
+    m = Microtype(nc)
+    m.setModeDemand('car', 40 / (10 * 60), 1000.0)
+    m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
 
-    m = Microtype(network_params_default, modeCharacteristics)
-    m.setModeDemand('car', 70 / (10 * 60), 1000.0)
-    m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
-    m.print()
-
-
-def getDefaultDemandCharacteristics(mode):
-    """
-
-    :param mode: str
-    :return: DemandCharacteristics
-    """
-    if mode == 'car':
-        return supply.DemandCharacteristics(15., 0.0)
-    elif mode == 'bus':
-        return supply.BusDemandCharacteristics(15., 0.0, 0.0, 0.0, 0.0)
-    else:
-        return supply.DemandCharacteristics(15., 0.0)
-
-
-def getDefaultSupplyCharacteristics():
-    return supply.SupplyCharacteristics(0.0, 0.0, 0.0)
-
-
-def getBusdwellTime(v, params_bus, trip_start_rate, trip_end_rate):
-    if v > 0:
-        out = 1. / (params_bus.s_b * v) * (
-                v * params_bus.k * params_bus.t_0 * params_bus.s_b +
-                params_bus.gamma_s * 2 * (trip_start_rate + trip_end_rate)) / (
-                      params_bus.k - params_bus.gamma_s * (trip_start_rate + trip_end_rate))
-    else:
-        out = np.nan
-    return out
 
 if __name__ == "__main__":
     main()
