@@ -10,13 +10,13 @@ import scipy.ndimage as sp
 network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-network_car = Network(750, network_params_car)
-network_bus = Network(50, network_params_bus)
-network_mixed = Network(450, network_params_mixed)
+network_car = Network(250, network_params_car)
+network_bus = Network(250, network_params_bus)
+network_mixed = Network(750, network_params_mixed)
 
 car = Mode([network_mixed, network_car], 'car')
-bus = BusMode([network_mixed, network_bus], BusModeParams(2.5))
-nc = NetworkCollection([network_mixed, network_car, network_bus])
+bus = BusMode([network_mixed], BusModeParams(1.0))
+nc = NetworkCollection([network_mixed, network_car])
 
 
 m = Microtype(nc)
@@ -37,7 +37,7 @@ for ii in range(np.size(total_demands)):
         network_mixed.resetModes()
         network_car.resetModes()
         network_bus.resetModes()
-        nc = NetworkCollection([network_mixed, network_car, network_bus])
+        nc = NetworkCollection([network_mixed, network_car], False)
         m = Microtype(nc)
         m.setModeDemand('car', car_demand, 1000.0)
         m.setModeDemand('bus', bus_demand, 1000.0)

@@ -65,7 +65,7 @@ class Mode:
         return sum([n for n in self._N.values()])
 
     def allocateVehicles(self, n_tot):
-        "for constant car speed"
+        """for constant car speed"""
         current_allocation = []
         blocked_lengths = []
         lengths = []
@@ -83,9 +83,12 @@ class Mode:
         L_blocked_tot = sum(blocked_lengths)
         density_av = (n_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.relative_length
         if n_tot > 0:
-            n_new = [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]
+            n_new = np.array([density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))])
         else:
-            n_new = [0] * len(lengths)
+            n_new = np.array([0.0] * len(lengths))
+        to_reallocate = np.sum(n_new[n_new < 0])
+        n_new[n_new > 0] += to_reallocate * n_new[n_new > 0] / np.sum(n_new[n_new > 0])
+        n_new[n_new < 0] = 0
         for ind, n in enumerate(self._networks):
             n.N_eq[self.name] = n_new[ind] * self.relative_length
             self._N[n] = n.N_eq[self.name]
@@ -118,6 +121,7 @@ class Mode:
             return 0.0
         else:
             return self.travelDemand.rateOfPMT
+
 
 class BusMode(Mode):
     def __init__(self, networks, busNetworkParams: BusModeParams) -> None:
@@ -295,7 +299,7 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, network=None):
+    def __init__(self, network=None, verbose=True):
         self._networks = list()
         if isinstance(network, Network):
             self._networks.append(network)
@@ -303,19 +307,25 @@ class NetworkCollection:
             self._networks = network
         self.modes = dict()
         self.demands = TravelDemands([])
+        self.verbose = verbose
         self.resetModes()
 
     def resetModes(self):
         allModes = [n.getModeValues() for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
+        for n in self._networks:
+            n.isJammed = False
         self.modes = dict()
         for m in uniqueModes:
-            m.allocateVehicles(m.N_fixed)
+            if m.densityFixed:
+                m.allocateVehicles(m.N_fixed)
+            else:
+                m.allocateVehicles(0)
             self.modes[m.name] = m
             self.demands[m.name] = m.travelDemand
         # self.updateNetworks()
 
-    def updateModes(self, n: int = 10):
+    def updateModes(self, n: int = 20):
         allModes = [n.getModeValues() for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
         for it in range(n):
@@ -328,7 +338,11 @@ class NetworkCollection:
                     m.allocateVehicles(n_new)
             self.updateNetworks()
             self.updateMFD()
-            print(str(self))
+            if self.verbose:
+                print(str(self))
+            if np.any([n.isJammed for n in self._networks]):
+                print('Network is jammed!')
+                break
 
     def updateNetworks(self):
         for n in self._networks:
@@ -341,9 +355,9 @@ class NetworkCollection:
     def __getitem__(self, item):
         return [n for n in self._networks if item in n.getModeNames()]
 
-    def addVehicles(self, mode: str, N: float, n=5):
-        self[mode].addVehicles(N)
-        self.updateMFD(n)
+    # def addVehicles(self, mode: str, N: float, n=5):
+    #     self[mode].addVehicles(N)
+    #     self.updateMFD(n)
 
     def updateMFD(self, iters=1):
         for i in range(iters):
@@ -357,8 +371,6 @@ class NetworkCollection:
                     m.allocateVehicles(m.N_fixed)
                 else:
                     m.allocateVehicles(m.getTotalNumberOfVehicles())
-
-
 
     def __str__(self):
         return str([n.car_speed for n in self._networks])
