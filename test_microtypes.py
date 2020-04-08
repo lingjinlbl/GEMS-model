@@ -15,35 +15,55 @@ network_bus = Network(250, network_params_bus)
 network_mixed = Network(750, network_params_mixed)
 
 car = Mode([network_mixed, network_car], 'car')
-bus = BusMode([network_mixed], BusModeParams(1.0))
+bus = BusMode([network_mixed], BusModeParams(3.0))
 nc = NetworkCollection([network_mixed, network_car])
 
 
 m = Microtype(nc)
-m.setModeDemand('car', 40 / (10 * 60), 1000.0)
-m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
+m.setModeDemand('car', 0.1, 1000.0)
+m.setModeDemand('bus', 0.03, 1000.0)
 
-total_demands = np.arange(0.005, 0.18, 0.002)
+total_demands = np.arange(0.005, 0.2, 0.002)
 mode_splits = np.arange(0.3, 1.0, 0.05)
 
 average_costs = np.zeros((np.size(total_demands), np.size(mode_splits)))
 flows = np.zeros((np.size(total_demands), np.size(mode_splits)))
 car_speeds = np.zeros((np.size(total_demands), np.size(mode_splits)))
+headways = np.zeros((np.size(total_demands), np.size(mode_splits)))
+occupancies = np.zeros((np.size(total_demands), np.size(mode_splits)))
 
 for ii in range(np.size(total_demands)):
     for jj in range(np.size(mode_splits)):
         car_demand = total_demands[ii] * mode_splits[jj]
         bus_demand = total_demands[ii] * (1.0 - mode_splits[jj])
-        network_mixed.resetModes()
-        network_car.resetModes()
-        network_bus.resetModes()
-        nc = NetworkCollection([network_mixed, network_car], False)
+        #network_mixed.resetModes()
+        #network_car.resetModes()
+        #network_bus.resetModes()
+        network_car = Network(750, network_params_car)
+        network_mixed = Network(200, network_params_mixed)
+        network_bus = Network(50, network_params_bus)
+        car = Mode([network_mixed, network_car], 'car')
+        bus = BusMode([network_mixed], BusModeParams(1.0))
+        nc = NetworkCollection([network_mixed, network_car, network_bus], False)
         m = Microtype(nc)
         m.setModeDemand('car', car_demand, 1000.0)
         m.setModeDemand('bus', bus_demand, 1000.0)
         flows[ii, jj] = np.sum(m.getFlows())
         car_speeds[ii, jj] = m.getModeSpeed('car')
         average_costs[ii, jj] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+        headways[ii, jj] = bus.getHeadway()
+        occupancies[ii, jj] = bus.getOccupancy()
+
+fig2= plt.figure(figsize=(8, 5))
+levels = np.linspace(0,150,15)
+p2 = plt.contourf(mode_splits, total_demands, occupancies, levels=levels)  # , np.arange(0.08, 0.35, 0.02))
+cb2 = plt.colorbar(p2)
+
+cb2.set_label('Headway')
+
+plt.ylabel('Total Demand (trip starts / time)')
+plt.xlabel('Car Mode Share')
+
 
 fig1 = plt.figure(figsize=(8, 5))
 

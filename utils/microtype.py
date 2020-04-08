@@ -71,12 +71,10 @@ class Microtype:
         return time, cost, wait
 
     def getFlows(self):
-        return [mode.getPassengerFlow() for mode in
-                self.networks.modes.values()]
+        return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
 
     def getSpeeds(self):
-        return [mode.getSpeed() for mode in
-                self.networks.modes.values()]
+        return [mode.getSpeed() for mode in self.networks.modes.values()]
 
     def getDemandsForPMT(self):
         return [mode.getPassengerFlow() for mode in

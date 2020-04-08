@@ -1,4 +1,5 @@
 import numpy as np
+np.seterr(all='ignore')
 from typing import List, Dict
 from utils.supply import TravelDemand, TravelDemands
 
@@ -53,6 +54,15 @@ class Mode:
             self._L_blocked[n] = 0.0
         self.travelDemand = TravelDemand()
         self.densityFixed = False
+        self.fixed_density = self.getFixedDensity()
+
+    def reset(self):
+        for key, value in self._N.items():
+            self._N[key] = self.fixed_density*key.L
+            self._L_blocked[key] = 0.0
+
+    def getFixedDensity(self):
+        return 0.0
 
     def updateBlockedDistance(self):
         for n in self._networks:
@@ -70,6 +80,7 @@ class Mode:
         blocked_lengths = []
         lengths = []
         other_mode_n_eq = []
+        jammed = []
         for n in self._networks:
             other_modes = list(n.N_eq.keys())
             if self.name in other_modes:
@@ -78,17 +89,19 @@ class Mode:
             blocked_lengths.append(n.getBlockedDistance())
             lengths.append(n.L)
             other_mode_n_eq.append(sum([n.N_eq[m] for m in other_modes]))
+            jammed.append(n.isJammed)
         n_eq_other = sum(other_mode_n_eq)
         L_tot = sum(lengths)
         L_blocked_tot = sum(blocked_lengths)
         density_av = (n_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.relative_length
         if n_tot > 0:
-            n_new = np.array([density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))])
+            n_new = np.nan_to_num(np.array([density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]))
         else:
             n_new = np.array([0.0] * len(lengths))
-        to_reallocate = np.sum(n_new[n_new < 0])
-        n_new[n_new > 0] += to_reallocate * n_new[n_new > 0] / np.sum(n_new[n_new > 0])
-        n_new[n_new < 0] = 0
+        should_be_empty = (n_new < 0) | np.array(jammed)
+        to_reallocate = np.sum(n_new[should_be_empty])
+        n_new[~should_be_empty] += to_reallocate * n_new[~should_be_empty] / np.sum(n_new[~should_be_empty])
+        n_new[should_be_empty] = 0
         for ind, n in enumerate(self._networks):
             n.N_eq[self.name] = n_new[ind] * self.relative_length
             self._N[n] = n.N_eq[self.name]
@@ -131,10 +144,11 @@ class BusMode(Mode):
         self.min_stop_time = busNetworkParams.min_stop_time
         self.stop_spacing = busNetworkParams.stop_spacing
         self.passenger_wait = busNetworkParams.passenger_wait
-        self.fixed_density = self.getFixedDensity()
         self.densityFixed = True
         self.routeAveragedSpeed = super().getSpeed()
         self.routeAveragedSpeed = self.getSpeed()
+        self.headway = 0.0
+        self.occupancy = 0.0
         self.allocateVehicles(self.N_fixed)
         self.updateBlockedDistance()
 
@@ -207,16 +221,34 @@ class BusMode(Mode):
             lengths.append(n.L)
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         for ind, n in enumerate(self._networks):
-            n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot * self.relative_length
-            self._N[n] = n.N_eq[self.name] / self.relative_length
+            if speeds[ind] > 0:
+                n.N_eq[self.name] = n_tot * lengths[ind] / speeds[ind] / T_tot * self.relative_length
+                self._N[n] = n.N_eq[self.name] / self.relative_length
+            else:
+                n.N_eq[self.name] = n_tot / lengths[ind] * self.relative_length
+                self._N[n] = n_tot / lengths[ind]
         self.routeAveragedSpeed = self.getSpeed()
+        self.headway = self.getHeadway()
+        self.occupancy = self.getOccupancy()
 
     def getHeadway(self) -> float:
         return self.getRouteLength() / self.N_fixed / self.routeAveragedSpeed
 
+    def getOccupancy(self) -> float:
+        return self.travelDemand.averageDistanceInSystem / self.routeAveragedSpeed * self.travelDemand.tripStartRate / self.N_fixed
+
+    def getPassengerFlow(self) -> float:
+        if np.any([n.isJammed for n in self._networks]):
+            return 0.0
+        elif self.occupancy > 100:
+            return np.nan
+        else:
+            return self.travelDemand.rateOfPMT
+
 
 class Network:
     def __init__(self, L: float, networkFlowParams: NetworkFlowParams):
+        self.networkFlowParams = networkFlowParams
         self.L = L
         self.lam = networkFlowParams.lam
         self.u_f = networkFlowParams.u_f
@@ -237,6 +269,9 @@ class Network:
         for mode in self._modes.values():
             self.N_eq[mode.name] = mode.getN(self) * mode.relative_length
             self.L_blocked[mode.name] = mode.getLblocked(self)
+        self.isJammed = False
+        self.car_speed = self.networkFlowParams.u_f
+            # mode.reset()
 
     def getBaseSpeed(self):
         return self.car_speed
@@ -309,6 +344,9 @@ class NetworkCollection:
         self.demands = TravelDemands([])
         self.verbose = verbose
         self.resetModes()
+
+    def isJammed(self):
+        return np.any([n.isJammed for n in self._networks])
 
     def resetModes(self):
         allModes = [n.getModeValues() for n in self._networks]
