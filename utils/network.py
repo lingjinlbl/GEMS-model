@@ -328,6 +328,7 @@ class NetworkCollection:
     def updateModes(self, n: int = 20):
         allModes = [n.getModeValues() for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
+        oldSpeeds = self.getModeSpeeds()
         for it in range(n):
             for m in uniqueModes:
                 if m.densityFixed:
@@ -341,8 +342,12 @@ class NetworkCollection:
             if self.verbose:
                 print(str(self))
             if np.any([n.isJammed for n in self._networks]):
-                print('Network is jammed!')
                 break
+            newSpeeds = self.getModeSpeeds()
+            if np.sum(np.power(oldSpeeds - newSpeeds, 2)) < 0.000001:
+                break
+            else:
+                oldSpeeds = newSpeeds
 
     def updateNetworks(self):
         for n in self._networks:
@@ -385,6 +390,9 @@ class NetworkCollection:
 
     def getModeNames(self) -> list:
         return list(self.modes.keys())
+
+    def getModeSpeeds(self) -> np.array:
+        return np.array([m.getSpeed() for m in self.modes.values()])
 
 
 def main():
