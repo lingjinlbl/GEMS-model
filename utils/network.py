@@ -1,7 +1,8 @@
 import numpy as np
-np.seterr(all='ignore')
 from typing import List, Dict
 from utils.supply import TravelDemand, TravelDemands
+
+np.seterr(all='ignore')
 
 
 class NetworkFlowParams:
@@ -39,8 +40,8 @@ class Costs:
 
 
 class Mode:
-    def __init__(self, networks: List, name: str):
-        self.name = name
+    def __init__(self, networks: List, params: ModeParams):
+        self.name = params.name
         self.N_fixed = 0.0
         self._N = dict()
         self._L_blocked = dict()
@@ -137,13 +138,14 @@ class Mode:
 
 
 class BusMode(Mode):
-    def __init__(self, networks, busNetworkParams: BusModeParams) -> None:
-        super().__init__(networks, "bus")
-        self.N_fixed = busNetworkParams.buses_in_service
-        self.relative_length = busNetworkParams.relative_length
-        self.min_stop_time = busNetworkParams.min_stop_time
-        self.stop_spacing = busNetworkParams.stop_spacing
-        self.passenger_wait = busNetworkParams.passenger_wait
+    def __init__(self, networks, busModeParams: ModeParams) -> None:
+        assert(isinstance(busModeParams, BusModeParams))
+        super().__init__(networks, busModeParams)
+        self.N_fixed = busModeParams.buses_in_service
+        self.relative_length = busModeParams.relative_length
+        self.min_stop_time = busModeParams.min_stop_time
+        self.stop_spacing = busModeParams.stop_spacing
+        self.passenger_wait = busModeParams.passenger_wait
         self.densityFixed = True
         self.routeAveragedSpeed = super().getSpeed()
         self.routeAveragedSpeed = self.getSpeed()
@@ -363,7 +365,7 @@ class NetworkCollection:
             self.demands[m.name] = m.travelDemand
         # self.updateNetworks()
 
-    def updateModes(self, n: int = 20):
+    def updateModes(self, n: int = 50):
         allModes = [n.getModeValues() for n in self._networks]
         uniqueModes = set([item for sublist in allModes for item in sublist])
         oldSpeeds = self.getModeSpeeds()

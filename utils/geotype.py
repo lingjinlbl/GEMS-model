@@ -4,7 +4,7 @@ import utils.IO as io
 import copy
 import utils.IO as io
 import utils.OD as od
-from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
+from utils.microtype import Microtype
 
 from typing import Dict, List
 

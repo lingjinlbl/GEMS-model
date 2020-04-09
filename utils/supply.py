@@ -1,33 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Dict, List
 
-
-class ModeParams:
-    def __init__(self, road_network_fraction=1.0, relative_length=1.0):
-        self.road_network_fraction = road_network_fraction
-        self.size = relative_length
-
-    def getSize(self):
-        return self.size
-
-    def getFixedDensity(self):
-        return None
-
-
-class BusParams(ModeParams):
-    def __init__(self, road_network_fraction: float, relative_length: float,
-                 fixed_density: float, min_stop_time: float,
-                 stop_spacing: float, passenger_wait: float) -> None:
-        super().__init__(road_network_fraction, relative_length)
-        self.k = fixed_density
-        self.t_0 = min_stop_time
-        self.s_b = stop_spacing
-        self.gamma_s = passenger_wait
-
-    def getFixedDensity(self):
-        return self.k
-
-
 class TravelDemand:
     def __init__(self):
         self.tripStartRate = 0.0

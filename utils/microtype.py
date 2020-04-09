@@ -5,8 +5,6 @@ import numpy as np
 import copy
 
 from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams, Costs
-from utils.supply import ModeParams, BusParams, TravelDemands
-import utils.supply as supply
 
 
 class Microtype:

@@ -1,23 +1,25 @@
 import utils.OD as od
 import numpy as np
-from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics, Costs
-from utils.supply import ModeParams, BusParams
-from utils.network import Network
+from utils.microtype import Microtype
+from utils.supply import BusParams, ModeParams
+from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams, Costs
 from utils.geotype import Geotype, getModeSplit
 import matplotlib.pyplot as plt
 
 costs = {'car': Costs(0.0003778, 0., 1.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.)}
 
-network_params = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
-bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
-                               fixed_density=95. / 100., min_stop_time=15., stop_spacing=1. / 250.,
-                               passenger_wait=5.)
+network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 
-car_params_default = ModeParams(relative_length=1.0)
+car = Mode([network_mixed, network_car], ModeParams('car'))
+bus = BusMode([network_mixed], BusModeParams(3.0))
+nc1 = NetworkCollection([Network(500, network_params_car), Network(500, network_params_mixed)])
+nc2 = NetworkCollection([Network(750, network_params_car), Network(250, network_params_mixed)])
 
-modeCharacteristics = ModeCharacteristics('car', car_params_default) + ModeCharacteristics('bus', bus_params_default)
 
-m = Microtype(network_params, modeCharacteristics, costs)
+m1 = Microtype(nc1, costs)
+m2 = Microtype(nc2, costs)
 
 distbins = {0: 1000.0, 1: 2000}
 demandbydistbin = {0: 30 / 600., 1: 25 / 600.}
