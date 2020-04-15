@@ -5,28 +5,34 @@ from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, M
 from utils.geotype import Geotype, getModeSplit
 import matplotlib.pyplot as plt
 
-costs = {'car': Costs(0.0003778, 0., 1.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.)}
-
 network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
 
-nc1 = NetworkCollection({Network(250, network_params_mixed): ['bus', 'car'], Network(750, network_params_car): ['car']},
+nc1 = NetworkCollection({Network(500, network_params_mixed): ['bus', 'car'], Network(500, network_params_car): ['car']},
                         {'car': ModeParams('car'), 'bus': BusModeParams(1.0)})
+costs1 = {'car': Costs(0.0003778, 0., 3.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.0)}
+m1 = Microtype(nc1, costs1)
 
-m1 = Microtype(nc1, costs)
+nc2 = NetworkCollection(
+    {Network(500, network_params_mixed): ['bus', 'car'], Network(1000, network_params_car): ['car']},
+    {'car': ModeParams('car'), 'bus': BusModeParams(1.0)}, True)
+
+costs2 = {'car': Costs(0.0003778, 0., 0.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.)}
+m2 = Microtype(nc2, costs2)
 
 distbins = {0: 1000.0, 1: 2000}
-demandbydistbin = {0: 20 / 600., 1: 25 / 600.}
+demandbydistbin = {0: 0.03, 1: 0.03}
 modesplitbydistbin = {0: od.ModeSplit({'car': 0.75, 'bus': 0.25}), 1: od.ModeSplit({'car': 0.75, 'bus': 0.25})}
 
-g = Geotype(distbins=distbins) + m1
+g = Geotype(distbins=distbins) + m1 + m2
 
-g.appendDemandData(od.ODindex(m1, m1, 0),
-                   od.DemandUnit(distbins[0], demandbydistbin[0], od.Allocation({m1: 1.0}), modesplitbydistbin[0]))
-
-g.appendDemandData(od.ODindex(m1, m1, 1),
-                   od.DemandUnit(distbins[1], demandbydistbin[1], od.Allocation({m1: 1.0}), modesplitbydistbin[1]))
+for origin in [m1, m2]:
+    for destination in [m1, m2]:
+        for distance in distbins.keys():
+            g.appendDemandData(od.ODindex(origin, destination, distance),
+                               od.DemandUnit(distbins[distance], demandbydistbin[distance],
+                                             od.Allocation({origin: 0.5, destination: 0.5}), modesplitbydistbin[0]))
 
 g.equilibriumModeChoice()
 
@@ -45,7 +51,7 @@ for ii in range(np.size(parking_costs)):
     m1 = Microtype(nc1, costs)
 
     distbins = {0: 1000.0, 1: 2000}
-    demandbydistbin = {0: 20 / 600., 1: 25 / 600.}
+    demandbydistbin = {0: 30 / 600., 1: 25 / 600.}
     modesplitbydistbin = {0: od.ModeSplit({'car': 0.75, 'bus': 0.25}), 1: od.ModeSplit({'car': 0.75, 'bus': 0.25})}
 
     g = Geotype(distbins=distbins) + m1
@@ -63,17 +69,16 @@ for ii in range(np.size(parking_costs)):
 ax1.plot(parking_costs, car_mode_share)
 p_low = ax2.plot(parking_costs, road_speeds)
 
-
 for ii in range(np.size(parking_costs)):
     costs = {'car': Costs(0.0003778, parking_costs[ii], 1.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.)}
     nc1 = NetworkCollection(
-        {Network(250, network_params_mixed): ['bus', 'car'], Network(750, network_params_car): ['car']},
-        {'car': ModeParams('car'), 'bus': BusModeParams(2.0)})
+        {Network(250, network_params_bus): ['bus'], Network(750, network_params_car): ['car']},
+        {'car': ModeParams('car'), 'bus': BusModeParams(1.0, min_stop_time=10., passenger_wait=3.)})
 
     m1 = Microtype(nc1, costs)
 
     distbins = {0: 1000.0, 1: 2000}
-    demandbydistbin = {0: 20 / 600., 1: 25 / 600.}
+    demandbydistbin = {0: 30 / 600., 1: 25 / 600.}
     modesplitbydistbin = {0: od.ModeSplit({'car': 0.75, 'bus': 0.25}), 1: od.ModeSplit({'car': 0.75, 'bus': 0.25})}
 
     g = Geotype(distbins=distbins) + m1
@@ -96,4 +101,4 @@ p_high = ax2.plot(parking_costs, road_speeds)
 ax2.set_xlabel('Parking Cost ($)')
 ax2.set_ylabel('Road Speed (m/s)')
 
-plt.legend((p_low[0], p_high[0]), ('Low Bus Service', 'High Bus Service'))
+plt.legend((p_low[0], p_high[0]), ('Mixed traffic', 'Bus lanes'))

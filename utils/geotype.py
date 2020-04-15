@@ -98,7 +98,7 @@ class Geotype:
                     mt.addModeDemandForPMT(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
                                            self.distbins[odi.distBin])
 
-    def updateMicrotypeModeCharacteristics(self, iter_max=20):
+    def updateMicrotypeModeCharacteristics(self, iter_max=50):
         for mt in self._microtypes:
             assert isinstance(mt, Microtype)
             mt.updateNetworkSpeeds(iter_max)
