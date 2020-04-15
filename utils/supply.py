@@ -58,6 +58,12 @@ class TravelDemands:
         self._demands[mode].rateOfPMT = demand * trip_distance
         self._demands[mode].averageDistanceInSystem = trip_distance
 
+    def addSingleDemand(self, mode, demand: float, trip_distance: float):
+        self._demands[mode].tripStartRate += demand
+        self._demands[mode].tripEndRate += demand
+        self._demands[mode].rateOfPMT += demand * trip_distance
+        self._demands[mode].averageDistanceInSystem += trip_distance
+
     def addModeStarts(self, mode: str, demand: float):
         self._demands[mode].tripStartRate += demand
 

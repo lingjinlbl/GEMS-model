@@ -13,7 +13,15 @@ class Microtype:
             costs = dict()
         self.mode_names = list(networks.getModeNames())
         self.networks = networks
-        self.costs = costs
+        self.updateModeCosts(costs)
+
+    def updateModeCosts(self, costs):
+        for (mode, modeCosts) in costs.items():
+            assert(isinstance(mode, str) and isinstance(modeCosts, Costs))
+            self.networks.modes[mode].costs = modeCosts
+
+    def updateNetworkSpeeds(self, nIters=None):
+        self.networks.updateModes(nIters)
 
     def getModeSpeed(self, mode) -> float:
         return self.networks.modes[mode].getSpeed()
@@ -48,8 +56,8 @@ class Microtype:
 
     def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
         speed = np.max([self.getModeSpeed(mode), 0.01])
-        time = distance / speed * self.costs[mode].vott_multiplier
-        cost = distance * self.costs[mode].per_meter
+        time = distance / speed * self.networks.modes[mode].costs.vott_multiplier
+        cost = distance * self.networks.modes[mode].costs.per_meter
         wait = 0.
         return time, cost, wait
 
@@ -64,7 +72,7 @@ class Microtype:
 
     def getEndTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
-        cost = self.costs[mode].per_end
+        cost = self.networks.modes[mode].costs.per_end
         wait = 0.
         return time, cost, wait
 
