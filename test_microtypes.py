@@ -100,7 +100,6 @@ for ii in range(np.size(portions)):
     oneDemandCosts2[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
 
 
-
 fig2 = plt.figure(figsize=(7, 4))
 plt.plot(portions, oneDemandCosts, label="Fewer buses")
 plt.plot(portions, oneDemandCosts2, label="More buses")
@@ -134,6 +133,7 @@ for ii in range(np.size(busLaneDistance)):
     network_bus = Network(busLaneDistance[ii], network_params_bus)
     network_mixed = Network(1000 - busLaneDistance[ii], network_params_mixed)
 
+
     portion = 0.75
     car_demand = totalDemand * portion
     bus_demand = totalDemand * (1.0 - portion)
@@ -154,3 +154,101 @@ plt.plot(busLaneDistance, oneDemandCosts2, label="Less bus mode share")
 plt.legend()
 plt.xlabel('Bus Lane Distance')
 plt.ylabel('Average Travel Speed')
+
+"""
+bus_params = BusParams(road_network_fraction=500, relative_length=3.0,
+                       fixed_density=85. / 100., min_stop_time=15., stop_spacing=1. / 250.,
+                       passenger_wait=5.)
+modeCharacteristics = CollectedModeCharacteristics()
+modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default, demand=70 / (10 * 60))
+modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params, demand=17 / (10 * 60))
+
+for ii in range(np.size(portions)):
+    m = Microtype(network_params_default, modeCharacteristics)
+    m.setModeDemand('car', portions[ii] * totalDemand, 1000.0)
+    m.setModeDemand('bus', (1. - portions[ii]) * totalDemand, 1000.0)
+    m.findEquilibriumDensityAndSpeed()
+    oneDemandCosts2[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+
+fig2 = plt.figure(figsize=(7, 4))
+plt.plot(portions, oneDemandCosts, label="More buses")
+plt.plot(portions, oneDemandCosts2, label="Fewer buses")
+
+plt.legend()
+plt.xlabel('Portion of trips by car')
+plt.ylabel('Average Travel Speed')
+
+modeCharacteristics = CollectedModeCharacteristics()
+modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
+modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default)
+
+m = Microtype(network_params_default, modeCharacteristics)
+m.setModeDemand('car', 70 / (10 * 60), 1000.0)
+m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
+
+car_demands = np.arange(0.02, 0.12, 0.005)
+bus_demands = np.arange(0.02, 0.08, 0.005)
+
+average_costs = np.zeros((np.size(car_demands), np.size(bus_demands)))
+flows = np.zeros((np.size(car_demands), np.size(bus_demands)))
+car_speeds = np.zeros((np.size(car_demands), np.size(bus_demands)))
+bus_speeds = np.zeros((np.size(car_demands), np.size(bus_demands)))
+total_costs = np.zeros((np.size(car_demands), np.size(bus_demands)))
+
+for ii in range(np.size(car_demands)):
+    for jj in range(np.size(bus_demands)):
+        car_demand = car_demands[ii]
+        bus_demand = bus_demands[jj]
+        m = Microtype(network_params_default, modeCharacteristics)
+        m.setModeDemand('car', car_demand, 1000.0)
+        m.setModeDemand('bus', bus_demand, 1000.0)
+        m.findEquilibriumDensityAndSpeed()
+        flows[ii, jj] = np.sum(m.getFlows())
+        car_speeds[ii, jj] = m.getModeSpeed('car')
+        bus_speeds[ii, jj] = m.getModeSpeed('bus')
+        average_costs[ii, jj] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+        total_costs[ii, jj] = np.sum(m.getPassengerOccupancy())
+
+fig3 = plt.figure(figsize=(8, 5))
+
+g3 = np.gradient(total_costs)
+
+p3 = plt.contourf(bus_demands, car_demands, g3[0])# - car_speeds / 1000.0)#, vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
+# p2 = plt.contour(bus_demands, car_demands, flows, np.arange(45, 200, 10), cmap='Greys')
+cb3 = plt.colorbar(p3)
+# cb2 = plt.colorbar(p2)
+
+cb3.set_label('Change in total cost per additional unit of car demand')
+# cb2.set_label('Total Passenger Flow')
+
+plt.ylabel('Car demand')
+plt.xlabel('Bus demand')
+
+fig4 = plt.figure(figsize=(8, 5))
+p4 = plt.contourf(bus_demands, car_demands, g3[1])# - bus_speeds / 1000.0)#, vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
+# p2 = plt.contour(bus_demands, car_demands, flows, np.arange(45, 200, 10), cmap='Greys')
+cb4 = plt.colorbar(p3)
+# cb2 = plt.colorbar(p2)
+
+cb4.set_label('Change in total cost per additional unit of bus demand')
+# cb2.set_label('Total Passenger Flow')
+
+plt.ylabel('Car demand')
+plt.xlabel('Bus demand')
+
+plt.ylabel('Car demand')
+plt.xlabel('Bus demand')
+
+fig5 = plt.figure(figsize=(8, 5))
+p5 = plt.contourf(bus_demands, car_demands, total_costs)# - bus_speeds / 1000.0)#, vmin=0.0, vmax=3.0)  # , np.arange(0.08, 0.35, 0.02))
+# p2 = plt.contour(bus_demands, car_demands, flows, np.arange(45, 200, 10), cmap='Greys')
+cb5 = plt.colorbar(p3)
+# cb2 = plt.colorbar(p2)
+
+cb5.set_label('Network Occupancy (passengers/distance)')
+# cb2.set_label('Total Passenger Flow')
+
+plt.ylabel('Car demand')
+plt.xlabel('Bus demand')
+"""
+

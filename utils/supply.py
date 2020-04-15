@@ -70,7 +70,7 @@ class TravelDemands:
     def addModeEnds(self, mode: str, demand: float):
         self._demands[mode].tripEndRate += demand
 
-    def addModePMT(self, mode: str, demand: float, trip_distance: float):
+    def addModeThroughTrips(self, mode: str, demand: float, trip_distance: float):
         try:
             current_demand = self._demands[mode].rateOfPMT
         except:

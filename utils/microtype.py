@@ -26,6 +26,7 @@ class Microtype:
     def getModeSpeed(self, mode) -> float:
         return self.networks.modes[mode].getSpeed()
 
+
     def getModeFlow(self, mode) -> float:
         return self.networks.demands.getRateOfPMT(mode)
 
@@ -86,6 +87,9 @@ class Microtype:
         return [mode.getPassengerFlow() for mode in
                 self.networks.modes.values()]
 
+    def getPassengerOccupancy(self):
+        return [self.getModeOccupancy(mode) for mode in self.modes]
+
     def getTravelTimes(self):
         speeds = np.array(self.getSpeeds())
         speeds[~(speeds > 0)] = np.nan
@@ -93,9 +97,11 @@ class Microtype:
         return distances / speeds
 
     def getTotalTimes(self):
-        speeds = self.getSpeeds()
-        demands = self.getDemandsForPMT()
-        return np.array(speeds) * np.array(demands)
+        speeds = np.array(self.getSpeeds())
+        demands = np.array(self.getDemandsForPMT())
+        times = speeds * demands
+        times[speeds == 0.] = np.inf
+        return times
 
     def print(self):
         print('------------')
@@ -126,6 +132,7 @@ def main():
     m = Microtype(nc)
     m.setModeDemand('car', 40 / (10 * 60), 1000.0)
     m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
+
 
 
 if __name__ == "__main__":
