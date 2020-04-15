@@ -4,12 +4,13 @@ import utils.IO as io
 import copy
 import utils.IO as io
 import utils.OD as od
-from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
+from utils.microtype import Microtype
 
 from typing import Dict, List
 
+
 def getModeSplit(mcc: od.ModeCharacteristics) -> od.ModeSplit:
-    VOTT = 18/3600.
+    VOTT = 18 / 3600.
     utils = np.array([])
     k = 1.0
     modes = list(mcc.keys())
@@ -48,7 +49,7 @@ class Geotype:
                     du_default = od.DemandUnit(distance=self.distbins[distbin], demand=0.0,
                                                allocation=od.Allocation({m_o: 0.5, m_d: 0.5}))
                     self.demand_structure[odi] = du_default
-                    modes = list(set(m_o.modes).intersection(m_d.modes))
+                    modes = list(set(m_o.mode_names).intersection(m_d.mode_names))
                     choice_characteristics_default = od.ModeCharacteristics(modes)
                     self.mode_choice_characteristics[odi] = choice_characteristics_default
 
@@ -96,10 +97,10 @@ class Geotype:
                     mt.addModeDemandForTrips(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
                                              self.distbins[odi.distBin])
 
-    def updateMicrotypeModeCharacteristics(self, iter_max=20):
+    def updateMicrotypeModeCharacteristics(self, iter_max=50):
         for mt in self._microtypes:
             assert isinstance(mt, Microtype)
-            mt.findEquilibriumDensityAndSpeed(iter_max)
+            mt.updateNetworkSpeeds(iter_max)
 
     def updateChoiceCharacteristics(self):
         for odi in self.demand_structure.keys():

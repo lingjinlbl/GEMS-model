@@ -44,6 +44,7 @@ class ModeSplit:
     def __str__(self):
         return str([mode + ': ' + str(self[mode]) + '| ' for mode in self.keys()])
 
+
 class ChoiceCharacteristics:
     def __init__(self, travel_time=0., cost=0., wait_time=0.):
         self.travel_time = travel_time
@@ -70,6 +71,7 @@ class ChoiceCharacteristics:
             print('TOUGH LUCK, BUDDY')
             return self
 
+
 class ModeCharacteristics:
     def __init__(self, modes: List[str]):
         self._modes = modes
@@ -86,6 +88,7 @@ class ModeCharacteristics:
 
     def keys(self) -> List:
         return list(self._modes)
+
 
 class DemandUnit:
     def __init__(self, distance: float, demand: float, allocation=None, mode_split=None):
@@ -120,7 +123,8 @@ class DemandUnit:
 
     def updateModeSplit(self, mode_split: ModeSplit):
         for key in self.mode_split.keys():
-            self.mode_split[key] = (mode_split[key] + self.mode_split[key])/2.0
+            self.mode_split[key] = (mode_split[key] + self.mode_split[key]) / 2.0
+
 
 class ODindex:
     def __init__(self, o: Microtype, d: Microtype, distBin: int):

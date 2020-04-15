@@ -1,44 +1,54 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.Network import Network
-from utils.microtype import Microtype, CollectedModeCharacteristics, ModeCharacteristics
-from utils.supply import BusParams, ModeParams
+from utils.microtype import Microtype
+from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, ModeParams, BusMode, BusModeParams
+
 import scipy.ndimage as sp
 
-network_params_default = Network(0.068, 15.42, 1.88, 0.145, 0.177, 1000, 50)
-bus_params_default = BusParams(road_network_fraction=500, relative_length=3.0,
-                               fixed_density=150. / 100., min_stop_time=15., stop_spacing=1. / 500.,
-                               passenger_wait=5.)
+network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
+network_car = Network(750, network_params_car)
+network_bus = Network(500, network_params_bus)
+network_mixed = Network(350, network_params_mixed)
 
-car_params_default = ModeParams(relative_length=1.0)
+nc = NetworkCollection({network_mixed: ['bus', 'car'], network_car: ['car']},
+                       {'car': ModeParams('car'), 'bus': BusModeParams(3.0)})
 
-modeCharacteristics = CollectedModeCharacteristics()
-modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
-modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params_default)
+m = Microtype(nc)
+m.setModeDemand('car', 0.1, 1000.0)
+m.setModeDemand('bus', 0.03, 1000.0)
 
-m = Microtype(network_params_default, modeCharacteristics)
-m.setModeDemand('car', 70 / (10 * 60), 1000.0)
-m.setModeDemand('bus', 10 / (10 * 60), 1000.0)
-
-total_demands = np.arange(0.02, 0.2, 0.005)
+total_demands = np.arange(0.005, 0.25, 0.005)
 mode_splits = np.arange(0.3, 1.0, 0.05)
 
 average_costs = np.zeros((np.size(total_demands), np.size(mode_splits)))
 flows = np.zeros((np.size(total_demands), np.size(mode_splits)))
 car_speeds = np.zeros((np.size(total_demands), np.size(mode_splits)))
+headways = np.zeros((np.size(total_demands), np.size(mode_splits)))
+occupancies = np.zeros((np.size(total_demands), np.size(mode_splits)))
 
 for ii in range(np.size(total_demands)):
     for jj in range(np.size(mode_splits)):
         car_demand = total_demands[ii] * mode_splits[jj]
         bus_demand = total_demands[ii] * (1.0 - mode_splits[jj])
-        m = Microtype(network_params_default, modeCharacteristics)
+        # network_mixed.resetModes()
+        # network_car.resetModes()
+        # network_bus.resetModes()
+        network_car.resetAll()
+        network_mixed.resetAll()
+        network_bus.resetAll()
+        nc = NetworkCollection({network_car: ['car'], network_bus: ['bus']},
+                               {'car': ModeParams('car'), 'bus': BusModeParams(1.0)})
+        m = Microtype(nc)
         m.setModeDemand('car', car_demand, 1000.0)
         m.setModeDemand('bus', bus_demand, 1000.0)
-        m.findEquilibriumDensityAndSpeed()
         flows[ii, jj] = np.sum(m.getFlows())
         car_speeds[ii, jj] = m.getModeSpeed('car')
         average_costs[ii, jj] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+        headways[ii, jj] = nc.modes['bus'].getHeadway()
+        occupancies[ii, jj] = nc.modes['bus'].getOccupancy()
 
 fig1 = plt.figure(figsize=(8, 5))
 
@@ -60,29 +70,92 @@ slope = g1[1] / g1[0]
 p3 = plt.contour(mode_splits, total_demands, slope, 0, linestyles='dashed', linewidths=2,
                  cmap='Reds')
 
-totalDemand = 0.18
-portions = np.arange(0.55, 0.7, 0.005)
+totalDemand = 0.23
+portions = np.arange(0.45, 0.85, 0.005)
 oneDemandCosts = np.zeros(np.shape(portions))
-
-bus_params = BusParams(road_network_fraction=500, relative_length=3.0,
-                       fixed_density=100. / 100., min_stop_time=15., stop_spacing=1. / 250.,
-                       passenger_wait=5.)
-
-modeCharacteristics = CollectedModeCharacteristics()
-modeCharacteristics['car'] = ModeCharacteristics('car', car_params_default)
-modeCharacteristics['bus'] = ModeCharacteristics('bus', bus_params)
-
-for ii in range(np.size(portions)):
-    m = Microtype(network_params_default, modeCharacteristics)
-    m.setModeDemand('car', portions[ii] * totalDemand, 1000.0)
-    m.setModeDemand('bus', (1. - portions[ii]) * totalDemand, 1000.0)
-    m.findEquilibriumDensityAndSpeed()
-    oneDemandCosts[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
-
-totalDemand = 0.18
-portions = np.arange(0.55, 0.7, 0.005)
 oneDemandCosts2 = np.zeros(np.shape(portions))
 
+for ii in range(np.size(portions)):
+    car_demand = totalDemand * portions[ii]
+    bus_demand = totalDemand * (1.0 - portions[ii])
+
+    network_car.resetAll()
+    network_mixed.resetAll()
+    network_bus.resetAll()
+    nc = NetworkCollection({network_mixed: ['bus', 'car'], network_car: ['car'], network_bus: ['bus']},
+                           {'car': ModeParams('car'), 'bus': BusModeParams(0.8)})
+    m = Microtype(nc)
+    m.setModeDemand('car', car_demand, 1000.0)
+    m.setModeDemand('bus', bus_demand, 1000.0)
+    oneDemandCosts[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+
+    network_car.resetAll()
+    network_mixed.resetAll()
+    network_bus.resetAll()
+    nc = NetworkCollection({network_mixed: ['bus', 'car'], network_car: ['car']},
+                           {'car': ModeParams('car'), 'bus': BusModeParams(1.3)})
+    m = Microtype(nc)
+    m.setModeDemand('car', car_demand, 1000.0)
+    m.setModeDemand('bus', bus_demand, 1000.0)
+    oneDemandCosts2[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+
+
+fig2 = plt.figure(figsize=(7, 4))
+plt.plot(portions, oneDemandCosts, label="Fewer buses")
+plt.plot(portions, oneDemandCosts2, label="More buses")
+
+plt.legend()
+plt.xlabel('Portion of trips by car')
+plt.ylabel('Average Travel Speed')
+
+
+totalDemand = 0.23
+busLaneDistance = np.arange(5, 245, 10)
+oneDemandCosts = np.zeros(np.shape(busLaneDistance))
+oneDemandCosts2 = np.zeros(np.shape(busLaneDistance))
+
+for ii in range(np.size(busLaneDistance)):
+    portion = 0.5
+    car_demand = totalDemand * portion
+    bus_demand = totalDemand * (1.0 - portion)
+
+    network_car.resetAll()
+    network_bus = Network(busLaneDistance[ii], network_params_bus)
+    network_mixed = Network(250 - busLaneDistance[ii], network_params_mixed)
+    nc = NetworkCollection({network_mixed: ['bus', 'car'], network_car: ['car'], network_bus: ['bus']},
+                           {'car': ModeParams('car'), 'bus': BusModeParams(1.3)})
+    m = Microtype(nc)
+    m.setModeDemand('car', car_demand, 1000.0)
+    m.setModeDemand('bus', bus_demand, 1000.0)
+    oneDemandCosts[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+
+    network_car.resetAll()
+    network_bus = Network(busLaneDistance[ii], network_params_bus)
+    network_mixed = Network(1000 - busLaneDistance[ii], network_params_mixed)
+
+
+    portion = 0.75
+    car_demand = totalDemand * portion
+    bus_demand = totalDemand * (1.0 - portion)
+
+    nc = NetworkCollection({network_mixed: ['bus', 'car'], network_car: ['car']},
+                           {'car': ModeParams('car'), 'bus': BusModeParams(1.3)})
+    m = Microtype(nc)
+    m.setModeDemand('car', car_demand, 1000.0)
+    m.setModeDemand('bus', bus_demand, 1000.0)
+    oneDemandCosts2[ii] = np.sum(m.getTotalTimes()) / np.sum(m.getFlows())
+
+
+
+fig4 = plt.figure(figsize=(7, 4))
+plt.plot(busLaneDistance, oneDemandCosts, label="More bus mode share")
+plt.plot(busLaneDistance, oneDemandCosts2, label="Less bus mode share")
+
+plt.legend()
+plt.xlabel('Bus Lane Distance')
+plt.ylabel('Average Travel Speed')
+
+"""
 bus_params = BusParams(road_network_fraction=500, relative_length=3.0,
                        fixed_density=85. / 100., min_stop_time=15., stop_spacing=1. / 250.,
                        passenger_wait=5.)
@@ -177,3 +250,5 @@ cb5.set_label('Network Occupancy (passengers/distance)')
 
 plt.ylabel('Car demand')
 plt.xlabel('Bus demand')
+"""
+
