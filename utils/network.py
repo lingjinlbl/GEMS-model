@@ -267,6 +267,13 @@ class Network:
     def __str__(self):
         return str(list(self.N_eq.keys()))
 
+    def resetAll(self):
+        self.N_eq = dict()
+        self.L_blocked = dict()
+        self._modes = dict()
+        self.car_speed = self.networkFlowParams.u_f
+        self.isJammed = False
+
     def resetModes(self):
         for mode in self._modes.values():
             self.N_eq[mode.name] = mode.getN(self) * mode.relative_length
@@ -336,16 +343,36 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, network=None, verbose=True):
+    def __init__(self, networksAndModes=None, modeParams=None, verbose=True):
         self._networks = list()
-        if isinstance(network, Network):
-            self._networks.append(network)
-        elif isinstance(network, List):
-            self._networks = network
+        if isinstance(networksAndModes, Dict) and isinstance(modeParams, Dict):
+            self.populateNetworksAndModes(networksAndModes, modeParams)
         self.modes = dict()
         self.demands = TravelDemands([])
         self.verbose = verbose
         self.resetModes()
+
+    def populateNetworksAndModes(self, networksAndModes, modeParams):
+        modeToNetwork = dict()
+        if isinstance(networksAndModes, Dict):
+            for (network, modeNames) in networksAndModes.items():
+                assert(isinstance(network, Network))
+                self._networks.append(network)
+                for modeName in modeNames:
+                    if modeName in modeToNetwork:
+                        modeToNetwork[modeName].append(network)
+                    else:
+                        modeToNetwork[modeName] = [network]
+        else:
+            print('Bad NetworkCollection Input')
+        for (modeName, networks) in modeToNetwork.items():
+            assert(isinstance(modeName, str))
+            assert(isinstance(networks, List))
+            params = modeParams[modeName]
+            if isinstance(params, BusModeParams):
+                BusMode(networks, params)
+            elif isinstance(params, ModeParams):
+                Mode(networks, params)
 
     def isJammed(self):
         return np.any([n.isJammed for n in self._networks])
