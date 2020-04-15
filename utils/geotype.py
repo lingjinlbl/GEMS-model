@@ -94,7 +94,7 @@ class Geotype:
                 odi.d.addModeEnds(mode, du.demand * du.mode_split[mode])
                 for mt in du.allocation.keys():
                     assert (isinstance(mt, Microtype))
-                    mt.addModeDemandForTrips(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
+                    mt.addModeDemandForPMT(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
                                              self.distbins[odi.distBin])
 
     def updateMicrotypeModeCharacteristics(self, iter_max=50):
