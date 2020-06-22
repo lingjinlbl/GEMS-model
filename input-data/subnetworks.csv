@@ -1,0 +1,9 @@
+﻿MicrotypeID,ModeTypes,Length,vMax
+A,Car,10000,16
+A,Car-Bus,5000,16
+B,Car,10000,18
+B,Car-Bus,2000,18
+C,Car,10000,20
+C,Car-Bus,1000,20
+D,Car,5000,22
+D,Car-Bus,1000,22
