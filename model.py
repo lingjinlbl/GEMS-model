@@ -39,7 +39,7 @@ class Model:
     def __init__(self, path: str):
         self.path = path
         self.microtypes = dict()
-        self.__population = dict()
+        self.population = dict()
         self.modes = dict()
         self.readFiles()
 
@@ -54,14 +54,14 @@ class Model:
     def readFiles(self):
         microtypeData = pd.read_csv(os.path.join(self.path, "microtypes.csv"))
         subNetworkData = pd.read_csv(os.path.join(self.path, "subnetworks.csv"))
-        modeToSubnetworkData = pd.read_csv(os.path.join(self.path, "mode-to-subnetwork.csv"))
+        modeToSubNetworkData = pd.read_csv(os.path.join(self.path, "mode-to-subnetwork.csv"))
         modeParamFactory = ModeParamFactory(self.path)
         for microtypeID, grouped in subNetworkData.groupby('MicrotypeID'):
             subNetworkToModes = dict()
             modeToModeParams = dict()
             allModes = set()
             for row in grouped.itertuples():
-                joined = modeToSubnetworkData.loc[modeToSubnetworkData['SubnetworkID'] == row.SubnetworkID]
+                joined = modeToSubNetworkData.loc[modeToSubNetworkData['SubnetworkID'] == row.SubnetworkID]
                 subNetwork = Network(row.Length, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
                 for n in joined.itertuples():
                     subNetworkToModes.setdefault(subNetwork, []).append(n.ModeType)
@@ -72,7 +72,7 @@ class Model:
             costs1 = {'auto': Costs(0.0003778, 0., 3.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.0)}
             self.microtypes[microtypeID] = Microtype(networkCollection, costs1)
             self.modes[microtypeID] = networkCollection.modes
-            print("AAH")
+        for
 
 
 if __name__ == "__main__":
