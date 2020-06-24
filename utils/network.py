@@ -20,6 +20,11 @@ class ModeParams:
         self.name = name
 
 
+class AutoModeParams(ModeParams):
+    def __init__(self):
+        super().__init__("auto")
+
+
 class BusModeParams(ModeParams):
     def __init__(self, buses_in_service=3.0, relative_length=3.0, min_stop_time=15., stop_spacing=500.,
                  passenger_wait=5.):
@@ -135,6 +140,12 @@ class Mode:
             return 0.0
         else:
             return self.travelDemand.rateOfPMT
+
+
+class AutoMode(Mode):
+    def __init__(self, networks, modeParams: ModeParams) -> None:
+        assert(isinstance(modeParams, AutoModeParams))
+        super().__init__(networks, modeParams)
 
 
 class BusMode(Mode):
