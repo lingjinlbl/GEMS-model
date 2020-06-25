@@ -1,4 +1,4 @@
-﻿SubnetworkID,MicrotypeID,ModeTypes,Length,vMax
+﻿SubnetworkID,MicrotypeID,ModesAllowed,Length,vMax
 1,A,Auto,10000,16
 2,A,Auto-Bus,5000,16
 3,B,Auto,10000,18
