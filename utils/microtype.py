@@ -8,7 +8,8 @@ from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, B
 
 
 class Microtype:
-    def __init__(self, networks: NetworkCollection, costs=None):
+    def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):
+        self.microtypeID = microtypeID
         if costs is None:
             costs = dict()
         self.mode_names = list(networks.getModeNames())

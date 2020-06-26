@@ -1,12 +1,13 @@
 import numpy as np
 from utils.microtype import Microtype
 from typing import Dict, List
+import pandas as pd
 
 
 class Allocation:
     def __init__(self, mapping=None):
         if mapping is None:
-            self._mapping = Dict[Microtype, float]
+            self._mapping = Dict[str, float]
         else:
             assert (isinstance(mapping, Dict))
             self._mapping = mapping
@@ -127,9 +128,19 @@ class DemandUnit:
 
 
 class ODindex:
-    def __init__(self, o: Microtype, d: Microtype, distBin: int):
-        self.o = o
-        self.d = d
+    def __init__(self, o, d, distBin: int):
+        if isinstance(o, Microtype):
+            self.o = o.microtypeID
+        elif isinstance(o, str):
+            self.o = o
+        else:
+            print("AAAH")
+        if isinstance(d, Microtype):
+            self.d = d.microtypeID
+        elif isinstance(d, str):
+            self.d = d
+        else:
+            print("AAAAH")
         self.distBin = distBin
 
     def __eq__(self, other):
@@ -143,3 +154,35 @@ class ODindex:
 
     def __hash__(self):
         return hash((self.o, self.d, self.distBin))
+
+    def __str__(self):
+        return str(self.distBin) + " trip from " + self.o + " to " + self.d
+
+
+class Trip:
+    def __init__(self, odIndex: ODindex, allocation: Allocation):
+        self.odIndex = odIndex
+        self.allocation = allocation
+
+
+class TripCollection:
+    def __init__(self):
+        self.__trips = dict()
+
+    def __setitem__(self, key: ODindex, value: Trip):
+        self.__trips[key] = value
+
+    def __getitem__(self, item: ODindex) -> Trip:
+        assert isinstance(item, ODindex)
+        return self.__trips[item]
+
+    def importTrips(self, df: pd.DataFrame):
+        for row in df.itertuples():
+            odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
+            if odi in self.__trips:
+                self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
+            else:
+                self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
+            # self.__trips.setdefault(odi, Trip).allocation[df.ThroughMicrotypeID] = df.Portion
+
+
