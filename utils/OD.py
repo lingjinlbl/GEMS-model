@@ -127,6 +127,23 @@ class DemandUnit:
             self.mode_split[key] = (mode_split[key] + self.mode_split[key]) / 2.0
 
 
+class DemandIndex:
+    def __init__(self, homeMicrotypeID, populationGroupTypeID, tripPurposeID):
+        self.homeMicrotype = homeMicrotypeID
+        self.populationGroupType = populationGroupTypeID
+        self.tripPurpose = tripPurposeID
+
+    def __eq__(self, other):
+        if (self.homeMicrotype == other.homeMicrotype) & (self.populationGroupType == other.populationGroupType) & (
+                self.tripPurpose == other.tripPurpose):
+            return True
+        else:
+            return False
+
+    def __hash__(self):
+        return hash((self.homeMicrotype, self.populationGroupType, self.tripPurpose))
+
+
 class ODindex:
     def __init__(self, o, d, distBin: int):
         if isinstance(o, Microtype):
@@ -225,10 +242,10 @@ class OriginDestination:
         self.__ods = ods
         self.__distances = distances
 
-    def __setitem__(self, key: (str, str, str), value: dict):
+    def __setitem__(self, key: DemandIndex, value: dict):
         self.__originDestination[key] = value
 
-    def __getitem__(self, item: (str, str, str)):
+    def __getitem__(self, item: DemandIndex):
         return self.__originDestination[item]
 
     def initializeTimePeriod(self, timePeriod: str):
@@ -238,7 +255,7 @@ class OriginDestination:
                                    on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
                                    suffixes=("_OD", "_Dist"),
                                    how="inner")
-        for tripClass, grouped in merged.groupby(["HomeMicrotypeID","PopulationGroupTypeID","TripPurposeID"]):
+        for tripClass, grouped in merged.groupby(["HomeMicrotypeID", "PopulationGroupTypeID", "TripPurposeID"]):
             grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
             tot = np.sum(grouped["tot"])
             assert tot == 1.0
@@ -248,3 +265,17 @@ class OriginDestination:
             self[tripClass] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
+
+
+class Demand:
+    def __init__(self):
+        self.__demand = dict()
+        self.__modeSplit = dict()
+
+    def __setitem__(self, key: (DemandIndex, ODindex), value: float):
+        self.__demand[key] = value
+
+    def __getitem__(self, item):
+        return self.__demand[item]
+
+#    def initializeDemand(self, originDestination: OriginDestination):

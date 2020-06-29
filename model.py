@@ -62,16 +62,27 @@ class Model:
         subNetworkData = pd.read_csv(os.path.join(self.path, "SubNetworks.csv"))
         modeToSubNetworkData = pd.read_csv(os.path.join(self.path, "ModeToSubNetwork.csv"))
         self.microtypes.importMicrotypes(subNetworkData, modeToSubNetworkData)
+
         self.trips.importTrips(pd.read_csv(os.path.join(self.path, "MicrotypeAssignment.csv")))
-        self.population.importPopulation(pd.read_csv(os.path.join(self.path, "Population.csv")))
+
+        populations = pd.read_csv(os.path.join(self.path, "Population.csv"))
+        populationGroups = pd.read_csv(os.path.join(self.path, "PopulatioGroups.csv"))
+        self.population.importPopulation(populations, populationGroups)
+
         self.timePeriods.importTimePeriods(pd.read_csv(os.path.join(self.path, "TimePeriods.csv")))
+
         self.distanceBins.importDistanceBins(pd.read_csv(os.path.join(self.path, "DistanceBins.csv")))
+
         originDestinations = pd.read_csv(os.path.join(self.path, "OriginDestination.csv"))
         distanceDistribution = pd.read_csv(os.path.join(self.path, "DistanceDistribution.csv"))
         self.originDestination.importOriginDestination(originDestinations, distanceDistribution)
 
+        tripGeneration = pd.read_csv(os.path.join(self.path, "TripGeneration.csv"))
+        self.tripGeneration.importTripGeneration(tripGeneration)
+
     def initializeTimePeriod(self, timePeriod: str):
         self.originDestination.initializeTimePeriod(timePeriod)
+        self.tripGeneration.initializeTimePeriod(timePeriod)
 
 
 
