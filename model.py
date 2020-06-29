@@ -4,6 +4,7 @@ from utils.microtype import Microtype
 from utils.network import Network, NetworkCollection, NetworkFlowParams, BusModeParams, \
     AutoModeParams, Costs
 from utils.OD import Trip, TripCollection
+from utils.population import PopulationGroup, Population
 from typing import Dict, List
 
 
@@ -43,6 +44,7 @@ class Model:
         self.population = dict()
         self.modes = dict()
         self.tripCollection = TripCollection()
+        self.population = Population()
         self.readFiles()
 
     @property
@@ -75,6 +77,7 @@ class Model:
             self.microtypes[microtypeID] = Microtype(microtypeID, networkCollection, costs1)
             self.modes[microtypeID] = networkCollection.modes
         self.tripCollection.importTrips(pd.read_csv(os.path.join(self.path, "MicrotypeAssignment.csv")))
+        self.population.importPopulation(pd.read_csv(os.path.join(self.path, "Population.csv")))
 
 
 if __name__ == "__main__":

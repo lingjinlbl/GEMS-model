@@ -174,7 +174,7 @@ class TripCollection:
 
     def __getitem__(self, item: ODindex) -> Trip:
         assert isinstance(item, ODindex)
-        if item in self.__trips
+        if item in self.__trips:
             return self.__trips[item]
         else:
             print("Not in database!")
@@ -183,6 +183,7 @@ class TripCollection:
             else:
                 allocation = Allocation({item.o:0.5, item.d:0.5})
             self[item] = Trip(item, allocation)
+            return self[item]
 
     def importTrips(self, df: pd.DataFrame):
         for row in df.itertuples():
@@ -191,6 +192,5 @@ class TripCollection:
                 self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
             else:
                 self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
-            # self.__trips.setdefault(odi, Trip).allocation[df.ThroughMicrotypeID] = df.Portion
 
 
