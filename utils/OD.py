@@ -174,7 +174,15 @@ class TripCollection:
 
     def __getitem__(self, item: ODindex) -> Trip:
         assert isinstance(item, ODindex)
-        return self.__trips[item]
+        if item in self.__trips
+            return self.__trips[item]
+        else:
+            print("Not in database!")
+            if item.o == item.d:
+                allocation = Allocation({item.o:1.0})
+            else:
+                allocation = Allocation({item.o:0.5, item.d:0.5})
+            self[item] = Trip(item, allocation)
 
     def importTrips(self, df: pd.DataFrame):
         for row in df.itertuples():
