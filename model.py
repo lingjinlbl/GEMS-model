@@ -3,7 +3,7 @@ import os
 from utils.microtype import MicrotypeCollection
 from utils.network import Network, NetworkCollection, NetworkFlowParams, BusModeParams, \
     AutoModeParams, Costs
-from utils.OD import Trip, TripCollection
+from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration
 from utils.population import PopulationGroup, Population
 from typing import Dict, List
 
@@ -46,6 +46,8 @@ class Model:
         self.population = Population()
         self.distanceBins = DistanceBins()
         self.timePeriods = TimePeriods()
+        self.tripGeneration = TripGeneration()
+        self.originDestination = OriginDestination()
         self.readFiles()
 
     @property
@@ -64,9 +66,16 @@ class Model:
         self.population.importPopulation(pd.read_csv(os.path.join(self.path, "Population.csv")))
         self.timePeriods.importTimePeriods(pd.read_csv(os.path.join(self.path, "TimePeriods.csv")))
         self.distanceBins.importDistanceBins(pd.read_csv(os.path.join(self.path, "DistanceBins.csv")))
+        originDestinations = pd.read_csv(os.path.join(self.path, "OriginDestination.csv"))
+        distanceDistribution = pd.read_csv(os.path.join(self.path, "DistanceDistribution.csv"))
+        self.originDestination.importOriginDestination(originDestinations, distanceDistribution)
+
+    def initializeTimePeriod(self, timePeriod: str):
+        self.originDestination.initializeTimePeriod(timePeriod)
 
 
 
 if __name__ == "__main__":
     a = Model("input-data")
+    a.initializeTimePeriod("AM-Peak")
     print("aah")

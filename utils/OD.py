@@ -179,9 +179,9 @@ class TripCollection:
         else:
             print("Not in database!")
             if item.o == item.d:
-                allocation = Allocation({item.o:1.0})
+                allocation = Allocation({item.o: 1.0})
             else:
-                allocation = Allocation({item.o:0.5, item.d:0.5})
+                allocation = Allocation({item.o: 0.5, item.d: 0.5})
             self[item] = Trip(item, allocation)
             return self[item]
 
@@ -194,9 +194,9 @@ class TripCollection:
                 self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
 
 
-class DemandCollection:
-    def __init__(self, df: pd.DataFrame):
-        self.__tripGeneration = df
+class TripGeneration:
+    def __init__(self):
+        self.__data = pd.DataFrame()
         self.__tripClasses = dict()
 
     def __setitem__(self, key: (str, str), value: float):
@@ -205,8 +205,46 @@ class DemandCollection:
     def __getitem__(self, item: (str, str)):
         return self.__tripClasses[item]
 
+    def importTripGeneration(self, df: pd.DataFrame):
+        self.__data = df
+
     def initializeTimePeriod(self, timePeriod: str):
         self.__tripClasses = dict()
-        relevantDemand = self.__tripGeneration.loc[self.__tripGeneration["TimePeriodID"] == timePeriod]
+        relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriod]
         for row in relevantDemand.itertuples():
             self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
+
+
+class OriginDestination:
+    def __init__(self):
+        self.__ods = pd.DataFrame()
+        self.__distances = pd.DataFrame()
+        self.__originDestination = dict()
+
+    def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame):
+        self.__ods = ods
+        self.__distances = distances
+
+    def __setitem__(self, key: (str, str, str), value: dict):
+        self.__originDestination[key] = value
+
+    def __getitem__(self, item: (str, str, str)):
+        return self.__originDestination[item]
+
+    def initializeTimePeriod(self, timePeriod: str):
+        self.__originDestination = dict()
+        relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]
+        merged = relevantODs.merge(self.__distances,
+                                   on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
+                                   suffixes=("_OD", "_Dist"),
+                                   how="inner")
+        for tripClass, grouped in merged.groupby(["HomeMicrotypeID","PopulationGroupTypeID","TripPurposeID"]):
+            grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
+            tot = np.sum(grouped["tot"])
+            assert tot == 1.0
+            distribution = dict()
+            for row in grouped.itertuples():
+                distribution[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
+            self[tripClass] = distribution
+        # for row in relevantDemand.itertuples():
+        #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour

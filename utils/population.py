@@ -18,10 +18,10 @@ class Population:
         self.__populationGroups = dict()
         self.totalPopulation = 0
 
-    def __setitem__(self, key: (str, Microtype), value: PopulationGroup):
+    def __setitem__(self, key: (str, str), value: PopulationGroup):
         self.__populationGroups[key] = value
 
-    def __getitem__(self, item: (str, Microtype)) -> PopulationGroup:
+    def __getitem__(self, item: (str, str)) -> PopulationGroup:
         return self.__populationGroups[item]
 
     def importPopulation(self, df: pd.DataFrame):
