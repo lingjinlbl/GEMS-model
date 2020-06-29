@@ -1,6 +1,8 @@
 import numpy as np
 from typing import List, Dict
 from utils.supply import TravelDemand, TravelDemands
+import os
+import pandas as pd
 
 np.seterr(all='ignore')
 
@@ -64,7 +66,7 @@ class Mode:
 
     def reset(self):
         for key, value in self._N.items():
-            self._N[key] = self.fixed_density*key.L
+            self._N[key] = self.fixed_density * key.L
             self._L_blocked[key] = 0.0
 
     def getFixedDensity(self):
@@ -101,7 +103,8 @@ class Mode:
         L_blocked_tot = sum(blocked_lengths)
         density_av = (n_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.relative_length
         if n_tot > 0:
-            n_new = np.nan_to_num(np.array([density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]))
+            n_new = np.nan_to_num(np.array(
+                [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]))
         else:
             n_new = np.array([0.0] * len(lengths))
         should_be_empty = (n_new < 0) | np.array(jammed)
@@ -144,13 +147,13 @@ class Mode:
 
 class AutoMode(Mode):
     def __init__(self, networks, modeParams: ModeParams) -> None:
-        assert(isinstance(modeParams, AutoModeParams))
+        assert (isinstance(modeParams, AutoModeParams))
         super().__init__(networks, modeParams)
 
 
 class BusMode(Mode):
     def __init__(self, networks, busModeParams: ModeParams) -> None:
-        assert(isinstance(busModeParams, BusModeParams))
+        assert (isinstance(busModeParams, BusModeParams))
         super().__init__(networks, busModeParams)
         self.N_fixed = busModeParams.buses_in_service
         self.relative_length = busModeParams.relative_length
@@ -291,7 +294,7 @@ class Network:
             self.L_blocked[mode.name] = mode.getLblocked(self)
         self.isJammed = False
         self.car_speed = self.networkFlowParams.u_f
-            # mode.reset()
+        # mode.reset()
 
     def getBaseSpeed(self):
         return self.car_speed
@@ -367,7 +370,7 @@ class NetworkCollection:
         modeToNetwork = dict()
         if isinstance(networksAndModes, Dict):
             for (network, modeNames) in networksAndModes.items():
-                assert(isinstance(network, Network))
+                assert (isinstance(network, Network))
                 self._networks.append(network)
                 for modeName in modeNames:
                     if modeName in modeToNetwork:
@@ -377,8 +380,8 @@ class NetworkCollection:
         else:
             print('Bad NetworkCollection Input')
         for (modeName, networks) in modeToNetwork.items():
-            assert(isinstance(modeName, str))
-            assert(isinstance(networks, List))
+            assert (isinstance(modeName, str))
+            assert (isinstance(networks, List))
             params = modeParams[modeName]
             if isinstance(params, BusModeParams):
                 BusMode(networks, params)
@@ -471,6 +474,35 @@ class NetworkCollection:
 
     def getModeSpeeds(self) -> np.array:
         return np.array([m.getSpeed() for m in self.modes.values()])
+
+
+class ModeParamFactory:
+    def __init__(self, path: str):
+        self.path = path
+        self.modeParams = dict()
+        self.readFiles()
+
+    @property
+    def path(self):
+        return self.__path
+
+    @path.setter
+    def path(self, path):
+        self.__path = path
+
+    def readFiles(self):
+        (_, _, filenames) = next(os.walk(os.path.join(self.path, "modes")))
+        for file in filenames:
+            self.modeParams[file.split(".")[0]] = pd.read_csv(os.path.join(self.path, "modes", file))
+
+    def get(self, modeName: str, microtypeID: str):
+        print("AAH")
+        if modeName.lower() == "bus":
+            data = self.modeParams["bus"]
+            data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
+            return BusModeParams(1000. / data.Headway, data.VehicleSize, 15., data.StopSpacing, 5.)
+        else:
+            return AutoModeParams()
 
 
 def main():

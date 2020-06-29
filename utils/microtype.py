@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import pandas as pd
 import copy
 
-from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams, Costs
+from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams, Costs, \
+    ModeParamFactory
 
 
 class Microtype:
@@ -18,7 +20,7 @@ class Microtype:
 
     def updateModeCosts(self, costs):
         for (mode, modeCosts) in costs.items():
-            assert(isinstance(mode, str) and isinstance(modeCosts, Costs))
+            assert (isinstance(mode, str) and isinstance(modeCosts, Costs))
             self.networks.modes[mode].costs = modeCosts
 
     def updateNetworkSpeeds(self, nIters=None):
@@ -26,7 +28,6 @@ class Microtype:
 
     def getModeSpeed(self, mode) -> float:
         return self.networks.modes[mode].getSpeed()
-
 
     def getModeFlow(self, mode) -> float:
         return self.networks.demands.getRateOfPMT(mode)
@@ -118,6 +119,36 @@ class Microtype:
         return 'Demand: ' + str(self._travel_demand) + ' , Speed: ' + str(self._baseSpeed)
 
 
+class MicrotypeCollection:
+    def __init__(self, path: str):
+        self.__microtypes = dict()
+        self.path = path
+
+    def __setitem__(self, key: str, value: Microtype):
+        self.__microtypes[key] = value
+
+    def __getitem__(self, item: str) -> Microtype:
+        return self.__microtypes[item]
+
+    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame):
+        modeParamFactory = ModeParamFactory(self.path)
+        for microtypeID, grouped in subNetworkData.groupby('MicrotypeID'):
+            subNetworkToModes = dict()
+            modeToModeParams = dict()
+            allModes = set()
+            for row in grouped.itertuples():
+                joined = modeToSubNetworkData.loc[modeToSubNetworkData['SubnetworkID'] == row.SubnetworkID]
+                subNetwork = Network(row.Length, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
+                for n in joined.itertuples():
+                    subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID)
+                    allModes.add(n.ModeTypeID)
+            for mode in allModes:
+                modeToModeParams[mode] = modeParamFactory.get(mode, microtypeID)
+            networkCollection = NetworkCollection(subNetworkToModes, modeToModeParams)
+            costs1 = {'auto': Costs(0.0003778, 0., 3.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.0)}
+            self[microtypeID] = Microtype(microtypeID, networkCollection, costs1)
+
+
 def main():
     network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
     network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
@@ -133,7 +164,6 @@ def main():
     m = Microtype(nc)
     m.setModeDemand('car', 40 / (10 * 60), 1000.0)
     m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
-
 
 
 if __name__ == "__main__":
