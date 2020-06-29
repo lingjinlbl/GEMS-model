@@ -194,3 +194,19 @@ class TripCollection:
                 self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
 
 
+class DemandCollection:
+    def __init__(self, df: pd.DataFrame):
+        self.__tripGeneration = df
+        self.__tripClasses = dict()
+
+    def __setitem__(self, key: (str, str), value: float):
+        self.__tripClasses[key] = value
+
+    def __getitem__(self, item: (str, str)):
+        return self.__tripClasses[item]
+
+    def initializeTimePeriod(self, timePeriod: str):
+        self.__tripClasses = dict()
+        relevantDemand = self.__tripGeneration.loc[self.__tripGeneration["TimePeriodID"] == timePeriod]
+        for row in relevantDemand.itertuples():
+            self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
