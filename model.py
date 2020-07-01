@@ -6,37 +6,8 @@ from utils.network import Network, NetworkCollection, NetworkFlowParams, BusMode
 from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration
 from utils.population import PopulationGroup, Population
 from utils.demand import Demand
+from utils.misc import TimePeriods, DistanceBins
 from typing import Dict, List
-
-
-class TimePeriods:
-    def __init__(self):
-        self.__timePeriods = dict()
-
-    def __setitem__(self, key: str, value: float):
-        self.__timePeriods[key] = value
-
-    def __getitem__(self, item) -> float:
-        return self.__timePeriods[item]
-
-    def importTimePeriods(self, df: pd.DataFrame):
-        for row in df.itertuples():
-            self[row.TimePeriodID] = row.DurationInHours
-
-
-class DistanceBins:
-    def __init__(self):
-        self.__distanceBins = dict()
-
-    def __setitem__(self, key: str, value: float):
-        self.__distanceBins[key] = value
-
-    def __getitem__(self, item) -> float:
-        return self.__distanceBins[item]
-
-    def importDistanceBins(self, df: pd.DataFrame):
-        for row in df.itertuples():
-            self[row.DistanceBinID] = row.MeanDistanceInMiles
 
 
 class Model:
@@ -79,7 +50,8 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod)
 
     def initializeDemand(self):
-        self.demand.initializeDemand(self.population, self.__originDestination, self.__tripGeneration, self.__trips, self.microtypes)
+        self.demand.initializeDemand(self.population, self.__originDestination, self.__tripGeneration, self.__trips,
+                                     self.microtypes, self.__distanceBins)
 
 
 if __name__ == "__main__":
