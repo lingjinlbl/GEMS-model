@@ -26,6 +26,9 @@ class Population:
     def __getitem__(self, item: DemandIndex) -> dict:
         return self.__demandClasses[item]
 
+    def getPopulation(self, homeMicrotypeID: str, populationGroupType: str):
+        return self.__populationGroups[homeMicrotypeID, populationGroupType].population
+
     def importPopulation(self, populations: pd.DataFrame, populationGroups: pd.DataFrame):
         for row in populations.itertuples():
             homeMicrotypeID = row.MicrotypeID

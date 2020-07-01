@@ -14,7 +14,7 @@ class Microtype:
         self.microtypeID = microtypeID
         if costs is None:
             costs = dict()
-        self.mode_names = list(networks.getModeNames())
+        self.mode_names = set(networks.getModeNames())
         self.networks = networks
         self.updateModeCosts(costs)
 

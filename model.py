@@ -79,7 +79,7 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod)
 
     def initializeDemand(self):
-        self.demand.initializeDemand(self.population, self.__originDestination, self.__tripGeneration, self.__trips)
+        self.demand.initializeDemand(self.population, self.__originDestination, self.__tripGeneration, self.__trips, self.microtypes)
 
 
 if __name__ == "__main__":

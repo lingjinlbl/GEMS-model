@@ -21,6 +21,9 @@ class Allocation:
     def keys(self):
         return self._mapping.keys()
 
+    def __iter__(self):
+        return iter(self._mapping.items())
+
 
 class ModeSplit:
     def __init__(self, mapping=None):
