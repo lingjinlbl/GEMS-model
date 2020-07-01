@@ -5,6 +5,7 @@ from utils.network import Network, NetworkCollection, NetworkFlowParams, BusMode
     AutoModeParams, Costs
 from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration
 from utils.population import PopulationGroup, Population
+from utils.demand import Demand
 from typing import Dict, List
 
 
@@ -40,50 +41,45 @@ class DistanceBins:
 
 class Model:
     def __init__(self, path: str):
-        self.path = path
+        self.__path = path
         self.microtypes = MicrotypeCollection(path)
-        self.trips = TripCollection()
         self.population = Population()
-        self.distanceBins = DistanceBins()
-        self.timePeriods = TimePeriods()
-        self.tripGeneration = TripGeneration()
-        self.originDestination = OriginDestination()
+        self.__trips = TripCollection()
+        self.__distanceBins = DistanceBins()
+        self.__timePeriods = TimePeriods()
+        self.__tripGeneration = TripGeneration()
+        self.__originDestination = OriginDestination()
+        self.__demand = Demand()
         self.readFiles()
 
-    @property
-    def path(self):
-        return self.__path
-
-    @path.setter
-    def path(self, path):
-        self.__path = path
-
     def readFiles(self):
-        subNetworkData = pd.read_csv(os.path.join(self.path, "SubNetworks.csv"))
-        modeToSubNetworkData = pd.read_csv(os.path.join(self.path, "ModeToSubNetwork.csv"))
+        subNetworkData = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"))
+        modeToSubNetworkData = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
         self.microtypes.importMicrotypes(subNetworkData, modeToSubNetworkData)
 
-        self.trips.importTrips(pd.read_csv(os.path.join(self.path, "MicrotypeAssignment.csv")))
+        self.__trips.importTrips(pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv")))
 
-        populations = pd.read_csv(os.path.join(self.path, "Population.csv"))
-        populationGroups = pd.read_csv(os.path.join(self.path, "PopulatioGroups.csv"))
+        populations = pd.read_csv(os.path.join(self.__path, "Population.csv"))
+        populationGroups = pd.read_csv(os.path.join(self.__path, "PopulationGroups.csv"))
         self.population.importPopulation(populations, populationGroups)
 
-        self.timePeriods.importTimePeriods(pd.read_csv(os.path.join(self.path, "TimePeriods.csv")))
+        self.__timePeriods.importTimePeriods(pd.read_csv(os.path.join(self.__path, "TimePeriods.csv")))
 
-        self.distanceBins.importDistanceBins(pd.read_csv(os.path.join(self.path, "DistanceBins.csv")))
+        self.__distanceBins.importDistanceBins(pd.read_csv(os.path.join(self.__path, "DistanceBins.csv")))
 
-        originDestinations = pd.read_csv(os.path.join(self.path, "OriginDestination.csv"))
-        distanceDistribution = pd.read_csv(os.path.join(self.path, "DistanceDistribution.csv"))
-        self.originDestination.importOriginDestination(originDestinations, distanceDistribution)
+        originDestinations = pd.read_csv(os.path.join(self.__path, "OriginDestination.csv"))
+        distanceDistribution = pd.read_csv(os.path.join(self.__path, "DistanceDistribution.csv"))
+        self.__originDestination.importOriginDestination(originDestinations, distanceDistribution)
 
-        tripGeneration = pd.read_csv(os.path.join(self.path, "TripGeneration.csv"))
-        self.tripGeneration.importTripGeneration(tripGeneration)
+        tripGeneration = pd.read_csv(os.path.join(self.__path, "TripGeneration.csv"))
+        self.__tripGeneration.importTripGeneration(tripGeneration)
 
     def initializeTimePeriod(self, timePeriod: str):
-        self.originDestination.initializeTimePeriod(timePeriod)
-        self.tripGeneration.initializeTimePeriod(timePeriod)
+        self.__originDestination.initializeTimePeriod(timePeriod)
+        self.__tripGeneration.initializeTimePeriod(timePeriod)
 
+    def initializeDemand(self):
+        self.__demand.initializeDemand(self.__originDestination)
 
 
 if __name__ == "__main__":

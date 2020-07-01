@@ -143,6 +143,9 @@ class DemandIndex:
     def __hash__(self):
         return hash((self.homeMicrotype, self.populationGroupType, self.tripPurpose))
 
+    def __str__(self):
+        return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
+
 
 class ODindex:
     def __init__(self, o, d, distBin: int):
@@ -266,16 +269,3 @@ class OriginDestination:
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
 
-
-class Demand:
-    def __init__(self):
-        self.__demand = dict()
-        self.__modeSplit = dict()
-
-    def __setitem__(self, key: (DemandIndex, ODindex), value: float):
-        self.__demand[key] = value
-
-    def __getitem__(self, item):
-        return self.__demand[item]
-
-#    def initializeDemand(self, originDestination: OriginDestination):

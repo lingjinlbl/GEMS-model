@@ -1,3 +1,5 @@
-﻿PopulationGroupTypeID,VOT-work,VOT-nonwork
-high-income,40,30
-low-income,15,12
+﻿PopulationGroupTypeID,TripPurposeID,VOT
+high-income,work,40
+low-income,work,15
+high-income,nonwork,30
+low-income,nonwork,12

@@ -4,6 +4,7 @@ from utils.microtype import Microtype
 from utils.network import Network, NetworkCollection, NetworkFlowParams, BusModeParams, \
     AutoModeParams, Costs
 from utils.OD import Trip, TripCollection, DemandIndex
+from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration
 
 
 class PopulationGroup:
@@ -33,5 +34,10 @@ class Population:
                                                                                             populationGroupType,
                                                                                             row.Population)
             self.totalPopulation += row.Population
-        for homeMicrotypeID in populationGroups["MicrotypeID"].unique():
-            print("AAH")
+        for homeMicrotypeID in populations["MicrotypeID"].unique():
+            for row in populationGroups.iterrows():
+                demandIndex = DemandIndex(homeMicrotypeID, row[1].PopulationGroupTypeID, row[1].TripPurposeID)
+                params = row[1][2:].to_dict()
+                self[demandIndex] = params
+
+
