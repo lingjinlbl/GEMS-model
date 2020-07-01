@@ -234,6 +234,9 @@ class TripGeneration:
         for row in relevantDemand.itertuples():
             self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
 
+    def __iter__(self):
+        return iter(self.__tripClasses.items())
+
 
 class OriginDestination:
     def __init__(self):
@@ -265,7 +268,7 @@ class OriginDestination:
             distribution = dict()
             for row in grouped.itertuples():
                 distribution[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
-            self[tripClass] = distribution
+            self[DemandIndex(*tripClass)] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
 

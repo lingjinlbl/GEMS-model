@@ -40,4 +40,7 @@ class Population:
                 params = row[1][2:].to_dict()
                 self[demandIndex] = params
 
+    def __iter__(self):
+        return iter(self.__demandClasses.items())
+
 

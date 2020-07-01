@@ -44,12 +44,12 @@ class Model:
         self.__path = path
         self.microtypes = MicrotypeCollection(path)
         self.population = Population()
+        self.demand = Demand()
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
         self.__tripGeneration = TripGeneration()
         self.__originDestination = OriginDestination()
-        self.__demand = Demand()
         self.readFiles()
 
     def readFiles(self):
@@ -79,10 +79,11 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod)
 
     def initializeDemand(self):
-        self.__demand.initializeDemand(self.__originDestination)
+        self.demand.initializeDemand(self.population, self.__originDestination, self.__tripGeneration, self.__trips)
 
 
 if __name__ == "__main__":
     a = Model("input-data")
     a.initializeTimePeriod("AM-Peak")
+    a.initializeDemand()
     print("aah")

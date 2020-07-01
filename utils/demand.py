@@ -1,5 +1,7 @@
-from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration
+from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex
+from utils.population import Population
 import pandas as pd
+
 
 class Demand:
     def __init__(self):
@@ -12,4 +14,8 @@ class Demand:
     def __getitem__(self, item):
         return self.__demand[item]
 
-    def initializeDemand(self, originDestination: OriginDestination):
+    def initializeDemand(self, population: Population, originDestination: OriginDestination, tripGeneration: TripGeneration,
+                         trips: TripCollection):
+        for it, out in population:
+            od = originDestination[it]
+            print(it)
