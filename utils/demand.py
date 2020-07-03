@@ -1,8 +1,7 @@
-from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
+from utils.OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
 from utils.population import Population
 from utils.microtype import MicrotypeCollection
 from utils.misc import TimePeriods, DistanceBins
-import pandas as pd
 
 
 class Demand:
@@ -11,6 +10,7 @@ class Demand:
         self.__modeSplit = dict()
         self.tripRate = 0.0
         self.demandForPMT = 0.0
+        self.__population = Population
 
     def __setitem__(self, key: (DemandIndex, ODindex), value: float):
         self.__demand[key] = value
@@ -20,6 +20,7 @@ class Demand:
 
     def initializeDemand(self, population: Population, originDestination: OriginDestination, tripGeneration: TripGeneration,
                          trips: TripCollection, microtypes: MicrotypeCollection, distanceBins: DistanceBins):
+        self.__population = population
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
             rate = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose]
@@ -41,7 +42,6 @@ class Demand:
                     else:
                         modeSplit[mode] = 0.0
                 self.__modeSplit[demandIndex, odi] = ModeSplit(modeSplit)
-                print('A')
 
     def __str__(self):
         return "Trips: " + str(self.tripRate) + ", PMT: " + str(self.demandForPMT)

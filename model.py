@@ -1,21 +1,20 @@
-import pandas as pd
 import os
-from utils.microtype import MicrotypeCollection
-from utils.network import Network, NetworkCollection, NetworkFlowParams, BusModeParams, \
-    AutoModeParams, Costs
-from utils.OD import Trip, TripCollection, OriginDestination, TripGeneration
-from utils.population import PopulationGroup, Population
+import pandas as pd
+from utils.OD import TripCollection, OriginDestination, TripGeneration
+from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand
+from utils.microtype import MicrotypeCollection
 from utils.misc import TimePeriods, DistanceBins
-from typing import Dict, List
+from utils.population import Population
 
 
 class Model:
     def __init__(self, path: str):
         self.__path = path
         self.microtypes = MicrotypeCollection(path)
-        self.population = Population()
         self.demand = Demand()
+        self.choice = CollectedChoiceCharacteristics()
+        self.__population = Population()
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
@@ -32,7 +31,7 @@ class Model:
 
         populations = pd.read_csv(os.path.join(self.__path, "Population.csv"))
         populationGroups = pd.read_csv(os.path.join(self.__path, "PopulationGroups.csv"))
-        self.population.importPopulation(populations, populationGroups)
+        self.__population.importPopulation(populations, populationGroups)
 
         self.__timePeriods.importTimePeriods(pd.read_csv(os.path.join(self.__path, "TimePeriods.csv")))
 
@@ -48,14 +47,12 @@ class Model:
     def initializeTimePeriod(self, timePeriod: str):
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
-
-    def initializeDemand(self):
-        self.demand.initializeDemand(self.population, self.__originDestination, self.__tripGeneration, self.__trips,
+        self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins)
+        self.choice.initializeChoiceCharacteristics(self.__originDestination, self.__trips, self.microtypes, self.__distanceBins)
 
 
 if __name__ == "__main__":
     a = Model("input-data")
     a.initializeTimePeriod("AM-Peak")
-    a.initializeDemand()
     print("aah")

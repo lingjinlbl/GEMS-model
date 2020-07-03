@@ -49,33 +49,6 @@ class ModeSplit:
         return str([mode + ': ' + str(self[mode]) + '| ' for mode in self.keys()])
 
 
-class ChoiceCharacteristics:
-    def __init__(self, travel_time=0., cost=0., wait_time=0.):
-        self.travel_time = travel_time
-        self.cost = cost
-        self.wait_time = wait_time
-
-    def __add__(self, other):
-        if isinstance(other, ChoiceCharacteristics):
-            self.travel_time += other.travel_time
-            self.cost += other.cost
-            self.wait_time += other.wait_time
-            return self
-        else:
-            print('TOUGH LUCK, BUDDY')
-            return self
-
-    def __iadd__(self, other):
-        if isinstance(other, ChoiceCharacteristics):
-            self.travel_time += other.travel_time
-            self.cost += other.cost
-            self.wait_time += other.wait_time
-            return self
-        else:
-            print('TOUGH LUCK, BUDDY')
-            return self
-
-
 class ModeCharacteristics:
     def __init__(self, modes: List[str]):
         self._modes = modes
@@ -215,6 +188,9 @@ class TripCollection:
                 self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
             else:
                 self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
+
+    def __iter__(self):
+        return iter(self.__trips.items())
 
 
 class TripGeneration:
