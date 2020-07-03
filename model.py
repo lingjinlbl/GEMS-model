@@ -50,6 +50,7 @@ class Model:
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins)
         self.choice.initializeChoiceCharacteristics(self.__originDestination, self.__trips, self.microtypes, self.__distanceBins)
+        self.demand.updateMFD(self.microtypes)
 
 
 if __name__ == "__main__":

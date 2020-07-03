@@ -496,7 +496,6 @@ class ModeParamFactory:
             self.modeParams[file.split(".")[0]] = pd.read_csv(os.path.join(self.path, "modes", file))
 
     def get(self, modeName: str, microtypeID: str):
-        print("AAH")
         if modeName.lower() == "bus":
             data = self.modeParams["bus"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]

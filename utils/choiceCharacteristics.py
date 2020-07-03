@@ -62,4 +62,3 @@ class CollectedChoiceCharacteristics:
                     common_modes.append(microtypes[microtypeID].mode_names)
             modes = set.intersection(*common_modes)
             self[odIndex] = ModalChoiceCharacteristics(modes)
-            print("AAH")

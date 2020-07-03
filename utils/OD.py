@@ -80,6 +80,9 @@ class ModeSplit:
     def __str__(self):
         return str([mode + ': ' + str(self[mode]) + '| ' for mode in self.keys()])
 
+    def __iter__(self):
+        return iter(self._mapping.items())
+
 
 class ModeCharacteristics:
     def __init__(self, modes: List[str]):
@@ -162,13 +165,15 @@ class ODindex:
         elif isinstance(o, str):
             self.o = o
         else:
-            print("AAAH")
+            print("AAAH Bad ODindex")
         if isinstance(d, Microtype):
             self.d = d.microtypeID
         elif isinstance(d, str):
             self.d = d
         else:
-            print("AAAAH")
+            print("AAAAH BAD ODindex")
+        assert isinstance(self.o, str)
+        assert isinstance(self.d, str)
         self.distBin = distBin
 
     def __eq__(self, other):
@@ -205,7 +210,7 @@ class TripCollection:
         if item in self.__trips:
             return self.__trips[item]
         else:
-            print("Not in database!")
+            print("Not in database! for " + str(item))
             if item.o == item.d:
                 allocation = Allocation({item.o: 1.0})
             else:

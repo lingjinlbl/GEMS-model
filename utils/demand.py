@@ -9,7 +9,9 @@ class Demand:
         self.__modeSplit = dict()
         self.tripRate = 0.0
         self.demandForPMT = 0.0
-        self.__population = Population
+        self.__population = Population()
+        self.__trips = TripCollection()
+        self.__distanceBins = DistanceBins
 
     def __setitem__(self, key: (DemandIndex, ODindex), value: ModeSplit):
         self.__modeSplit[key] = value
@@ -20,6 +22,8 @@ class Demand:
     def initializeDemand(self, population: Population, originDestination: OriginDestination, tripGeneration: TripGeneration,
                          trips: TripCollection, microtypes: MicrotypeCollection, distanceBins: DistanceBins):
         self.__population = population
+        self.__trips = trips
+        self.__distanceBins = distanceBins
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
             rate = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose]
@@ -46,6 +50,19 @@ class Demand:
     def updateMFD(self, microtypes: MicrotypeCollection):
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
+
+        for (di, odi), ms in self.__modeSplit.items():
+            assert(isinstance(ms, ModeSplit))
+            assert(isinstance(odi, ODindex))
+            assert(isinstance(di, DemandIndex))
+            for mode, split in ms:
+                microtypes[odi.o].addModeStarts(mode, ms.demandForTrips * split / 100) # TODO: UNSCALE
+                microtypes[odi.d].addModeEnds(mode, ms.demandForTrips * split / 100)
+                for k, portion in self.__trips[odi].allocation:
+                    microtypes[k].addModeDemandForPMT(mode, ms.demandForTrips * split / 100, self.__distanceBins[odi.distBin])
+
+        for microtypeID, microtype in microtypes:
+            microtype.updateNetworkSpeeds(10)
 
 
     def __str__(self):
