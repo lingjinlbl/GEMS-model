@@ -148,6 +148,9 @@ class MicrotypeCollection:
             costs1 = {'auto': Costs(0.0003778, 0., 3.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.0)}
             self[microtypeID] = Microtype(microtypeID, networkCollection, costs1)
 
+    def __iter__(self) -> (str, Microtype):
+        return iter(self.__microtypes.items())
+
 
 def main():
     network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
