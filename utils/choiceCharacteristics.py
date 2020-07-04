@@ -46,6 +46,7 @@ class ModalChoiceCharacteristics:
 class CollectedChoiceCharacteristics:
     def __init__(self):
         self.__choiceCharacteristics = dict()
+        self.__distanceBins = DistanceBins()
 
     def __setitem__(self, key: ODindex, value: ModalChoiceCharacteristics):
         self.__choiceCharacteristics[key] = value
@@ -55,6 +56,7 @@ class CollectedChoiceCharacteristics:
 
     def initializeChoiceCharacteristics(self, originDestination: OriginDestination, trips: TripCollection,
                                         microtypes: MicrotypeCollection, distanceBins: DistanceBins):
+        self.__distanceBins = distanceBins
         for odIndex, trip in trips:
             common_modes = []
             for microtypeID, allocation in trip.allocation:
@@ -62,3 +64,16 @@ class CollectedChoiceCharacteristics:
                     common_modes.append(microtypes[microtypeID].mode_names)
             modes = set.intersection(*common_modes)
             self[odIndex] = ModalChoiceCharacteristics(modes)
+
+    def updateChoiceCharacteristics(self, microtypes: MicrotypeCollection, trips: TripCollection):
+        for odIndex, trip in trips:
+            for mode in microtypes[odIndex.o].mode_names:
+                self[odIndex][mode] += ChoiceCharacteristics(*microtypes[odIndex.o].getStartTimeCostWait(mode))
+            for mode in microtypes[odIndex.d].mode_names:
+                self[odIndex][mode] += ChoiceCharacteristics(*microtypes[odIndex.d].getStartTimeCostWait(mode))
+            for microtypeID, allocation in trip.allocation:
+                if allocation > 0:
+                    for mode in microtypes[microtypeID].mode_names:
+                        self[odIndex][mode] += ChoiceCharacteristics(
+                            *microtypes[microtypeID].getThroughTimeCostWait(mode, self.__distanceBins[
+                                odIndex.distBin] * allocation))

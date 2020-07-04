@@ -50,10 +50,14 @@ class Model:
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins)
         self.choice.initializeChoiceCharacteristics(self.__originDestination, self.__trips, self.microtypes, self.__distanceBins)
+
+    def findEquilibrium(self):
         self.demand.updateMFD(self.microtypes)
+        self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
 
 
 if __name__ == "__main__":
     a = Model("input-data")
     a.initializeTimePeriod("AM-Peak")
+    a.findEquilibrium()
     print("aah")
