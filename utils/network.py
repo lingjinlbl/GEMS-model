@@ -499,7 +499,7 @@ class ModeParamFactory:
         if modeName.lower() == "bus":
             data = self.modeParams["bus"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
-            return BusModeParams(1000. / data.Headway, data.VehicleSize, 15., data.StopSpacing, 5.)
+            return BusModeParams(1000. / data.Headway, data.VehicleSize, 15., data.StopSpacing, 5.) # TODO: Switch to constant headway
         else:
             return AutoModeParams()
 

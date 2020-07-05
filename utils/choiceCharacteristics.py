@@ -42,6 +42,13 @@ class ModalChoiceCharacteristics:
     def __setitem__(self, key: str, value: ChoiceCharacteristics):
         self.__modalChoiceCharacteristics[key] = value
 
+    def modes(self):
+        return list(self.__modalChoiceCharacteristics.keys())
+
+    def reset(self):
+        for mode in self.modes():
+            self[mode] = ChoiceCharacteristics()
+
 
 class CollectedChoiceCharacteristics:
     def __init__(self):
@@ -54,7 +61,7 @@ class CollectedChoiceCharacteristics:
     def __getitem__(self, item: ODindex) -> ModalChoiceCharacteristics:
         return self.__choiceCharacteristics[item]
 
-    def initializeChoiceCharacteristics(self, originDestination: OriginDestination, trips: TripCollection,
+    def initializeChoiceCharacteristics(self, trips: TripCollection,
                                         microtypes: MicrotypeCollection, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
         for odIndex, trip in trips:
@@ -65,12 +72,17 @@ class CollectedChoiceCharacteristics:
             modes = set.intersection(*common_modes)
             self[odIndex] = ModalChoiceCharacteristics(modes)
 
+    def resetChoiceCharacteristics(self):
+        for mcc in self.__choiceCharacteristics.values():
+            mcc.reset()
+
     def updateChoiceCharacteristics(self, microtypes: MicrotypeCollection, trips: TripCollection):
+        self.resetChoiceCharacteristics()
         for odIndex, trip in trips:
             for mode in microtypes[odIndex.o].mode_names:
                 self[odIndex][mode] += ChoiceCharacteristics(*microtypes[odIndex.o].getStartTimeCostWait(mode))
             for mode in microtypes[odIndex.d].mode_names:
-                self[odIndex][mode] += ChoiceCharacteristics(*microtypes[odIndex.d].getStartTimeCostWait(mode))
+                self[odIndex][mode] += ChoiceCharacteristics(*microtypes[odIndex.d].getEndTimeCostWait(mode))
             for microtypeID, allocation in trip.allocation:
                 if allocation > 0:
                     for mode in microtypes[microtypeID].mode_names:

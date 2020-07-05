@@ -49,11 +49,13 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins)
-        self.choice.initializeChoiceCharacteristics(self.__originDestination, self.__trips, self.microtypes, self.__distanceBins)
+        self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
-        self.demand.updateMFD(self.microtypes)
-        self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        for i in range(20):
+            self.demand.updateMFD(self.microtypes)
+            self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+            self.demand.updateModeSplit(self.choice, self.__originDestination)
 
 
 if __name__ == "__main__":

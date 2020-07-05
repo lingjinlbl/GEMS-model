@@ -35,6 +35,12 @@ class ModeSplit:
             assert (isinstance(mapping, Dict))
             self._mapping = mapping
 
+    def updateMapping(self, mapping: dict):
+        if self._mapping.keys() == mapping.keys():
+            self._mapping = mapping
+        else:
+            print("OH NO BAD MAPPING")
+
     @property
     def demandForPMT(self):
         return self.__demandForPMT

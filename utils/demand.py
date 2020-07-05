@@ -2,6 +2,7 @@ from utils.OD import TripCollection, OriginDestination, TripGeneration, DemandIn
 from utils.population import Population
 from utils.microtype import Microtype, MicrotypeCollection
 from utils.misc import TimePeriods, DistanceBins
+from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 
 
 class Demand:
@@ -63,6 +64,15 @@ class Demand:
 
         for microtypeID, microtype in microtypes:
             microtype.updateNetworkSpeeds(10)
+
+    def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
+                        originDestination: OriginDestination):
+        for demandIndex, utilityParams in self.__population:
+            od = originDestination[demandIndex]
+            for odi, portion in od.items():
+                dg = self.__population[demandIndex]
+                ms = self.__population[demandIndex].updateModeSplit(collectedChoiceCharacteristics[odi])
+                self[demandIndex, odi].updateMapping(ms)
 
 
     def __str__(self):
