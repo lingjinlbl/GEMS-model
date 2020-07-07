@@ -36,7 +36,7 @@ class DemandClass:
         for mode in modes:
             util = 0.
             util += -mcc[mode].travel_time * self["VOT"]
-            util += -mcc[mode].wait_time * self["VOT"] / 3600 # TODO: Fix units
+            util += -mcc[mode].wait_time * self["VOT"]
             util += -mcc[mode].cost * self["VOM"]
             utils = np.append(utils, util)
         exp_utils = np.exp(utils * k)

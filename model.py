@@ -52,14 +52,15 @@ class Model:
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
-        for i in range(1):
+        for i in range(10):
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             self.demand.updateModeSplit(self.choice, self.__originDestination)
+            print("iter")
 
 
 if __name__ == "__main__":
-    a = Model("input-data")
+    a = Model("input-data-simpler")
     a.initializeTimePeriod("AM-Peak")
     a.findEquilibrium()
     print("aah")

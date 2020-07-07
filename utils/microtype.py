@@ -70,7 +70,7 @@ class Microtype:
         time = 0.
         cost = self.networks.modes[mode].costs.per_start
         if mode == 'bus':
-            wait = self.networks.modes['bus'].headway / 2. # TODO: Make getter
+            wait = self.networks.modes['bus'].headway / 3600. / 2. # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait

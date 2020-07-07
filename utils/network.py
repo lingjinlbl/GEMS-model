@@ -180,10 +180,15 @@ class BusMode(Mode):
         return sum([n.L for n in self._networks])
 
     def getSubNetworkSpeed(self, car_speed):
-        averageStopDuration = self.min_stop_time + self.passenger_wait * (
-                self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
-                                      self.routeAveragedSpeed / self.stop_spacing * self.N_tot)
-        return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
+        # averageStopDuration = self.min_stop_time + self.passenger_wait * (
+        #         self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
+        #                               self.routeAveragedSpeed / self.stop_spacing * self.N_tot)
+        # return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
+        stopped_time = self.passenger_wait * (self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) * \
+                       self.headway + self.getRouteLength() / self.stop_spacing * self.min_stop_time
+        spd = self.getRouteLength() * car_speed / (
+                    stopped_time * car_speed + self.getRouteLength())
+        return spd
 
     def getSpeeds(self):
         speeds = []
@@ -214,8 +219,8 @@ class BusMode(Mode):
     def getBlockedDistance(self, network):
         if network.car_speed > 0:
             out = network.l / (self.min_stop_time + self.headway * self.passenger_wait * (
-                        self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
-                                                    self.getRouteLength() / self.stop_spacing)) / self.headway
+                    self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
+                                       self.getRouteLength() / self.stop_spacing)) / self.headway
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
             # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
         else:
@@ -445,7 +450,7 @@ class NetworkCollection:
                 if np.isnan(n.car_speed):
                     n.isJammed = True
             for m in self.modes.values():
-                m.updateN(m.travelDemand)
+                m.updateN(self.demands[m.name])
 
     def __str__(self):
         return str([n.car_speed for n in self._networks])
