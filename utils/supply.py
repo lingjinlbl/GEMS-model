@@ -6,13 +6,13 @@ class TravelDemand:
         self.tripStartRate = 0.0
         self.tripEndRate = 0.0
         self.rateOfPMT = 0.0
-        self.averageDistanceInSystem = 0.0
+        self.averageDistanceInSystem = 100.0
 
     def reset(self):
         self.tripStartRate = 0.0
         self.tripEndRate = 0.0
         self.rateOfPMT = 0.0
-        self.averageDistanceInSystem = 0.0
+        self.averageDistanceInSystem = 100.0
 
 
 class TravelDemands:

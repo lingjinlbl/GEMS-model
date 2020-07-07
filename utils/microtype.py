@@ -59,6 +59,8 @@ class Microtype:
 
     def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
         speed = np.max([self.getModeSpeed(mode), 0.01])
+        if np.isnan(speed):
+            speed = self.getModeSpeed("auto")
         time = distance / speed * self.networks.modes[mode].costs.vott_multiplier
         cost = distance * self.networks.modes[mode].costs.per_meter
         wait = 0.
@@ -68,7 +70,7 @@ class Microtype:
         time = 0.
         cost = self.networks.modes[mode].costs.per_start
         if mode == 'bus':
-            wait = self.networks.modes['bus'].getHeadway() / 2.
+            wait = self.networks.modes['bus'].headway / 2. # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait
@@ -135,18 +137,18 @@ class MicrotypeCollection:
         for microtypeID, grouped in subNetworkData.groupby('MicrotypeID'):
             subNetworkToModes = dict()
             modeToModeParams = dict()
+            costs = dict()
             allModes = set()
             for row in grouped.itertuples():
                 joined = modeToSubNetworkData.loc[modeToSubNetworkData['SubnetworkID'] == row.SubnetworkID]
                 subNetwork = Network(row.Length, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
                 for n in joined.itertuples():
-                    subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID)
-                    allModes.add(n.ModeTypeID)
+                    subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
+                    allModes.add(n.ModeTypeID.lower())
             for mode in allModes:
-                modeToModeParams[mode] = modeParamFactory.get(mode, microtypeID)
+                (modeToModeParams[mode], costs[mode]) = modeParamFactory.get(mode, microtypeID)
             networkCollection = NetworkCollection(subNetworkToModes, modeToModeParams)
-            costs1 = {'auto': Costs(0.0003778, 0., 3.0, 1.0), 'bus': Costs(0., 2.5, 0., 1.0)}
-            self[microtypeID] = Microtype(microtypeID, networkCollection, costs1)
+            self[microtypeID] = Microtype(microtypeID, networkCollection, costs)
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())

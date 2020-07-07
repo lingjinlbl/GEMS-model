@@ -52,7 +52,7 @@ class Model:
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
-        for i in range(20):
+        for i in range(1):
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             self.demand.updateModeSplit(self.choice, self.__originDestination)
