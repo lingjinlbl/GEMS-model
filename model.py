@@ -58,9 +58,14 @@ class Model:
             self.demand.updateModeSplit(self.choice, self.__originDestination)
             print("iter")
 
+    def getModeSplit(self):
+        mode_split = self.demand.getTotalModeSplit()
+        return mode_split
+
 
 if __name__ == "__main__":
     a = Model("input-data")
     a.initializeTimePeriod("AM-Peak")
     a.findEquilibrium()
+    ms = a.getModeSplit()
     print("aah")

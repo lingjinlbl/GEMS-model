@@ -74,6 +74,17 @@ class Demand:
                 ms = self.__population[demandIndex].updateModeSplit(collectedChoiceCharacteristics[odi])
                 self[demandIndex, odi].updateMapping(ms)
 
+    def getTotalModeSplit(self) -> dict:
+        demand = 0
+        trips = dict()
+        for ms in self.__modeSplit.values():
+            for mode, split in ms:
+                new_demand = trips.setdefault(mode, 0) + split * ms.demandForTrips
+                trips[mode] = new_demand
+            demand += ms.demandForTrips
+        for mode in trips.keys():
+            trips[mode] /= demand
+        return trips
 
     def __str__(self):
         return "Trips: " + str(self.tripRate) + ", PMT: " + str(self.demandForPMT)
