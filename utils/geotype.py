@@ -1,8 +1,9 @@
+from typing import Dict, List
+
 import numpy as np
+
 import utils.OD as od
 from utils.microtype import Microtype
-
-from typing import Dict, List
 
 
 def getModeSplit(mcc: od.ModeCharacteristics) -> od.ModeSplit:
@@ -91,7 +92,7 @@ class Geotype:
                 for mt in du.allocation.keys():
                     assert (isinstance(mt, Microtype))
                     mt.addModeDemandForPMT(mode, du.demand * du.mode_split[mode] * du.allocation[mt],
-                                             self.distbins[odi.distBin])
+                                           self.distbins[odi.distBin])
 
     def updateMicrotypeModeCharacteristics(self, iter_max=50):
         for mt in self._microtypes:
@@ -108,10 +109,10 @@ class Geotype:
         for odi in self.demand_structure.keys():
             du = self.demand_structure[odi]
             assert isinstance(du, od.DemandUnit)
-            #print('-----')
-            #print(du.mode_split)
+            # print('-----')
+            # print(du.mode_split)
             du.updateModeSplit(getModeSplit(self.mode_choice_characteristics[odi]))
-            #print(du.mode_split)
+            # print(du.mode_split)
 
     def equilibriumModeChoice(self, n_iters=20):
         for iter in range(n_iters):

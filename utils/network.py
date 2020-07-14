@@ -1,8 +1,10 @@
-import numpy as np
-from typing import List, Dict
-from utils.supply import TravelDemand, TravelDemands
 import os
+from typing import List, Dict
+
+import numpy as np
 import pandas as pd
+
+from utils.supply import TravelDemand, TravelDemands
 
 np.seterr(all='ignore')
 
@@ -175,7 +177,8 @@ class BusMode(Mode):
         #                               self.routeAveragedSpeed / self.stop_spacing * self.N_tot)
         # return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
         car_travel_time = self.getRouteLength() / car_speed
-        passengers_per_stop = (self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) * self._params.headway_in_sec / 3600.
+        passengers_per_stop = (
+                                          self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) * self._params.headway_in_sec / 3600.
         stopping_time = self.getRouteLength() / self._params.stop_spacing * self._params.min_stop_time
         stopped_time = self._params.passenger_wait * passengers_per_stop + stopping_time
         spd = self.getRouteLength() * car_speed / (stopped_time * car_speed + self.getRouteLength())
@@ -210,9 +213,9 @@ class BusMode(Mode):
     def calculateBlockedDistance(self, network) -> float:
         if network.car_speed > 0:
             out = network.l / (
-                        self._params.min_stop_time + self._params.headway_in_sec * self._params.passenger_wait * (
-                        self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
-                                self.getRouteLength() / self._params.stop_spacing)) / self._params.headway_in_sec
+                    self._params.min_stop_time + self._params.headway_in_sec * self._params.passenger_wait * (
+                    self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
+                            self.getRouteLength() / self._params.stop_spacing)) / self._params.headway_in_sec
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
             # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
         else:

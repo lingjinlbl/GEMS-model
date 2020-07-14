@@ -1,7 +1,9 @@
-import numpy as np
-from utils.microtype import Microtype
 from typing import Dict, List
+
+import numpy as np
 import pandas as pd
+
+from utils.microtype import Microtype
 
 
 class Allocation:
@@ -293,4 +295,3 @@ class OriginDestination:
             self[DemandIndex(*tripClass)] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
-

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Dict, List
+
 
 class TravelDemand:
     def __init__(self):
@@ -81,8 +81,9 @@ class TravelDemands:
             except:
                 current_distance = 0.0
             self._demands[mode].rateOfPMT += demand * trip_distance
-            self._demands[mode].averageDistanceInSystem = (current_demand * current_distance + demand * trip_distance) / (
-                    current_demand + demand)
+            self._demands[mode].averageDistanceInSystem = (
+                                                                      current_demand * current_distance + demand * trip_distance) / (
+                                                                  current_demand + demand)
 
     def __str__(self):
         return 'Start Rate: ' + str(

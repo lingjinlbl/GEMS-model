@@ -68,7 +68,7 @@ class Microtype:
         time = 0.
         cost = self.networks.modes[mode].costs.per_start
         if mode == 'bus':
-            wait = self.networks.modes['bus'].params.headway_in_sec / 3600. / 2. # TODO: Make getter
+            wait = self.networks.modes['bus'].params.headway_in_sec / 3600. / 2.  # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait
@@ -140,4 +140,3 @@ class MicrotypeCollection:
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
-
