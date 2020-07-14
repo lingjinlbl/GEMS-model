@@ -1,8 +1,3 @@
-from .OD import TripCollection, ODindex
-from .microtype import MicrotypeCollection
-from .misc import DistanceBins
-
-
 class ChoiceCharacteristics:
     def __init__(self, travel_time=0., cost=0., wait_time=0.):
         self.travel_time = travel_time
