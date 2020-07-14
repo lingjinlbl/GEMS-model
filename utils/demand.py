@@ -1,8 +1,8 @@
-from utils.OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
-from utils.population import Population
-from utils.microtype import Microtype, MicrotypeCollection
-from utils.misc import TimePeriods, DistanceBins
-from utils.choiceCharacteristics import CollectedChoiceCharacteristics
+from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
+from .population import Population
+from .microtype import MicrotypeCollection
+from .misc import TimePeriods, DistanceBins
+from .choiceCharacteristics import CollectedChoiceCharacteristics
 
 
 class Demand:

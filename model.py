@@ -60,7 +60,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data-simpler")
+    a = Model("input-data")
     a.initializeTimePeriod("AM-Peak")
     a.findEquilibrium()
     print("aah")

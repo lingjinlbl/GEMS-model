@@ -3,10 +3,8 @@
 
 import numpy as np
 import pandas as pd
-import copy
 
-from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams, Costs, \
-    ModeParamFactory
+from .network import Network, NetworkCollection, NetworkFlowParams, Costs, ModeParamFactory
 
 
 class Microtype:
@@ -70,7 +68,7 @@ class Microtype:
         time = 0.
         cost = self.networks.modes[mode].costs.per_start
         if mode == 'bus':
-            wait = self.networks.modes['bus'].headway / 3600. / 2. # TODO: Make getter
+            wait = self.networks.modes['bus'].params.headway_in_sec / 3600. / 2. # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait
@@ -91,21 +89,21 @@ class Microtype:
         return [mode.getPassengerFlow() for mode in
                 self.networks.modes.values()]
 
-    def getPassengerOccupancy(self):
-        return [self.getModeOccupancy(mode) for mode in self.modes]
+    # def getPassengerOccupancy(self):
+    #     return [self.getModeOccupancy(mode) for mode in self.modes]
 
-    def getTravelTimes(self):
-        speeds = np.array(self.getSpeeds())
-        speeds[~(speeds > 0)] = np.nan
-        distances = np.array([self.getModeMeanDistance(mode) for mode in self.modes])
-        return distances / speeds
+    # def getTravelTimes(self):
+    #     speeds = np.array(self.getSpeeds())
+    #     speeds[~(speeds > 0)] = np.nan
+    #     distances = np.array([self.getModeMeanDistance(mode) for mode in self.modes])
+    #     return distances / speeds
 
-    def getTotalTimes(self):
-        speeds = np.array(self.getSpeeds())
-        demands = np.array(self.getDemandsForPMT())
-        times = speeds * demands
-        times[speeds == 0.] = np.inf
-        return times
+    # def getTotalTimes(self):
+    #     speeds = np.array(self.getSpeeds())
+    #     demands = np.array(self.getDemandsForPMT())
+    #     times = speeds * demands
+    #     times[speeds == 0.] = np.inf
+    #     return times
 
     def __str__(self):
         return 'Demand: ' + str(self.getFlows()) + ' , Speed: ' + str(self.getSpeeds())
@@ -143,23 +141,3 @@ class MicrotypeCollection:
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
 
-
-def main():
-    network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_car = Network(250, network_params_car)
-    network_bus = Network(750, network_params_bus)
-    network_mixed = Network(500, network_params_mixed)
-
-    Mode([network_mixed, network_car], 'car')
-    BusMode([network_mixed, network_bus], BusModeParams(0.6))
-    nc = NetworkCollection([network_mixed, network_car, network_bus])
-
-    m = Microtype(nc)
-    m.setModeDemand('car', 40 / (10 * 60), 1000.0)
-    m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
-
-
-if __name__ == "__main__":
-    main()

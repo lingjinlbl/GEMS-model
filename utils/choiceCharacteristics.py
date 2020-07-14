@@ -1,6 +1,6 @@
-from utils.OD import TripCollection, OriginDestination, ODindex
-from utils.microtype import MicrotypeCollection
-from utils.misc import DistanceBins
+from .OD import TripCollection, ODindex
+from .microtype import MicrotypeCollection
+from .misc import DistanceBins
 
 
 class ChoiceCharacteristics:
