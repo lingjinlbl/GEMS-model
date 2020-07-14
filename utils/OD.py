@@ -35,7 +35,7 @@ class ModeSplit:
             assert (isinstance(mapping, Dict))
             self._mapping = mapping
 
-    def updateMapping(self, mapping: dict):
+    def updateMapping(self, mapping: Dict[str, float]):
         if self._mapping.keys() == mapping.keys():
             self._mapping = mapping
         else:

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from typing import List, Dict
 
 from utils.OD import DemandIndex, TripCollection, Trip, ModeSplit, OriginDestination
 from utils.choiceCharacteristics import ModalChoiceCharacteristics, CollectedChoiceCharacteristics
@@ -17,20 +18,20 @@ class DemandClass:
     def __init__(self):
         self.__params = {"ASC": 0.0, "VOT": 15.0, "VOM": 1.0}
 
-    def __iadd__(self, other: dict):
+    def __iadd__(self, other: Dict[str, float]):
         self.__params.update(other)
         print("UPDATED")
 
-    def __add__(self, other: dict):
+    def __add__(self, other: Dict[str, float]):
         self.__params.update(other)
         print("UPDATED")
         return self
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> float:
         return self.__params[item]
 
-    def updateModeSplit(self, mcc: ModalChoiceCharacteristics) -> dict:
-        utils = np.array([])
+    def updateModeSplit(self, mcc: ModalChoiceCharacteristics) -> Dict[str, float]:
+        utils = np.array([], dtype=float)
         k = 1.0
         modes = mcc.modes()
         for mode in modes:

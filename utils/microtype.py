@@ -107,18 +107,8 @@ class Microtype:
         times[speeds == 0.] = np.inf
         return times
 
-    def print(self):
-        print('------------')
-        print('Modes:')
-        print(self.modes)
-        print('Supply Characteristics:')
-        print(self._mode_characteristics)
-        print('Demand Characteristics:')
-        print(self._travel_demand)
-        print('------------')
-
     def __str__(self):
-        return 'Demand: ' + str(self._travel_demand) + ' , Speed: ' + str(self._baseSpeed)
+        return 'Demand: ' + str(self.getFlows()) + ' , Speed: ' + str(self.getSpeeds())
 
 
 class MicrotypeCollection:
