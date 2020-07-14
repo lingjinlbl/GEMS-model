@@ -2,22 +2,23 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import copy
+import pandas as pd
 
-from utils.network import Network, NetworkCollection, NetworkFlowParams, Mode, BusMode, BusModeParams, Costs
+from .network import Network, NetworkCollection, NetworkFlowParams, Costs, ModeParamFactory
 
 
 class Microtype:
-    def __init__(self, networks: NetworkCollection, costs=None):
+    def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):
+        self.microtypeID = microtypeID
         if costs is None:
             costs = dict()
-        self.mode_names = list(networks.getModeNames())
+        self.mode_names = set(networks.getModeNames())
         self.networks = networks
         self.updateModeCosts(costs)
 
     def updateModeCosts(self, costs):
         for (mode, modeCosts) in costs.items():
-            assert(isinstance(mode, str) and isinstance(modeCosts, Costs))
+            assert (isinstance(mode, str) and isinstance(modeCosts, Costs))
             self.networks.modes[mode].costs = modeCosts
 
     def updateNetworkSpeeds(self, nIters=None):
@@ -25,7 +26,6 @@ class Microtype:
 
     def getModeSpeed(self, mode) -> float:
         return self.networks.modes[mode].getSpeed()
-
 
     def getModeFlow(self, mode) -> float:
         return self.networks.demands.getRateOfPMT(mode)
@@ -57,6 +57,8 @@ class Microtype:
 
     def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
         speed = np.max([self.getModeSpeed(mode), 0.01])
+        if np.isnan(speed):
+            speed = self.getModeSpeed("auto")
         time = distance / speed * self.networks.modes[mode].costs.vott_multiplier
         cost = distance * self.networks.modes[mode].costs.per_meter
         wait = 0.
@@ -66,7 +68,7 @@ class Microtype:
         time = 0.
         cost = self.networks.modes[mode].costs.per_start
         if mode == 'bus':
-            wait = self.networks.modes['bus'].getHeadway() / 2.
+            wait = self.networks.modes['bus'].params.headway_in_sec / 3600. / 2. # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait
@@ -87,53 +89,55 @@ class Microtype:
         return [mode.getPassengerFlow() for mode in
                 self.networks.modes.values()]
 
-    def getPassengerOccupancy(self):
-        return [self.getModeOccupancy(mode) for mode in self.modes]
+    # def getPassengerOccupancy(self):
+    #     return [self.getModeOccupancy(mode) for mode in self.modes]
 
-    def getTravelTimes(self):
-        speeds = np.array(self.getSpeeds())
-        speeds[~(speeds > 0)] = np.nan
-        distances = np.array([self.getModeMeanDistance(mode) for mode in self.modes])
-        return distances / speeds
+    # def getTravelTimes(self):
+    #     speeds = np.array(self.getSpeeds())
+    #     speeds[~(speeds > 0)] = np.nan
+    #     distances = np.array([self.getModeMeanDistance(mode) for mode in self.modes])
+    #     return distances / speeds
 
-    def getTotalTimes(self):
-        speeds = np.array(self.getSpeeds())
-        demands = np.array(self.getDemandsForPMT())
-        times = speeds * demands
-        times[speeds == 0.] = np.inf
-        return times
-
-    def print(self):
-        print('------------')
-        print('Modes:')
-        print(self.modes)
-        print('Supply Characteristics:')
-        print(self._mode_characteristics)
-        print('Demand Characteristics:')
-        print(self._travel_demand)
-        print('------------')
+    # def getTotalTimes(self):
+    #     speeds = np.array(self.getSpeeds())
+    #     demands = np.array(self.getDemandsForPMT())
+    #     times = speeds * demands
+    #     times[speeds == 0.] = np.inf
+    #     return times
 
     def __str__(self):
-        return 'Demand: ' + str(self._travel_demand) + ' , Speed: ' + str(self._baseSpeed)
+        return 'Demand: ' + str(self.getFlows()) + ' , Speed: ' + str(self.getSpeeds())
 
 
-def main():
-    network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_car = Network(250, network_params_car)
-    network_bus = Network(750, network_params_bus)
-    network_mixed = Network(500, network_params_mixed)
+class MicrotypeCollection:
+    def __init__(self, path: str):
+        self.__microtypes = dict()
+        self.path = path
 
-    Mode([network_mixed, network_car], 'car')
-    BusMode([network_mixed, network_bus], BusModeParams(0.6))
-    nc = NetworkCollection([network_mixed, network_car, network_bus])
+    def __setitem__(self, key: str, value: Microtype):
+        self.__microtypes[key] = value
 
-    m = Microtype(nc)
-    m.setModeDemand('car', 40 / (10 * 60), 1000.0)
-    m.setModeDemand('bus', 2 / (10 * 60), 1000.0)
+    def __getitem__(self, item: str) -> Microtype:
+        return self.__microtypes[item]
 
+    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame):
+        modeParamFactory = ModeParamFactory(self.path)
+        for microtypeID, grouped in subNetworkData.groupby('MicrotypeID'):
+            subNetworkToModes = dict()
+            modeToModeParams = dict()
+            costs = dict()
+            allModes = set()
+            for row in grouped.itertuples():
+                joined = modeToSubNetworkData.loc[modeToSubNetworkData['SubnetworkID'] == row.SubnetworkID]
+                subNetwork = Network(row.Length, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
+                for n in joined.itertuples():
+                    subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
+                    allModes.add(n.ModeTypeID.lower())
+            for mode in allModes:
+                (modeToModeParams[mode], costs[mode]) = modeParamFactory.get(mode, microtypeID)
+            networkCollection = NetworkCollection(subNetworkToModes, modeToModeParams)
+            self[microtypeID] = Microtype(microtypeID, networkCollection, costs)
 
+    def __iter__(self) -> (str, Microtype):
+        return iter(self.__microtypes.items())
 
-if __name__ == "__main__":
-    main()

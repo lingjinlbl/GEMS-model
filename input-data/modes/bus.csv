@@ -1,0 +1,5 @@
+﻿MicrotypeID,Headway,PerStartCost,PerMileCost,VehicleCapacity,VehicleSize,StopSpacing
+A,300,2.5,0,50,3,200
+B,600,2.5,0,50,3,400
+C,600,2.5,0,50,3,600
+D,1200,2.5,0,50,3,600

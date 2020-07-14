@@ -1,8 +1,4 @@
 import numpy as np
-import utils.supply as supply
-import utils.IO as io
-import copy
-import utils.IO as io
 import utils.OD as od
 from utils.microtype import Microtype
 
