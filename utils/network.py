@@ -328,7 +328,7 @@ class Network:
         return mode in self._modes.keys()
 
     def addDensity(self, mode, N_eq):
-        self._modes[mode].N_eq += N_eq
+        self._modes[mode].addVehicles(N_eq)
 
     def getBlockedDistance(self) -> float:
         if self.L_blocked:
