@@ -25,6 +25,12 @@ class ModeParams:
         self.relative_length = relative_length
 
 
+class WalkModeParams(ModeParams):
+    def __init__(self, speedInMetersPerSecond):
+        super().__init__("walk", 0.0)
+        self.speedInMetersPerSecond = speedInMetersPerSecond
+
+
 class AutoModeParams(ModeParams):
     def __init__(self):
         super().__init__("auto")
@@ -65,14 +71,6 @@ class Mode:
             self._L_blocked[n] = 0.0
         self.travelDemand = TravelDemand()
 
-    # def reset(self):
-    #     for key, value in self._N.items():
-    #         self._N[key] = self.fixed_density * key.L
-    #         self._L_blocked[key] = 0.0
-
-    # def getFixedDensity(self):
-    #     return 0.0
-
     def updateModeBlockedDistance(self):
         for n in self._networks:
             self._L_blocked[n] = n.L_blocked[self.name]
@@ -82,37 +80,11 @@ class Mode:
         self.allocateVehicles()
 
     def allocateVehicles(self):
-        """for constant car speed"""
-        current_allocation = []
-        blocked_lengths = []
-        lengths = []
-        other_mode_n_eq = []
-        jammed = []
+        """even"""
+        n_networks = len(self._networks)
         for n in self._networks:
-            other_modes = list(n.N_eq.keys())
-            if self.name in other_modes:
-                other_modes.remove(self.name)
-            current_allocation.append(self._N[n])
-            blocked_lengths.append(n.getBlockedDistance())
-            lengths.append(n.L)
-            other_mode_n_eq.append(sum([n.N_eq[m] for m in other_modes]))
-            jammed.append(n.isJammed)
-        n_eq_other = sum(other_mode_n_eq)
-        L_tot = sum(lengths)
-        L_blocked_tot = sum(blocked_lengths)
-        density_av = (self._N_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.params.relative_length
-        if self._N_tot > 0:
-            n_new = np.nan_to_num(np.array(
-                [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]))
-        else:
-            n_new = np.array([0.0] * len(lengths))
-        should_be_empty = (n_new < 0) | np.array(jammed)
-        to_reallocate = np.sum(n_new[should_be_empty])
-        n_new[~should_be_empty] += to_reallocate * n_new[~should_be_empty] / np.sum(n_new[~should_be_empty])
-        n_new[should_be_empty] = 0
-        for ind, n in enumerate(self._networks):
-            n.N_eq[self.name] = n_new[ind] * self.params.relative_length
-            self._N[n] = n_new[ind]
+            n.N_eq[self.name] = self._N_tot / n_networks * self.params.relative_length
+            self._N[n] = self._N_tot / n_networks
 
     def __str__(self):
         return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
@@ -146,10 +118,53 @@ class Mode:
             return self.travelDemand.rateOfPMT
 
 
+class WalkMode(Mode):
+    def __init__(self, networks, modeParams: ModeParams) -> None:
+        assert (isinstance(modeParams, WalkModeParams))
+        super().__init__(networks, modeParams)
+
+    def getSpeed(self):
+        assert (isinstance(self.params, WalkModeParams))
+        return self.params.speedInMetersPerSecond
+
+
 class AutoMode(Mode):
     def __init__(self, networks, modeParams: ModeParams) -> None:
         assert (isinstance(modeParams, AutoModeParams))
         super().__init__(networks, modeParams)
+
+    def allocateVehicles(self):
+        """for constant car speed"""
+        current_allocation = []
+        blocked_lengths = []
+        lengths = []
+        other_mode_n_eq = []
+        jammed = []
+        for n in self._networks:
+            other_modes = list(n.N_eq.keys())
+            if self.name in other_modes:
+                other_modes.remove(self.name)
+            current_allocation.append(self._N[n])
+            blocked_lengths.append(n.getBlockedDistance())
+            lengths.append(n.L)
+            other_mode_n_eq.append(sum([n.N_eq[m] for m in other_modes]))
+            jammed.append(n.isJammed)
+        n_eq_other = sum(other_mode_n_eq)
+        L_tot = sum(lengths)
+        L_blocked_tot = sum(blocked_lengths)
+        density_av = (self._N_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.params.relative_length
+        if self._N_tot > 0:
+            n_new = np.nan_to_num(np.array(
+                [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]))
+        else:
+            n_new = np.array([0.0] * len(lengths))
+        should_be_empty = (n_new < 0) | np.array(jammed)
+        to_reallocate = np.sum(n_new[should_be_empty])
+        n_new[~should_be_empty] += to_reallocate * n_new[~should_be_empty] / np.sum(n_new[~should_be_empty])
+        n_new[should_be_empty] = 0
+        for ind, n in enumerate(self._networks):
+            n.N_eq[self.name] = n_new[ind] * self.params.relative_length
+            self._N[n] = n_new[ind]
 
 
 class BusMode(Mode):
@@ -387,7 +402,12 @@ class NetworkCollection:
             params = modeParams[modeName]
             if isinstance(params, BusModeParams):
                 BusMode(networks, params)
+            elif isinstance(params, AutoModeParams):
+                AutoMode(networks, params)
+            elif isinstance(params, WalkModeParams):
+                WalkMode(networks, params)
             elif isinstance(params, ModeParams):
+                print("BAD!")
                 Mode(networks, params)
 
     def isJammed(self):
@@ -496,8 +516,13 @@ class ModeParamFactory:
         elif modeName.lower() == "auto":
             data = self.modeParams["auto"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
-            return AutoModeParams(), Costs(data.PerMileCost, 0.0, data.PerEndCost, 1.0)
+            return AutoModeParams(), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost, 1.0)
+        elif modeName.lower() == "walk":
+            data = self.modeParams["walk"]
+            data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
+            return WalkModeParams(data.SpeedInMetersPerSecond), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost, 1.0)
         else:
+            print("BAD MODE " + modeName)
             return AutoModeParams, Costs()
 
 

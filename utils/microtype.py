@@ -55,14 +55,14 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
-        speed = np.max([self.getModeSpeed(mode), 0.01])
-        if np.isnan(speed):
+    def getThroughTimeCostWait(self, mode: str, distanceInMiles: float) -> (float, float, float):
+        speedMilesPerHour = np.max([self.getModeSpeed(mode), 0.01]) * 2.23694
+        if np.isnan(speedMilesPerHour):
             speed = self.getModeSpeed("auto")
-        time = distance / speed * self.networks.modes[mode].costs.vott_multiplier
-        cost = distance * self.networks.modes[mode].costs.per_meter
+        timeInHours = distanceInMiles / speedMilesPerHour * self.networks.modes[mode].costs.vott_multiplier
+        cost = distanceInMiles * self.networks.modes[mode].costs.per_meter * 1609.34
         wait = 0.
-        return time, cost, wait
+        return timeInHours, cost, wait
 
     def getStartTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
