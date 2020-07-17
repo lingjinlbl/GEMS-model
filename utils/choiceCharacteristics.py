@@ -1,3 +1,6 @@
+from .microtype import MicrotypeCollection
+from .misc import DistanceBins
+
 class ChoiceCharacteristics:
     def __init__(self, travel_time=0., cost=0., wait_time=0.):
         self.travel_time = travel_time
@@ -50,13 +53,13 @@ class CollectedChoiceCharacteristics:
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
 
-    def __setitem__(self, key: ODindex, value: ModalChoiceCharacteristics):
+    def __setitem__(self, key, value: ModalChoiceCharacteristics):
         self.__choiceCharacteristics[key] = value
 
-    def __getitem__(self, item: ODindex) -> ModalChoiceCharacteristics:
+    def __getitem__(self, item) -> ModalChoiceCharacteristics:
         return self.__choiceCharacteristics[item]
 
-    def initializeChoiceCharacteristics(self, trips: TripCollection,
+    def initializeChoiceCharacteristics(self, trips,
                                         microtypes: MicrotypeCollection, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
         for odIndex, trip in trips:
@@ -71,7 +74,7 @@ class CollectedChoiceCharacteristics:
         for mcc in self.__choiceCharacteristics.values():
             mcc.reset()
 
-    def updateChoiceCharacteristics(self, microtypes: MicrotypeCollection, trips: TripCollection):
+    def updateChoiceCharacteristics(self, microtypes: MicrotypeCollection, trips):
         self.resetChoiceCharacteristics()
         for odIndex, trip in trips:
             for mode in microtypes[odIndex.o].mode_names:

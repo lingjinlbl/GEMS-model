@@ -1,8 +1,10 @@
-import numpy as np
-from typing import List, Dict
-from utils.supply import TravelDemand, TravelDemands
 import os
+from typing import List, Dict
+
+import numpy as np
 import pandas as pd
+
+from utils.supply import TravelDemand, TravelDemands
 
 np.seterr(all='ignore')
 
@@ -21,6 +23,12 @@ class ModeParams:
     def __init__(self, name: str, relative_length=1.0):
         self.name = name
         self.relative_length = relative_length
+
+
+class WalkModeParams(ModeParams):
+    def __init__(self, speedInMetersPerSecond):
+        super().__init__("walk", 0.0)
+        self.speedInMetersPerSecond = speedInMetersPerSecond
 
 
 class AutoModeParams(ModeParams):
@@ -63,14 +71,6 @@ class Mode:
             self._L_blocked[n] = 0.0
         self.travelDemand = TravelDemand()
 
-    # def reset(self):
-    #     for key, value in self._N.items():
-    #         self._N[key] = self.fixed_density * key.L
-    #         self._L_blocked[key] = 0.0
-
-    # def getFixedDensity(self):
-    #     return 0.0
-
     def updateModeBlockedDistance(self):
         for n in self._networks:
             self._L_blocked[n] = n.L_blocked[self.name]
@@ -78,6 +78,60 @@ class Mode:
     def addVehicles(self, n):
         self._N_tot += n
         self.allocateVehicles()
+
+    def allocateVehicles(self):
+        """even"""
+        n_networks = len(self._networks)
+        for n in self._networks:
+            n.N_eq[self.name] = self._N_tot / n_networks * self.params.relative_length
+            self._N[n] = self._N_tot / n_networks
+
+    def __str__(self):
+        return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
+
+    def getSpeed(self):
+        return max(self._N, key=self._N.get).car_speed
+
+    def getN(self, network):
+        return self._N[network]
+
+    def getNs(self, network):
+        return list(self._N.values())
+
+    def getBlockedDistance(self, network):
+        return self._L_blocked[network]
+
+    def updateN(self, demand: TravelDemand):
+        n_new = self.getLittlesLawN(demand.rateOfPMT, demand.averageDistanceInSystem)
+        self._N_tot = n_new
+        self.allocateVehicles()
+
+    def getLittlesLawN(self, rateOfPMT: float, averageDistanceInSystem: float):
+        speed = self.getSpeed()
+        averageTimeInSystem = averageDistanceInSystem / speed
+        return rateOfPMT / averageDistanceInSystem * averageTimeInSystem
+
+    def getPassengerFlow(self) -> float:
+        if np.any([n.isJammed for n in self._networks]):
+            return 0.0
+        else:
+            return self.travelDemand.rateOfPMT
+
+
+class WalkMode(Mode):
+    def __init__(self, networks, modeParams: ModeParams) -> None:
+        assert (isinstance(modeParams, WalkModeParams))
+        super().__init__(networks, modeParams)
+
+    def getSpeed(self):
+        assert (isinstance(self.params, WalkModeParams))
+        return self.params.speedInMetersPerSecond
+
+
+class AutoMode(Mode):
+    def __init__(self, networks, modeParams: ModeParams) -> None:
+        assert (isinstance(modeParams, AutoModeParams))
+        super().__init__(networks, modeParams)
 
     def allocateVehicles(self):
         """for constant car speed"""
@@ -112,43 +166,6 @@ class Mode:
             n.N_eq[self.name] = n_new[ind] * self.params.relative_length
             self._N[n] = n_new[ind]
 
-    def __str__(self):
-        return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
-
-    def getSpeed(self):
-        return max(self._N, key=self._N.get).car_speed
-
-    def getN(self, network):
-        return self._N[network]
-
-    def getNs(self, network):
-        return list(self._N.values())
-
-    def getBlockedDistance(self, network):
-        return self._L_blocked[network]
-
-    def updateN(self, demand: TravelDemand):
-        n_new = self.getLittlesLawN(demand.rateOfPMT, demand.averageDistanceInSystem)
-        self._N_tot = n_new
-        self.allocateVehicles()
-
-    def getLittlesLawN(self, rateOfPMT: float, averageDistanceInSystem: float):
-        speed = self.getSpeed()
-        averageTimeInSystem = averageDistanceInSystem / speed
-        return rateOfPMT / averageDistanceInSystem * averageTimeInSystem
-
-    def getPassengerFlow(self) -> float:
-        if np.any([n.isJammed for n in self._networks]):
-            return 0.0
-        else:
-            return self.travelDemand.rateOfPMT
-
-
-class AutoMode(Mode):
-    def __init__(self, networks, modeParams: ModeParams) -> None:
-        assert (isinstance(modeParams, AutoModeParams))
-        super().__init__(networks, modeParams)
-
 
 class BusMode(Mode):
     def __init__(self, networks, busModeParams: ModeParams) -> None:
@@ -175,7 +192,8 @@ class BusMode(Mode):
         #                               self.routeAveragedSpeed / self.stop_spacing * self.N_tot)
         # return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
         car_travel_time = self.getRouteLength() / car_speed
-        passengers_per_stop = (self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) * self._params.headway_in_sec / 3600.
+        passengers_per_stop = (
+                                          self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) * self._params.headway_in_sec / 3600.
         stopping_time = self.getRouteLength() / self._params.stop_spacing * self._params.min_stop_time
         stopped_time = self._params.passenger_wait * passengers_per_stop + stopping_time
         spd = self.getRouteLength() * car_speed / (stopped_time * car_speed + self.getRouteLength())
@@ -210,9 +228,9 @@ class BusMode(Mode):
     def calculateBlockedDistance(self, network) -> float:
         if network.car_speed > 0:
             out = network.l / (
-                        self._params.min_stop_time + self._params.headway_in_sec * self._params.passenger_wait * (
-                        self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
-                                self.getRouteLength() / self._params.stop_spacing)) / self._params.headway_in_sec
+                    self._params.min_stop_time + self._params.headway_in_sec * self._params.passenger_wait * (
+                    self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
+                            self.getRouteLength() / self._params.stop_spacing)) / self._params.headway_in_sec
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
             # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
         else:
@@ -242,7 +260,7 @@ class BusMode(Mode):
                 n.N_eq[self.name] = self._N_tot * lengths[ind] / speeds[ind] / T_tot * self._params.relative_length
                 self._N[n] = n.N_eq[self.name] / self._params.relative_length
             else:
-                n.N_eq[self.name] = n_tot / lengths[ind] * self._params.relative_length
+                n.N_eq[self.name] = self._N_tot / lengths[ind] * self._params.relative_length
                 self._N[n] = self._N_tot / lengths[ind]
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = self.getOccupancy()
@@ -384,7 +402,12 @@ class NetworkCollection:
             params = modeParams[modeName]
             if isinstance(params, BusModeParams):
                 BusMode(networks, params)
+            elif isinstance(params, AutoModeParams):
+                AutoMode(networks, params)
+            elif isinstance(params, WalkModeParams):
+                WalkMode(networks, params)
             elif isinstance(params, ModeParams):
+                print("BAD!")
                 Mode(networks, params)
 
     def isJammed(self):
@@ -493,8 +516,13 @@ class ModeParamFactory:
         elif modeName.lower() == "auto":
             data = self.modeParams["auto"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
-            return AutoModeParams(), Costs(data.PerMileCost, 0.0, data.PerEndCost, 1.0)
+            return AutoModeParams(), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost, 1.0)
+        elif modeName.lower() == "walk":
+            data = self.modeParams["walk"]
+            data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
+            return WalkModeParams(data.SpeedInMetersPerSecond), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost, 1.0)
         else:
+            print("BAD MODE " + modeName)
             return AutoModeParams, Costs()
 
 

@@ -1,10 +1,10 @@
-import pandas as pd
-import numpy as np
-from typing import List, Dict
+from typing import Dict
 
-from utils.OD import DemandIndex, TripCollection, Trip, ModeSplit, OriginDestination
-from utils.choiceCharacteristics import ModalChoiceCharacteristics, CollectedChoiceCharacteristics
-from utils.microtype import MicrotypeCollection
+import numpy as np
+import pandas as pd
+
+from utils.OD import DemandIndex
+from utils.choiceCharacteristics import ModalChoiceCharacteristics
 
 
 class PopulationGroup:

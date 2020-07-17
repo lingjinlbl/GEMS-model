@@ -55,20 +55,20 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    def getThroughTimeCostWait(self, mode: str, distance: float) -> (float, float, float):
-        speed = np.max([self.getModeSpeed(mode), 0.01])
-        if np.isnan(speed):
+    def getThroughTimeCostWait(self, mode: str, distanceInMiles: float) -> (float, float, float):
+        speedMilesPerHour = np.max([self.getModeSpeed(mode), 0.01]) * 2.23694
+        if np.isnan(speedMilesPerHour):
             speed = self.getModeSpeed("auto")
-        time = distance / speed * self.networks.modes[mode].costs.vott_multiplier
-        cost = distance * self.networks.modes[mode].costs.per_meter
+        timeInHours = distanceInMiles / speedMilesPerHour * self.networks.modes[mode].costs.vott_multiplier
+        cost = distanceInMiles * self.networks.modes[mode].costs.per_meter * 1609.34
         wait = 0.
-        return time, cost, wait
+        return timeInHours, cost, wait
 
     def getStartTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
         cost = self.networks.modes[mode].costs.per_start
         if mode == 'bus':
-            wait = self.networks.modes['bus'].params.headway_in_sec / 3600. / 2. # TODO: Make getter
+            wait = self.networks.modes['bus'].params.headway_in_sec / 3600. / 2.  # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait
@@ -140,4 +140,3 @@ class MicrotypeCollection:
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
-
