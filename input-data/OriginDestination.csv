@@ -64,7 +64,7 @@ A,PM-Peak,low-income,work,B,A,0.2
 A,PM-Peak,low-income,work,C,A,0.2
 A,PM-Peak,low-income,work,D,A,0.2
 A,PM-Peak,high-income,nonwork,A,A,0.6
-A,PMPeak,high-income,nonwork,B,A,0.1
+A,PM-Peak,high-income,nonwork,B,A,0.1
 A,PM-Peak,high-income,nonwork,C,A,0.2
 A,PM-Peak,high-income,nonwork,D,A,0.1
 A,PM-Peak,low-income,nonwork,A,A,0.6

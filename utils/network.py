@@ -524,24 +524,3 @@ class ModeParamFactory:
         else:
             print("BAD MODE " + modeName)
             return AutoModeParams, Costs()
-
-
-def main():
-    network_params_mixed = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_params_car = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_params_bus = NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50)
-    network_car = Network(250, network_params_car)
-    network_bus = Network(750, network_params_bus)
-    network_mixed = Network(500, network_params_mixed)
-
-    car = Mode([network_mixed, network_car], 'car')
-    bus = BusMode([network_mixed, network_bus], BusModeParams(1.0))
-    nc = NetworkCollection([network_mixed, network_car, network_bus])
-
-    nc.addVehicles('car', 6.0)
-    nc.updateMFD()
-    print('DONE')
-
-
-if __name__ == "__main__":
-    main()
