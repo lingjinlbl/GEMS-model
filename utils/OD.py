@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from utils.microtype import Microtype
+from .choiceCharacteristics import ChoiceCharacteristics
 
 
 class Allocation:

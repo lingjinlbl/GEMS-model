@@ -260,7 +260,7 @@ class BusMode(Mode):
                 n.N_eq[self.name] = self._N_tot * lengths[ind] / speeds[ind] / T_tot * self._params.relative_length
                 self._N[n] = n.N_eq[self.name] / self._params.relative_length
             else:
-                n.N_eq[self.name] = n_tot / lengths[ind] * self._params.relative_length
+                n.N_eq[self.name] = self._N_tot / lengths[ind] * self._params.relative_length
                 self._N[n] = self._N_tot / lengths[ind]
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = self.getOccupancy()
