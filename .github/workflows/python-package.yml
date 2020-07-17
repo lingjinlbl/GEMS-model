@@ -18,6 +18,10 @@ jobs:
         python-version: [3.7]
 
     steps:
+    - name: Code Coverage Report
+      uses: romeovs/lcov-reporter-action@v0.2.11
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
