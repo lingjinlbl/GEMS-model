@@ -2,6 +2,7 @@ import pytest
 from utils.population import Population
 from utils.choiceCharacteristics import ModalChoiceCharacteristics, ChoiceCharacteristics
 import pandas as pd
+import os
 
 
 @pytest.fixture
@@ -10,8 +11,9 @@ def pop():
 
 
 def test_import_population(pop):
-    popdata = pd.read_csv("../input-data-simpler/Population.csv")
-    popgroups = pd.read_csv("../input-data-simpler/PopulationGroups.csv")
+    ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+    popdata = pd.read_csv(ROOT_DIR + "/../input-data-simpler/Population.csv")
+    popgroups = pd.read_csv(ROOT_DIR + "/../input-data-simpler/PopulationGroups.csv")
     pop.importPopulation(popdata, popgroups)
     assert True
     return pop
