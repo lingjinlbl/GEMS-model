@@ -37,8 +37,6 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
-    - name: Swift Coverage Report
-      uses: maxep/spm-lcov-action@0.3.1
     - name: Code Coverage Report
       uses: romeovs/lcov-reporter-action@v0.2.11
       with:
