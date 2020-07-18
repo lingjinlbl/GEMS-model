@@ -36,10 +36,5 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pytest --cov --cov-report=xml
-    - name: Code Coverage Report
-      uses: romeovs/lcov-reporter-action@v0.2.11
-      with:
-        lcov-file: coverage.xml
-
+        pytest --cov --cov-report=html
 
