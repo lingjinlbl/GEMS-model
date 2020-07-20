@@ -197,28 +197,35 @@ class BusMode(Mode):
         stopping_time = self.getRouteLength() / self._params.stop_spacing * self._params.min_stop_time
         stopped_time = self._params.passenger_wait * passengers_per_stop + stopping_time
         spd = self.getRouteLength() * car_speed / (stopped_time * car_speed + self.getRouteLength())
+        if np.isnan(spd):
+            print("BAD")
+            spd = 0.25
         return spd
 
     def getSpeeds(self):
         speeds = []
         for n in self._networks:
-            carSpeed = n.car_speed
-            if np.isnan(carSpeed):
-                print("AAAH")
-            bus_speed = self.getSubNetworkSpeed(carSpeed)
-            if np.isnan(bus_speed):
-                print("AAAH")
-            speeds.append(bus_speed)
+            if n.L == 0:
+                speeds.append(np.inf)
+            else:
+                carSpeed = n.car_speed
+                if np.isnan(carSpeed):
+                    print("AAAH")
+                bus_speed = self.getSubNetworkSpeed(carSpeed)
+                if np.isnan(bus_speed):
+                    print("AAAH")
+                speeds.append(bus_speed)
         return speeds
 
     def getSpeed(self):
         meters = []
         seconds = []
         for n in self._networks:
-            n_bus = self._N[n]
-            bus_speed = self.getSubNetworkSpeed(n.car_speed)
-            seconds.append(n_bus)
-            meters.append(n_bus * bus_speed)
+            if n.L > 0:
+                n_bus = self._N[n]
+                bus_speed = self.getSubNetworkSpeed(n.car_speed)
+                seconds.append(n_bus)
+                meters.append(n_bus * bus_speed)
         if sum(seconds) > 0:
             spd = sum(meters) / sum(seconds)
             return spd
@@ -280,9 +287,11 @@ class BusMode(Mode):
 
 
 class Network:
-    def __init__(self, L: float, networkFlowParams: NetworkFlowParams):
+    def __init__(self, data, idx, networkFlowParams: NetworkFlowParams):
         self.networkFlowParams = networkFlowParams
-        self.L = L
+        self.data = data
+        self.__idx = idx
+        self.L = data.loc[idx, "Length"]
         self.lam = networkFlowParams.lam
         self.u_f = networkFlowParams.u_f
         self.w = networkFlowParams.w
@@ -294,6 +303,14 @@ class Network:
         self._modes = dict()
         self.car_speed = networkFlowParams.u_f
         self.isJammed = False
+
+    @property
+    def L(self):
+        return self.data.loc[self.__idx, "Length"]
+
+    @L.setter
+    def L(self, L):
+        self.data.loc[self.__idx, "Length"] = L
 
     def __str__(self):
         return str(list(self.N_eq.keys()))
@@ -322,6 +339,9 @@ class Network:
             mode.updateModeBlockedDistance()
 
     def MFD(self):
+        if self.L <= 0:
+            self.car_speed = np.nan
+            return
         L_eq = self.L - self.getBlockedDistance()
         N_eq = self.getN_eq()
         maxDensity = 0.25
@@ -374,7 +394,7 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, networksAndModes=None, modeParams=None, verbose=True):
+    def __init__(self, networksAndModes=None, modeParams=None, verbose=False):
         self._networks = list()
         if isinstance(networksAndModes, Dict) and isinstance(modeParams, Dict):
             self.populateNetworksAndModes(networksAndModes, modeParams)
@@ -488,37 +508,22 @@ class NetworkCollection:
 
 
 class ModeParamFactory:
-    def __init__(self, path: str):
-        self.path = path
-        self.modeParams = dict()
-        self.readFiles()
-
-    @property
-    def path(self):
-        return self.__path
-
-    @path.setter
-    def path(self, path):
-        self.__path = path
-
-    def readFiles(self):
-        (_, _, filenames) = next(os.walk(os.path.join(self.path, "modes")))
-        for file in filenames:
-            self.modeParams[file.split(".")[0]] = pd.read_csv(os.path.join(self.path, "modes", file))
+    def __init__(self, modeData: dict):
+        self.modeData = modeData
 
     def get(self, modeName: str, microtypeID: str) -> (ModeParams, Costs):
         if modeName.lower() == "bus":
-            data = self.modeParams["bus"]
+            data = self.modeData["bus"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
             costs = Costs(data.PerMileCost / 1609.34, data.PerStartCost, 0.0, 1.0)
             modeParams = BusModeParams(data.Headway, data.VehicleSize, 15., data.StopSpacing, 5.)
             return modeParams, costs
         elif modeName.lower() == "auto":
-            data = self.modeParams["auto"]
+            data = self.modeData["auto"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
             return AutoModeParams(), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost, 1.0)
         elif modeName.lower() == "walk":
-            data = self.modeParams["walk"]
+            data = self.modeData["walk"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
             return WalkModeParams(data.SpeedInMetersPerSecond), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost, 1.0)
         else:

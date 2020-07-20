@@ -24,6 +24,9 @@ class Microtype:
     def updateNetworkSpeeds(self, nIters=None):
         self.networks.updateModes(nIters)
 
+    def getModeSpeeds(self) -> dict:
+        return {mode: self.getModeSpeed(mode) for mode in self.mode_names}
+
     def getModeSpeed(self, mode) -> float:
         return self.networks.modes[mode].getSpeed()
 
@@ -47,6 +50,7 @@ class Microtype:
         self.networks.updateModes()
 
     def resetDemand(self):
+        self.networks.resetModes()
         self.networks.demands.resetDemand()
 
     def getStartAndEndRate(self, mode: str) -> (float, float):
@@ -110,9 +114,9 @@ class Microtype:
 
 
 class MicrotypeCollection:
-    def __init__(self, path: str):
+    def __init__(self, modeData: dict):
         self.__microtypes = dict()
-        self.path = path
+        self.modeData = modeData
 
     def __setitem__(self, key: str, value: Microtype):
         self.__microtypes[key] = value
@@ -121,15 +125,16 @@ class MicrotypeCollection:
         return self.__microtypes[item]
 
     def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame):
-        modeParamFactory = ModeParamFactory(self.path)
-        for microtypeID, grouped in subNetworkData.groupby('MicrotypeID'):
+        modeParamFactory = ModeParamFactory(self.modeData)
+        uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
+        for microtypeID in uniqueMicrotypes:
             subNetworkToModes = dict()
             modeToModeParams = dict()
             costs = dict()
             allModes = set()
-            for row in grouped.itertuples():
-                joined = modeToSubNetworkData.loc[modeToSubNetworkData['SubnetworkID'] == row.SubnetworkID]
-                subNetwork = Network(row.Length, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
+            for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
+                joined = modeToSubNetworkData.loc[modeToSubNetworkData['SubnetworkID'] == subNetworkData.loc[idx, "SubnetworkID"]]
+                subNetwork = Network(subNetworkData, idx, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
                 for n in joined.itertuples():
                     subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                     allModes.add(n.ModeTypeID.lower())
@@ -140,3 +145,6 @@ class MicrotypeCollection:
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
+
+    def getModeSpeeds(self) -> dict:
+        return {idx: m.getModeSpeeds() for idx, m in self}
