@@ -12,7 +12,7 @@ class Demand:
         self.demandForPMT = 0.0
         self.__population = Population()
         self.__trips = TripCollection()
-        self.__distanceBins = DistanceBins
+        self.__distanceBins = DistanceBins()
 
     def __setitem__(self, key: (DemandIndex, ODindex), value: ModeSplit):
         self.__modeSplit[key] = value
@@ -21,14 +21,14 @@ class Demand:
         return self.__modeSplit[item]
 
     def initializeDemand(self, population: Population, originDestination: OriginDestination,
-                         tripGeneration: TripGeneration,
-                         trips: TripCollection, microtypes: MicrotypeCollection, distanceBins: DistanceBins):
+                         tripGeneration: TripGeneration, trips: TripCollection, microtypes: MicrotypeCollection,
+                         distanceBins: DistanceBins, multiplier=1.0):
         self.__population = population
         self.__trips = trips
         self.__distanceBins = distanceBins
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
-            rate = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose]
+            ratePerHourPerCapita = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
             pop = population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
             for odi, portion in od.items():
                 trip = trips[odi]
@@ -37,9 +37,9 @@ class Demand:
                     if allocation > 0:
                         common_modes.append(microtypes[microtypeID].mode_names)
                 modes = set.intersection(*common_modes)
-                tripRate = rate * pop
-                self.tripRate += tripRate
-                demandForPMT = rate * pop * distanceBins[odi.distBin]
+                tripRatePerHour = ratePerHourPerCapita * pop
+                self.tripRate += tripRatePerHour
+                demandForPMT = ratePerHourPerCapita * pop * distanceBins[odi.distBin]
                 self.demandForPMT += demandForPMT
                 modeSplit = dict()
                 for mode in modes:
@@ -47,7 +47,7 @@ class Demand:
                         modeSplit[mode] = 1.0
                     else:
                         modeSplit[mode] = 0.0
-                self[demandIndex, odi] = ModeSplit(modeSplit, tripRate, demandForPMT)
+                self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT)
 
     def updateMFD(self, microtypes: MicrotypeCollection):
         for microtypeID, microtype in microtypes:
@@ -58,10 +58,10 @@ class Demand:
             assert (isinstance(odi, ODindex))
             assert (isinstance(di, DemandIndex))
             for mode, split in ms:
-                microtypes[odi.o].addModeStarts(mode, ms.demandForTrips * split / 100)  # TODO: UNSCALE
-                microtypes[odi.d].addModeEnds(mode, ms.demandForTrips * split / 100)
+                microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
+                microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
                 for k, portion in self.__trips[odi].allocation:
-                    microtypes[k].addModeDemandForPMT(mode, ms.demandForTrips * split / 100,
+                    microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
                                                       self.__distanceBins[odi.distBin])
 
         for microtypeID, microtype in microtypes:
@@ -81,9 +81,9 @@ class Demand:
         trips = dict()
         for ms in self.__modeSplit.values():
             for mode, split in ms:
-                new_demand = trips.setdefault(mode, 0) + split * ms.demandForTrips
+                new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
                 trips[mode] = new_demand
-            demand += ms.demandForTrips
+            demand += ms.demandForTripsPerHour
         for mode in trips.keys():
             trips[mode] /= demand
         return trips

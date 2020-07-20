@@ -102,20 +102,20 @@ class Mode:
         return self._L_blocked[network]
 
     def updateN(self, demand: TravelDemand):
-        n_new = self.getLittlesLawN(demand.rateOfPMT, demand.averageDistanceInSystem)
+        n_new = self.getLittlesLawN(demand.rateOfPmtPerHour, demand.averageDistanceInSystemInMiles)
         self._N_tot = n_new
         self.allocateVehicles()
 
-    def getLittlesLawN(self, rateOfPMT: float, averageDistanceInSystem: float):
-        speed = self.getSpeed()
-        averageTimeInSystem = averageDistanceInSystem / speed
-        return rateOfPMT / averageDistanceInSystem * averageTimeInSystem
+    def getLittlesLawN(self, rateOfPmtPerHour: float, averageDistanceInSystemInMiles: float):
+        speedInMilesPerHour = self.getSpeed() * 2.23694
+        averageTimeInSystemInHours = averageDistanceInSystemInMiles / speedInMilesPerHour
+        return rateOfPmtPerHour / averageDistanceInSystemInMiles * averageTimeInSystemInHours
 
     def getPassengerFlow(self) -> float:
         if np.any([n.isJammed for n in self._networks]):
             return 0.0
         else:
-            return self.travelDemand.rateOfPMT
+            return self.travelDemand.rateOfPmtPerHour
 
 
 class WalkMode(Mode):
@@ -193,7 +193,7 @@ class BusMode(Mode):
         # return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
         car_travel_time = self.getRouteLength() / car_speed
         passengers_per_stop = (
-                                          self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) * self._params.headway_in_sec / 3600.
+                                      self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) * self._params.headway_in_sec / 3600.
         stopping_time = self.getRouteLength() / self._params.stop_spacing * self._params.min_stop_time
         stopped_time = self._params.passenger_wait * passengers_per_stop + stopping_time
         spd = self.getRouteLength() * car_speed / (stopped_time * car_speed + self.getRouteLength())
@@ -236,7 +236,7 @@ class BusMode(Mode):
         if network.car_speed > 0:
             out = network.l / (
                     self._params.min_stop_time + self._params.headway_in_sec * self._params.passenger_wait * (
-                    self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
+                    self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) / (
                             self.getRouteLength() / self._params.stop_spacing)) / self._params.headway_in_sec
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
             # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
@@ -275,7 +275,7 @@ class BusMode(Mode):
             print("AAAH")
 
     def getOccupancy(self) -> float:
-        return self.travelDemand.averageDistanceInSystem / self.routeAveragedSpeed * self.travelDemand.tripStartRate / self._N_tot
+        return self.travelDemand.averageDistanceInSystemInMiles / self.routeAveragedSpeed * self.travelDemand.tripStartRatePerHour / self._N_tot
 
     def getPassengerFlow(self) -> float:
         if np.any([n.isJammed for n in self._networks]):
@@ -283,7 +283,7 @@ class BusMode(Mode):
         elif self.occupancy > 100:
             return np.nan
         else:
-            return self.travelDemand.rateOfPMT
+            return self.travelDemand.rateOfPmtPerHour
 
 
 class Network:
@@ -492,13 +492,13 @@ class NetworkCollection:
     def __str__(self):
         return str([n.car_speed for n in self._networks])
 
-    def addMode(self, networks: list, mode: Mode):
-        for network in networks:
-            assert (isinstance(network, Network))
-            if network not in self._networks:
-                self.append(network)
-            self.modes[mode.name] = mode
-        return self
+    # def addMode(self, networks: list, mode: Mode):
+    #     for network in networks:
+    #         assert (isinstance(network, Network))
+    #         if network not in self._networks:
+    #             self.append(network)
+    #         self.modes[mode.name] = mode
+    #     return self
 
     def getModeNames(self) -> list:
         return list(self.modes.keys())

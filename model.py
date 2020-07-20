@@ -1,5 +1,5 @@
 import os
-
+import numpy as np
 import pandas as pd
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration
@@ -83,7 +83,7 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins)
+                                     self.microtypes, self.__distanceBins, 0.05)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
@@ -103,4 +103,5 @@ if __name__ == "__main__":
     a.findEquilibrium()
     ms = a.getModeSplit()
     speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
+    print(speeds)
     print("aah")

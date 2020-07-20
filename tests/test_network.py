@@ -1,7 +1,6 @@
 from utils.network import Network, NetworkFlowParams, AutoMode, AutoModeParams, BusMode, BusModeParams, TravelDemand
-import pytest
 import pandas as pd
-
+import pytest
 
 @pytest.fixture
 def net():
@@ -24,7 +23,7 @@ def test_mfd(net):
     bs3 = net.getBaseSpeed()
     assert bs3 < bs2
     td = TravelDemand()
-    td.tripStartRate = 3
+    td.tripStartRatePerHour = 3
     bus.updateN(td)
     net.updateBlockedDistance()
     net.MFD()
