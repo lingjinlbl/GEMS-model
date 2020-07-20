@@ -30,8 +30,8 @@ class Allocation:
 
 class ModeSplit:
     def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0):
-        self.demandForTrips = demandForTrips
-        self.demandForPMT = demandForPMT
+        self.demandForTripsPerHour = demandForTrips
+        self.demandForPmtPerHour = demandForPMT
         if mapping is None:
             self._mapping = Dict[str, float]
         else:
@@ -45,33 +45,33 @@ class ModeSplit:
             print("OH NO BAD MAPPING")
 
     @property
-    def demandForPMT(self):
-        return self.__demandForPMT
+    def demandForPmtPerHour(self):
+        return self.__demandForPmtPerHour
 
-    @demandForPMT.setter
-    def demandForPMT(self, demandForPMT):
+    @demandForPmtPerHour.setter
+    def demandForPmtPerHour(self, demandForPMT):
         if demandForPMT < 0:
-            self.__demandForPMT = 0
+            self.__demandForPmtPerHour = 0
             print("OH NO")
         elif demandForPMT > 0:
-            self.__demandForPMT = demandForPMT
+            self.__demandForPmtPerHour = demandForPMT
         else:
-            self.__demandForPMT = 0
+            self.__demandForPmtPerHour = 0
             print("OH NO")
 
     @property
-    def demandForTrips(self):
-        return self.__demandForTrips
+    def demandForTripsPerHour(self):
+        return self.__demandForTripsPerHour
 
-    @demandForTrips.setter
-    def demandForTrips(self, demandForTrips):
+    @demandForTripsPerHour.setter
+    def demandForTripsPerHour(self, demandForTrips):
         if demandForTrips < 0:
-            self.__demandForTrips = 0
+            self.__demandForTripsPerHour = 0
             print("OH NO")
         elif demandForTrips > 0:
-            self.__demandForTrips = demandForTrips
+            self.__demandForTripsPerHour = demandForTrips
         else:
-            self.__demandForTrips = 0
+            self.__demandForTripsPerHour = 0
             print("OH NO")
 
     def __setitem__(self, key, value):
