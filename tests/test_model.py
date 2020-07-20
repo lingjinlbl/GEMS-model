@@ -30,5 +30,6 @@ def test_find_equilibrium():
     plt.scatter(busLaneDistance, busSpeed)
     plt.xlabel("Bus Lane Distance In Microtype A")
     plt.ylabel("Bus Speed In Microtype A")
+    os.mkdir(ROOT_DIR + "/../plots")
     plt.savefig(ROOT_DIR + "/../plots/buslanevsspeed.png")
     assert busSpeed[-1] / busSpeed[0] > 1.005  # bus lanes speed up bus traffic by a real amount
