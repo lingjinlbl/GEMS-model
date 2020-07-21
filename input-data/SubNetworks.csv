@@ -15,3 +15,5 @@
 14,B,Bus,0,16,Road
 15,C,Bus,0,16,Road
 16,D,Bus,0,16,Road
+17,A,Rail,1000,25,Subway
+18,B,Rail,1000,30,Subway

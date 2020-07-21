@@ -63,23 +63,23 @@ class Microtype:
         speedMilesPerHour = np.max([self.getModeSpeed(mode), 0.01]) * 2.23694
         if np.isnan(speedMilesPerHour):
             speed = self.getModeSpeed("auto")
-        timeInHours = distanceInMiles / speedMilesPerHour * self.networks.modes[mode].costs.vott_multiplier
-        cost = distanceInMiles * self.networks.modes[mode].costs.per_meter * 1609.34
+        timeInHours = distanceInMiles / speedMilesPerHour * self.networks.modes[mode].costs.vottMultiplier
+        cost = distanceInMiles * self.networks.modes[mode].costs.perMeter * 1609.34
         wait = 0.
         return timeInHours, cost, wait
 
     def getStartTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
-        cost = self.networks.modes[mode].costs.per_start
+        cost = self.networks.modes[mode].costs.perStart
         if mode == 'bus':
-            wait = self.networks.modes['bus'].params.headway_in_sec / 3600. / 2.  # TODO: Make getter
+            wait = self.networks.modes['bus'].params.headwayInSec / 3600. / 2.  # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait
 
     def getEndTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
-        cost = self.networks.modes[mode].costs.per_end
+        cost = self.networks.modes[mode].costs.perEnd
         wait = 0.
         return time, cost, wait
 
@@ -133,7 +133,8 @@ class MicrotypeCollection:
             costs = dict()
             allModes = set()
             for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
-                joined = modeToSubNetworkData.loc[modeToSubNetworkData['SubnetworkID'] == subNetworkData.loc[idx, "SubnetworkID"]]
+                joined = modeToSubNetworkData.loc[
+                    modeToSubNetworkData['SubnetworkID'] == subNetworkData.loc[idx, "SubnetworkID"]]
                 subNetwork = Network(subNetworkData, idx, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
                 for n in joined.itertuples():
                     subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
