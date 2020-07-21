@@ -1,5 +1,5 @@
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
-from .choiceCharacteristics import CollectedChoiceCharacteristics
+from .choiceCharacteristics import CollectedChoiceCharacteristics, filterAllocation
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins
 from .population import Population
@@ -32,10 +32,12 @@ class Demand:
             pop = population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
             for odi, portion in od.items():
                 trip = trips[odi]
-                common_modes = []
-                for microtypeID, allocation in trip.allocation:
-                    if allocation > 0:
-                        common_modes.append(microtypes[microtypeID].mode_names)
+                common_modes = [microtypes[trip.odIndex.o].mode_names, microtypes[trip.odIndex.d].mode_names]
+                # # Now we're switching over to only looking at origin and destination modes
+                # common_modes = []
+                # for microtypeID, allocation in trip.allocation:
+                #     if allocation > 0:
+                #         common_modes.append(microtypes[microtypeID].mode_names)
                 modes = set.intersection(*common_modes)
                 tripRatePerHour = ratePerHourPerCapita * pop
                 self.tripRate += tripRatePerHour
@@ -60,7 +62,16 @@ class Demand:
             for mode, split in ms:
                 microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
                 microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
-                for k, portion in self.__trips[odi].allocation:
+                newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
+                # through_microtypes = []
+                # allocation = []
+                # for m, a in self.__trips[odi].allocation:
+                #     if (a > 0) & (mode in microtypes[m].mode_names):
+                #         through_microtypes.append(m)
+                #         allocation.append(a)
+                # allocation = np.array(allocation)
+                # allocation /= np.sum(allocation)
+                for k, portion in newAllocation.items():
                     microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
                                                       self.__distanceBins[odi.distBin])
 
