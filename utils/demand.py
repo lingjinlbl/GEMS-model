@@ -1,8 +1,37 @@
+from typing import Dict
+
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
 from .choiceCharacteristics import CollectedChoiceCharacteristics, filterAllocation
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins
 from .population import Population
+
+
+class TotalCosts:
+    def __init__(self, total=0., totalEqualVOT=0.):
+        self.total = total
+        self.totalEqualVOT = totalEqualVOT
+
+    def __str__(self):
+        return str(self.total) + ' ' + str(self.totalEqualVOT)
+
+
+class CollectedTotalCosts:
+    def __init__(self):
+        self.__costs = dict()
+        self.total = 0.
+        self.totalEqualVOT = 0.
+
+    def __setitem__(self, key: DemandIndex, value: TotalCosts):
+        self.__costs[key] = value
+        self.updateTotals(value)
+
+    def __getitem__(self, item: DemandIndex) -> TotalCosts:
+        return self.__costs[item]
+
+    def updateTotals(self, value: TotalCosts):
+        self.total += value.total
+        self.totalEqualVOT += value.totalEqualVOT
 
 
 class Demand:
@@ -98,6 +127,26 @@ class Demand:
         for mode in trips.keys():
             trips[mode] /= demand
         return trips
+
+    def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
+                     originDestination: OriginDestination, defaultParams=None) -> CollectedTotalCosts:
+        if defaultParams is None:
+            defaultParams = {"ASC": 0.0, "VOT": 15.0, "VOM": 1.0}
+        out = CollectedTotalCosts()
+        for demandIndex, utilityParams in self.__population:
+            totalCost = 0.
+            totalCostDefault = 0.
+            od = originDestination[demandIndex]
+            demandClass = self.__population[demandIndex]
+            for odi, portion in od.items():
+                ms = self[(demandIndex, odi)]
+                mcc = collectedChoiceCharacteristics[odi]
+                cost = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour
+                costDefault = demandClass.getCostPerCapita(mcc, ms, defaultParams) * ms.demandForTripsPerHour
+                totalCost += cost
+                totalCostDefault += costDefault
+            out[demandIndex] = TotalCosts(totalCost, totalCostDefault)
+        return out
 
     def __str__(self):
         return "Trips: " + str(self.tripRate) + ", PMT: " + str(self.demandForPMT)

@@ -310,7 +310,7 @@ class Network:
         self.networkFlowParams = networkFlowParams
         self.data = data
         self.__idx = idx
-        self.L = data.loc[idx, "Length"]
+        # self.L = data.loc[idx, "Length"]
         self.lam = networkFlowParams.lam
         self.u_f = networkFlowParams.freeFlowSpeed
         self.w = networkFlowParams.w

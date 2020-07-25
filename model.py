@@ -83,7 +83,7 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 0.05)
+                                     self.microtypes, self.__distanceBins, 0.075)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
@@ -96,6 +96,9 @@ class Model:
         mode_split = self.demand.getTotalModeSplit()
         return mode_split
 
+    def getCosts(self):
+        return self.demand.getUserCosts(self.choice, self.__originDestination)
+
 
 if __name__ == "__main__":
     a = Model("input-data")
@@ -104,4 +107,5 @@ if __name__ == "__main__":
     ms = a.getModeSplit()
     speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
     print(speeds)
+    costs = a.getCosts()
     print("aah")
