@@ -96,8 +96,11 @@ class Model:
         mode_split = self.demand.getTotalModeSplit()
         return mode_split
 
-    def getCosts(self):
+    def getUserCosts(self):
         return self.demand.getUserCosts(self.choice, self.__originDestination)
+
+    def getOperatorCosts(self):
+        return self.microtypes.getOperatorCosts()
 
 
 if __name__ == "__main__":
@@ -107,5 +110,6 @@ if __name__ == "__main__":
     ms = a.getModeSplit()
     speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
     print(speeds)
-    costs = a.getCosts()
+    costs = a.getUserCosts()
+    opCosts = a.getOperatorCosts()
     print("aah")

@@ -4,7 +4,24 @@
 import numpy as np
 import pandas as pd
 
-from .network import Network, NetworkCollection, NetworkFlowParams, Costs, ModeParamFactory
+from .network import Network, NetworkCollection, NetworkFlowParams, Costs, ModeParamFactory, TotalOperatorCosts
+
+
+class CollectedTotalOperatorCosts:
+    def __init__(self):
+        self.__costs = dict()
+        self.total = 0.
+
+    def __setitem__(self, key: str, value: TotalOperatorCosts):
+        self.__costs[key] = value
+        self.updateTotals(value)
+
+    def __getitem__(self, item: str) -> TotalOperatorCosts:
+        return self.__costs[item]
+
+    def updateTotals(self, value: TotalOperatorCosts):
+        for mode, cost in value:
+            self.total += cost
 
 
 class Microtype:
@@ -149,3 +166,11 @@ class MicrotypeCollection:
 
     def getModeSpeeds(self) -> dict:
         return {idx: m.getModeSpeeds() for idx, m in self}
+
+    def getOperatorCosts(self) -> CollectedTotalOperatorCosts:
+        operatorCosts = CollectedTotalOperatorCosts()
+        for mID, m in self:
+            assert isinstance(m, Microtype)
+            operatorCosts[mID] = m.networks.getModeOperatingCosts()
+        return operatorCosts
+
