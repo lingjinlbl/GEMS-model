@@ -9,19 +9,23 @@ np.seterr(all='ignore')
 
 class TotalOperatorCosts:
     def __init__(self):
-        self.__modes = dict()
+        self.__costs = dict()
+        self.__revenues = dict()
+        self.__net = dict()
 
-    def __setitem__(self, key: str, value: float):
-        self.__modes[key] = value
+    def __setitem__(self, key: str, value: (float, float)):
+        self.__costs[key] = value[0]
+        self.__revenues[key] = value[1]
+        self.__net[key] = value[0] - value[1]
 
     def __getitem__(self, item) -> float:
-        return self.__modes[item]
+        return self.__net[item]
 
     def __iter__(self):
-        return iter(self.__modes.items())
+        return iter(self.__net.items())
 
     def __str__(self):
-        return [key + ' ' + str(item) for key, item in self.__modes.items()]
+        return [key + ' ' + str(item) for key, item in self.__costs.items()]
 
 
 class NetworkFlowParams:
@@ -48,7 +52,7 @@ class WalkModeParams(ModeParams):
 
 class RailModeParams(ModeParams):
     def __init__(self, headway_in_sec=600, speed_in_meters_sec=20., min_stop_time=30., stop_spacing=800.,
-                 passenger_wait=0.1, vehicle_operating_cost_per_hour=200.):
+                 passenger_wait=0.1, vehicle_operating_cost_per_hour=200., fare=0.0):
         super().__init__("rail")
         self.speedInMetersPerSecond = speed_in_meters_sec
         self.headwayInSec = headway_in_sec
@@ -56,6 +60,7 @@ class RailModeParams(ModeParams):
         self.stopSpacingInMeters = stop_spacing
         self.passengerWaitInSec = passenger_wait
         self.vehicleOperatingCostPerHour = vehicle_operating_cost_per_hour
+        self.fare = fare
 
 
 class AutoModeParams(ModeParams):
@@ -65,7 +70,7 @@ class AutoModeParams(ModeParams):
 
 class BusModeParams(ModeParams):
     def __init__(self, headway_in_sec=600, relative_length=3.0, min_stop_time=5., stop_spacing=500.,
-                 passenger_wait=5., vehicle_operating_cost_per_hour=50.):
+                 passenger_wait=5., vehicle_operating_cost_per_hour=50., fare=0.0):
         super().__init__("bus")
         self.relativeLength = relative_length
         self.headwayInSec = headway_in_sec
@@ -73,6 +78,7 @@ class BusModeParams(ModeParams):
         self.stopSpacingInMeters = stop_spacing
         self.passengerWaitInSec = passenger_wait
         self.vehicleOperatingCostPerHour = vehicle_operating_cost_per_hour
+        self.fare = fare
 
 
 class Costs:
@@ -148,6 +154,9 @@ class Mode:
     def getOperatorCosts(self) -> float:
         return 0.0
 
+    def getOperatorRevenues(self) -> float:
+        return 0.0
+
 
 class WalkMode(Mode):
     def __init__(self, networks, modeParams: ModeParams) -> None:
@@ -174,6 +183,10 @@ class RailMode(Mode):
     def getOperatorCosts(self) -> float:
         assert (isinstance(self.params, RailModeParams))
         return sum(self.getNs()) * self.params.vehicleOperatingCostPerHour
+
+    def getOperatorRevenues(self) -> float:
+        assert (isinstance(self.params, RailModeParams))
+        return self.travelDemand.tripStartRatePerHour * self.params.fare
 
 
 class AutoMode(Mode):
@@ -336,6 +349,10 @@ class BusMode(Mode):
     def getOperatorCosts(self) -> float:
         assert (isinstance(self.params, BusModeParams))
         return sum(self.getNs()) * self.params.vehicleOperatingCostPerHour
+
+    def getOperatorRevenues(self) -> float:
+        assert (isinstance(self.params, BusModeParams))
+        return self.travelDemand.tripStartRatePerHour * self.params.fare
 
 
 class Network:
@@ -563,7 +580,7 @@ class NetworkCollection:
     def getModeOperatingCosts(self):
         out = TotalOperatorCosts()
         for name, mode in self.modes.items():
-            out[name] = mode.getOperatorCosts()
+            out[name] = (mode.getOperatorCosts(), mode.getOperatorRevenues())
         return out
 
 
@@ -577,14 +594,14 @@ class ModeParamFactory:
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
             costs = Costs(data.PerMileCost / 1609.34, data.PerStartCost, 0.0, 1.0)
             modeParams = BusModeParams(data.Headway, data.VehicleSize, 15., data.StopSpacing, 5.,
-                                       data.VehicleOperatingCostPerHour)
+                                       data.VehicleOperatingCostPerHour, data.PerStartCost)
             return modeParams, costs
         elif modeName.lower() == "rail":
             data = self.modeData["rail"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
             costs = Costs(data.PerMileCost / 1609.34, data.PerStartCost, 0.0, 1.0)
             modeParams = RailModeParams(data.Headway, data.SpeedInMetersPerSecond, 15., data.StopSpacing, 5.,
-                                        data.VehicleOperatingCostPerHour)
+                                        data.VehicleOperatingCostPerHour, data.PerStartCost)
             return modeParams, costs
         elif modeName.lower() == "auto":
             data = self.modeData["auto"]
