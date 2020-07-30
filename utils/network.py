@@ -171,6 +171,8 @@ class WalkMode(Mode):
 class RailMode(Mode):
     def __init__(self, networks, modeParams: ModeParams) -> None:
         assert (isinstance(modeParams, RailModeParams))
+        self.routeAveragedSpeed = modeParams.speedInMetersPerSecond
+        self._params = modeParams
         super().__init__(networks, modeParams)
 
     def getSpeed(self):
@@ -187,6 +189,18 @@ class RailMode(Mode):
     def getOperatorRevenues(self) -> float:
         assert (isinstance(self.params, RailModeParams))
         return self.travelDemand.tripStartRatePerHour * self.params.fare
+    
+    def updateN(self, demand: TravelDemand):
+        assert isinstance(self._params, RailModeParams)
+        n_new = self.getRouteLength() / self.routeAveragedSpeed / self._params.headwayInSec
+        self._N_tot = n_new
+        self.allocateVehicles()
+
+    def allocateVehicles(self):
+        """ Assumes just one subNetwork """
+        n = self._networks[0]
+        n.N_eq[self.name] = self._N_tot
+        self._N[n] = n.N_eq[self.name]
 
 
 class AutoMode(Mode):
