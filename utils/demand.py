@@ -13,6 +13,29 @@ class TotalUserCosts:
     def __str__(self):
         return str(self.total) + ' ' + str(self.totalEqualVOT)
 
+    def __mul__(self, other):
+        result = TotalUserCosts()
+        result.total = self.total * other
+        result.totalEqualVOT = self.totalEqualVOT * other
+        return result
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __imul__(self, other):
+        self.total *= other
+        self.totalEqualVOT *= other
+        return self
+
+    def copy(self):
+        return TotalUserCosts(self.total, self.totalEqualVOT)
+
+    def __add__(self, other):
+        out = self.copy()
+        out.total += other.total
+        out.totalEqualVOT += other.totalEqualVOT
+        return out
+
 
 class CollectedTotalUserCosts:
     def __init__(self):
@@ -27,9 +50,38 @@ class CollectedTotalUserCosts:
     def __getitem__(self, item: DemandIndex) -> TotalUserCosts:
         return self.__costs[item]
 
+    def __iter__(self):
+        return iter(self.__costs.items())
+
     def updateTotals(self, value: TotalUserCosts):
-        self.total += value.total
-        self.totalEqualVOT += value.totalEqualVOT
+        self.total = sum([c.total for c in self.__costs.values()])
+        self.totalEqualVOT = sum([c.totalEqualVOT for c in self.__costs.values()])
+
+    def copy(self):
+        out = CollectedTotalUserCosts()
+        out.total = self.total
+        out.totalEqualVOT = self.totalEqualVOT
+        out.__costs = self.__costs.copy()
+        return out
+
+    def __imul__(self, other):
+        for di in self.__costs.keys():
+            self[di] = self[di] * other
+        return self
+
+    def __mul__(self, other):
+        out = self.copy()
+        for di in self.__costs.keys():
+            out[di] = out[di] * other
+        return out
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __iadd__(self, other):
+        for di, cost in other:
+            self[di] = self.__costs.setdefault(di, TotalUserCosts()) + cost
+        return self
 
 
 class Demand:

@@ -151,7 +151,7 @@ class MicrotypeCollection:
             allModes = set()
             for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
                 joined = modeToSubNetworkData.loc[
-                    modeToSubNetworkData['SubnetworkID'] == subNetworkData.loc[idx, "SubnetworkID"]]
+                    modeToSubNetworkData['SubnetworkID'] == idx]
                 subNetwork = Network(subNetworkData, idx, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
                 for n in joined.itertuples():
                     subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())

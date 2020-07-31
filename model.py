@@ -1,13 +1,25 @@
 import os
 
+import numpy as np
 import pandas as pd
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand
+from utils.demand import Demand, CollectedTotalUserCosts
 from utils.microtype import MicrotypeCollection
 from utils.misc import TimePeriods, DistanceBins
 from utils.population import Population
+
+
+class NetworkModification:
+    def __init__(self, reallocations: np.ndarray, fromSubNetworkIDs: list, toSubNetworkIDs: list):
+        self.reallocations = reallocations
+        self.fromSubNetworkIDs = fromSubNetworkIDs
+        self.toSubNetworkIDs = toSubNetworkIDs
+
+    def __iter__(self):
+        for i in range(len(self.reallocations)):
+            yield (self.fromSubNetworkIDs[i], self.toSubNetworkIDs[i]), self.reallocations[i]
 
 
 class ModeData:
@@ -29,10 +41,13 @@ class ModeData:
 
 
 class ScenarioData:
-    def __init__(self, path: str):
+    def __init__(self, path: str, data=None):
         self.__path = path
-        self.data = dict()
-        self.loadData()
+        if data is None:
+            self.data = dict()
+            self.loadData()
+        else:
+            self.data = data
 
     def __setitem__(self, key: str, value: pd.DataFrame):
         self.data[key] = value
@@ -41,7 +56,8 @@ class ScenarioData:
         return self.data[item]
 
     def loadData(self):
-        self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"))
+        self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
+                                                   index_col="SubnetworkID")
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
         self["microtypeAssignment"] = pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv"))
         self["populations"] = pd.read_csv(os.path.join(self.__path, "Population.csv"))
@@ -52,11 +68,17 @@ class ScenarioData:
         self["distanceDistribution"] = pd.read_csv(os.path.join(self.__path, "DistanceDistribution.csv"))
         self["tripGeneration"] = pd.read_csv(os.path.join(self.__path, "TripGeneration.csv"))
 
+    def copy(self):
+        return ScenarioData(self.__path, self.data.copy())
+
+    # def reallocate(self, fromSubNetwork, toSubNetwork, dist):
+
 
 class Model:
     def __init__(self, path: str):
         self.__path = path
         self.scenarioData = ScenarioData(path)
+        self.__initialScenarioData = ScenarioData(path)
         self.modeData = ModeData(path)
         self.microtypes = MicrotypeCollection(self.modeData.data)
         self.demand = Demand()
@@ -102,6 +124,23 @@ class Model:
     def getOperatorCosts(self):
         return self.microtypes.getOperatorCosts()
 
+    def modifyNetworks(self, modification: NetworkModification):
+        originalScenarioData = self.__initialScenarioData.copy()
+        for ((fromNetwork, toNetwork), laneDistance) in modification:
+            oldFromLaneDistance = originalScenarioData["subNetworkData"].loc[fromNetwork, "Length"]
+            self.scenarioData["subNetworkData"].loc[fromNetwork, "Length"] = oldFromLaneDistance - laneDistance
+            oldToLaneDistance = originalScenarioData["subNetworkData"].loc[toNetwork, "Length"]
+            self.scenarioData["subNetworkData"].loc[toNetwork, "Length"] = oldToLaneDistance + laneDistance
+        print("Done")
+
+    def collectAllCosts(self):
+        userCosts = CollectedTotalUserCosts()
+        for timePeriod, durationInHours in self.__timePeriods:
+            self.initializeTimePeriod(timePeriod)
+            a.findEquilibrium()
+            userCosts += a.getUserCosts() * durationInHours
+        return userCosts
+
 
 if __name__ == "__main__":
     a = Model("input-data")
@@ -110,6 +149,9 @@ if __name__ == "__main__":
     ms = a.getModeSplit()
     speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
     print(speeds)
-    costs = a.getUserCosts()
+    userCosts = a.getUserCosts()
     opCosts = a.getOperatorCosts()
+    mod = NetworkModification(np.array([200., 100.]), [2, 4], [13, 14])
+    a.modifyNetworks(mod)
+    userCosts2 = userCosts * 2
     print("aah")

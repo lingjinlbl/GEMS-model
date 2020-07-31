@@ -252,6 +252,7 @@ class BusMode(Mode):
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = 0.0
         self.updateModeBlockedDistance()
+        self.__bad = False
 
     def updateN(self, demand: TravelDemand):
         n_new = self.getRouteLength() / self.routeAveragedSpeed / self._params.headwayInSec
@@ -273,8 +274,10 @@ class BusMode(Mode):
         stopped_time = self._params.passengerWaitInSec * passengers_per_stop + stopping_time
         spd = self.getRouteLength() * car_speed / (stopped_time * car_speed + self.getRouteLength())
         if np.isnan(spd):
-            print("BAD")
             spd = 0.25
+            self.__bad = True
+        else:
+            self.__bad = False
         return spd
 
     def getSpeeds(self):
@@ -284,11 +287,11 @@ class BusMode(Mode):
                 speeds.append(np.inf)
             else:
                 carSpeed = n.car_speed
-                if np.isnan(carSpeed):
-                    print("AAAH")
+                # if np.isnan(carSpeed):
+                #     print("AAAH")
                 bus_speed = self.getSubNetworkSpeed(carSpeed)
-                if np.isnan(bus_speed):
-                    print("AAAH")
+                # if np.isnan(bus_speed):
+                #     print("AAAH")
                 speeds.append(bus_speed)
         return speeds
 
@@ -346,8 +349,8 @@ class BusMode(Mode):
                 self._N[n] = self._N_tot / lengths[ind]
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = self.getOccupancy()
-        if np.isnan(self.occupancy):
-            print("AAAH")
+        # if np.isnan(self.occupancy):
+        #     print("AAAH")
 
     def getOccupancy(self) -> float:
         return self.travelDemand.averageDistanceInSystemInMiles / self.routeAveragedSpeed * self.travelDemand.tripStartRatePerHour / self._N_tot
