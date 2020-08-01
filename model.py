@@ -6,9 +6,23 @@ import pandas as pd
 from utils.OD import TripCollection, OriginDestination, TripGeneration
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand, CollectedTotalUserCosts
-from utils.microtype import MicrotypeCollection
+from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
 from utils.population import Population
+
+
+class Optimizer:
+    def __init__(self, path: str, fromSubNetworkIDs: list, toSubNetworkIDs: list):
+        self.__path = path
+        self.__fromSubNetworkIDs = fromSubNetworkIDs
+        self.__toSubNetworkIDs = toSubNetworkIDs
+        self.model = Model(path)
+
+    def evaluate(self, reallocations: np.ndarray):
+        modification = NetworkModification(reallocations, self.__fromSubNetworkIDs, self.__toSubNetworkIDs)
+        self.model.modifyNetworks(modification)
+        userCosts, operatorCosts = self.model.collectAllCosts()
+        return userCosts.total + operatorCosts.total
 
 
 class NetworkModification:
@@ -79,10 +93,11 @@ class Model:
         self.__path = path
         self.scenarioData = ScenarioData(path)
         self.__initialScenarioData = ScenarioData(path)
+        self.__currentTimePeriod = None
         self.modeData = ModeData(path)
-        self.microtypes = MicrotypeCollection(self.modeData.data)
-        self.demand = Demand()
-        self.choice = CollectedChoiceCharacteristics()
+        self.__microtypes = dict()#MicrotypeCollection(self.modeData.data)
+        self.__demand = dict()#Demand()
+        self.__choice = dict()#CollectedChoiceCharacteristics()
         self.__population = Population()
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
@@ -91,8 +106,25 @@ class Model:
         self.__originDestination = OriginDestination()
         self.readFiles()
 
+    @property
+    def microtypes(self):
+        if self.__currentTimePeriod not in self.__microtypes:
+            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.modeData.data)
+        return self.__microtypes[self.__currentTimePeriod]
+
+    @property
+    def demand(self):
+        if self.__currentTimePeriod not in self.__demand:
+            self.__demand[self.__currentTimePeriod] = Demand()
+        return self.__demand[self.__currentTimePeriod]
+
+    @property
+    def choice(self):
+        if self.__currentTimePeriod not in self.__choice:
+            self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics()
+        return self.__choice[self.__currentTimePeriod]
+
     def readFiles(self):
-        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"])
         self.__trips.importTrips(self.scenarioData["microtypeAssignment"])
         self.__population.importPopulation(self.scenarioData["populations"], self.scenarioData["populationGroups"])
         self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"])
@@ -102,6 +134,8 @@ class Model:
         self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
 
     def initializeTimePeriod(self, timePeriod: str):
+        self.__currentTimePeriod = timePeriod
+        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"])
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
@@ -109,7 +143,7 @@ class Model:
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
-        for i in range(10):
+        for i in range(15):
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             self.demand.updateModeSplit(self.choice, self.__originDestination)
@@ -135,23 +169,33 @@ class Model:
 
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
+        operatorCosts = CollectedTotalOperatorCosts()
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod)
-            a.findEquilibrium()
-            userCosts += a.getUserCosts() * durationInHours
-        return userCosts
+            self.findEquilibrium()
+            userCosts += self.getUserCosts() * durationInHours
+            operatorCosts += self.getOperatorCosts() * durationInHours
+            print(self.getModeSplit())
+        return (userCosts, operatorCosts)
 
 
 if __name__ == "__main__":
-    a = Model("input-data")
-    a.initializeTimePeriod("AM-Peak")
-    a.findEquilibrium()
-    ms = a.getModeSplit()
-    speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
-    print(speeds)
-    userCosts = a.getUserCosts()
-    opCosts = a.getOperatorCosts()
-    mod = NetworkModification(np.array([200., 100.]), [2, 4], [13, 14])
-    a.modifyNetworks(mod)
-    userCosts2 = userCosts * 2
-    print("aah")
+    o = Optimizer("input-data", [2, 4], [13, 14])
+    cost = o.evaluate(np.array([1., 1.]))
+    print(cost)
+    cost2 = o.evaluate(np.array([10., 1.]))
+    print(cost2)
+    cost3 = o.evaluate(np.array([500., 10.]))
+    print(cost3)
+    # a = Model("input-data")
+    # a.initializeTimePeriod("AM-Peak")
+    # a.findEquilibrium()
+    # ms = a.getModeSplit()
+    # speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
+    # print(speeds)
+    # userCosts = a.getUserCosts()
+    # opCosts = a.getOperatorCosts()
+    # mod = NetworkModification(np.array([200., 100.]), [2, 4], [13, 14])
+    # a.modifyNetworks(mod)
+    # userCosts2 = userCosts * 2
+    # print("aah")

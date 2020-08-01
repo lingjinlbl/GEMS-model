@@ -24,6 +24,21 @@ class TotalOperatorCosts:
     def __iter__(self):
         return iter(self.__net.items())
 
+    def __mul__(self, other):
+        output = TotalOperatorCosts()
+        for key in self.__costs.keys():
+            output[key] = (self.__costs[key] * other, self.__revenues[key] * other)
+        return output
+
+    def __add__(self, other):
+        output = TotalOperatorCosts()
+        for key in self.__costs.keys():
+            if key in self.__costs:
+                output[key] = (self.__costs[key] + other.__costs[key], self.__revenues[key] + other.__revenues[key])
+            else:
+                output[key] = (other.__costs[key], other.__revenues[key])
+        return output
+
     def __str__(self):
         return [key + ' ' + str(item) for key, item in self.__costs.items()]
 
@@ -99,6 +114,7 @@ class Mode:
         self._networks = networks
         self._averagePassengerDistanceInSystem = 0.0
         self.costs = Costs(0.0, 0.0, 0.0, 1.0)
+        self.__bad = False
         for n in networks:
             n.addMode(self)
             self._N[n] = 0.0
@@ -142,6 +158,11 @@ class Mode:
 
     def getLittlesLawN(self, rateOfPmtPerHour: float, averageDistanceInSystemInMiles: float):
         speedInMilesPerHour = self.getSpeed() * 2.23694
+        if not (speedInMilesPerHour >= 1.0):
+            self.__bad = True
+            speedInMilesPerHour = 1.0
+        else:
+            self.__bad = False
         averageTimeInSystemInHours = averageDistanceInSystemInMiles / speedInMilesPerHour
         return rateOfPmtPerHour / averageDistanceInSystemInMiles * averageTimeInSystemInHours
 
@@ -252,7 +273,6 @@ class BusMode(Mode):
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = 0.0
         self.updateModeBlockedDistance()
-        self.__bad = False
 
     def updateN(self, demand: TravelDemand):
         n_new = self.getRouteLength() / self.routeAveragedSpeed / self._params.headwayInSec

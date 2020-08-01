@@ -23,6 +23,29 @@ class CollectedTotalOperatorCosts:
         for mode, cost in value:
             self.total += cost
 
+    def __mul__(self, other):
+        out = CollectedTotalOperatorCosts()
+        for mode in self.__costs.keys():
+            out[mode] = self[mode] * other
+        return out
+
+    def __add__(self, other):
+        out = CollectedTotalOperatorCosts()
+        for mode in other.__costs.keys():
+            if mode in self.__costs:
+                out[mode] = self[mode] + other[mode]
+            else:
+                out[mode] = other[mode]
+        return out
+
+    def __iadd__(self, other):
+        for mode in other.__costs.keys():
+            if mode in self.__costs:
+                self[mode] = self[mode] + other[mode]
+            else:
+                self[mode] = other[mode]
+        return self
+
 
 class Microtype:
     def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):
