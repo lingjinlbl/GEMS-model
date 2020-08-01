@@ -130,7 +130,7 @@ class Demand:
                         modeSplit[mode] = 0.0
                 self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT)
 
-    def updateMFD(self, microtypes: MicrotypeCollection):
+    def updateMFD(self, microtypes: MicrotypeCollection, nIters=10):
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
 
