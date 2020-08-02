@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import minimize, Bounds
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -18,11 +19,34 @@ class Optimizer:
         self.__toSubNetworkIDs = toSubNetworkIDs
         self.model = Model(path)
 
-    def evaluate(self, reallocations: np.ndarray):
+    def getDedicationCost(self, reallocations: np.ndarray) -> float:
+        microtypes = self.model.scenarioData["subNetworkData"].loc[self.__toSubNetworkIDs, "MicrotypeID"]
+        modes = self.model.scenarioData["modeToSubNetworkData"].loc[
+            self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(self.__toSubNetworkIDs), "ModeTypeID"]
+        perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
+            pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
+        cost = np.sum(reallocations * perMeterCosts)
+        return cost
+
+    def evaluate(self, reallocations: np.ndarray) -> float:
         modification = NetworkModification(reallocations, self.__fromSubNetworkIDs, self.__toSubNetworkIDs)
         self.model.modifyNetworks(modification)
         userCosts, operatorCosts = self.model.collectAllCosts()
-        return userCosts.total + operatorCosts.total
+        dedicationCosts = self.getDedicationCost(reallocations)
+        print(userCosts.total + operatorCosts.total)
+        return userCosts.total + operatorCosts.total + dedicationCosts
+
+    def getBounds(self) -> Bounds:
+        upperBounds = self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values
+        lowerBounds = 0.0
+        return Bounds(lowerBounds, upperBounds)
+
+    def x0(self) -> list:
+        return self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values / 4.
+
+    def minimize(self):
+        return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
+                        options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
 
 
 class NetworkModification:
@@ -71,7 +95,7 @@ class ScenarioData:
 
     def loadData(self):
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                                   index_col="SubnetworkID")
+                                             index_col="SubnetworkID")
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
         self["microtypeAssignment"] = pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv"))
         self["populations"] = pd.read_csv(os.path.join(self.__path, "Population.csv"))
@@ -81,6 +105,8 @@ class ScenarioData:
         self["originDestinations"] = pd.read_csv(os.path.join(self.__path, "OriginDestination.csv"))
         self["distanceDistribution"] = pd.read_csv(os.path.join(self.__path, "DistanceDistribution.csv"))
         self["tripGeneration"] = pd.read_csv(os.path.join(self.__path, "TripGeneration.csv"))
+        self["laneDedicationCost"] = pd.read_csv(os.path.join(self.__path, "LaneDedicationCost.csv"),
+                                                 index_col=["MicrotypeID", "ModeTypeID"])
 
     def copy(self):
         return ScenarioData(self.__path, self.data.copy())
@@ -95,9 +121,9 @@ class Model:
         self.__initialScenarioData = ScenarioData(path)
         self.__currentTimePeriod = None
         self.modeData = ModeData(path)
-        self.__microtypes = dict()#MicrotypeCollection(self.modeData.data)
-        self.__demand = dict()#Demand()
-        self.__choice = dict()#CollectedChoiceCharacteristics()
+        self.__microtypes = dict()  # MicrotypeCollection(self.modeData.data)
+        self.__demand = dict()  # Demand()
+        self.__choice = dict()  # CollectedChoiceCharacteristics()
         self.__population = Population()
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
@@ -139,14 +165,16 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 0.075)
+                                     self.microtypes, self.__distanceBins, 0.09)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
-        for i in range(10):
-            self.demand.updateMFD(self.microtypes,5)
+        diff = 1000.
+        while diff > 0.00001:
+            ms = self.getModeSplit()
+            self.demand.updateMFD(self.microtypes, 8)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-            self.demand.updateModeSplit(self.choice, self.__originDestination)
+            diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
 
     def getModeSplit(self):
         mode_split = self.demand.getTotalModeSplit()
@@ -165,7 +193,6 @@ class Model:
             self.scenarioData["subNetworkData"].loc[fromNetwork, "Length"] = oldFromLaneDistance - laneDistance
             oldToLaneDistance = originalScenarioData["subNetworkData"].loc[toNetwork, "Length"]
             self.scenarioData["subNetworkData"].loc[toNetwork, "Length"] = oldToLaneDistance + laneDistance
-        print("Done")
 
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
@@ -175,18 +202,19 @@ class Model:
             self.findEquilibrium()
             userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
-            print(self.getModeSplit())
+            # print(self.getModeSplit())
         return (userCosts, operatorCosts)
 
 
 if __name__ == "__main__":
-    o = Optimizer("input-data", [2, 4], [13, 14])
-    cost = o.evaluate(np.array([1., 1.]))
-    print(cost)
-    cost2 = o.evaluate(np.array([10., 1.]))
-    print(cost2)
-    cost3 = o.evaluate(np.array([500., 10.]))
-    print(cost3)
+    o = Optimizer("input-data", [2, 4, 6, 8], [13, 14, 15, 16])
+    output = o.minimize()
+    print("DONE")
+    print("DONE")
+    # cost2 = o.evaluate(np.array([10., 1.]))
+    # print(cost2)
+    # cost3 = o.evaluate(np.array([500., 10.]))
+    # print(cost3)
     # a = Model("input-data")
     # a.initializeTimePeriod("AM-Peak")
     # a.findEquilibrium()

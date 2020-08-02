@@ -6,6 +6,9 @@ import pandas as pd
 from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 class Allocation:
     def __init__(self, mapping=None):
@@ -43,6 +46,18 @@ class ModeSplit:
             self._mapping = mapping
         else:
             print("OH NO BAD MAPPING")
+
+    def __sub__(self, other):
+        output = []
+        for key in self._mapping.keys():
+            output.append(self[key] - other[key])
+        return np.linalg.norm(output)
+
+    def __rsub__(self, other):
+        output = []
+        for key in self._mapping.keys():
+            output.append(self[key] - other[key])
+        return np.linalg.norm(output)
 
     @property
     def demandForPmtPerHour(self):

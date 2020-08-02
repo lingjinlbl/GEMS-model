@@ -158,15 +158,18 @@ class Demand:
             microtype.updateNetworkSpeeds(10)
 
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-                        originDestination: OriginDestination):
+                        originDestination: OriginDestination, oldModeSplit: ModeSplit):
         for demandIndex, utilityParams in self.__population:
             od = originDestination[demandIndex]
             for odi, portion in od.items():
-                dg = self.__population[demandIndex]
+                # dg = self.__population[demandIndex]
                 ms = self.__population[demandIndex].updateModeSplit(collectedChoiceCharacteristics[odi])
                 self[demandIndex, odi].updateMapping(ms)
+        newModeSplit = self.getTotalModeSplit()
+        diff = oldModeSplit - newModeSplit
+        return diff
 
-    def getTotalModeSplit(self) -> dict:
+    def getTotalModeSplit(self) -> ModeSplit:
         demand = 0
         trips = dict()
         for ms in self.__modeSplit.values():
@@ -176,7 +179,7 @@ class Demand:
             demand += ms.demandForTripsPerHour
         for mode in trips.keys():
             trips[mode] /= demand
-        return trips
+        return ModeSplit(trips)
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                      originDestination: OriginDestination, defaultParams=None) -> CollectedTotalUserCosts:

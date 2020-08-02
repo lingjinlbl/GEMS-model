@@ -85,13 +85,14 @@ class AutoModeParams(ModeParams):
 
 class BusModeParams(ModeParams):
     def __init__(self, headway_in_sec=600, relative_length=3.0, min_stop_time=5., stop_spacing=500.,
-                 passenger_wait=5., vehicle_operating_cost_per_hour=50., fare=0.0):
+                 passenger_wait=5., passenger_wait_dedicated=2., vehicle_operating_cost_per_hour=50., fare=0.0):
         super().__init__("bus")
         self.relativeLength = relative_length
         self.headwayInSec = headway_in_sec
         self.minStopTimeInSec = min_stop_time
         self.stopSpacingInMeters = stop_spacing
         self.passengerWaitInSec = passenger_wait
+        self.passengerWaitInSecDedicated = passenger_wait_dedicated
         self.vehicleOperatingCostPerHour = vehicle_operating_cost_per_hour
         self.fare = fare
 
@@ -210,7 +211,7 @@ class RailMode(Mode):
     def getOperatorRevenues(self) -> float:
         assert (isinstance(self.params, RailModeParams))
         return self.travelDemand.tripStartRatePerHour * self.params.fare
-    
+
     def updateN(self, demand: TravelDemand):
         assert isinstance(self._params, RailModeParams)
         n_new = self.getRouteLength() / self.routeAveragedSpeed / self._params.headwayInSec
@@ -282,16 +283,20 @@ class BusMode(Mode):
     def getRouteLength(self):
         return sum([n.L for n in self._networks])
 
-    def getSubNetworkSpeed(self, car_speed):
+    def getSubNetworkSpeed(self, car_speed, dedicated):
         # averageStopDuration = self.min_stop_time + self.passenger_wait * (
         #         self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
         #                               self.routeAveragedSpeed / self.stop_spacing * self.N_tot)
         # return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
+        if dedicated:
+            perPassenger = self._params.passengerWaitInSecDedicated
+        else:
+            perPassenger = self._params.passengerWaitInSec
         car_travel_time = self.getRouteLength() / car_speed
         passengers_per_stop = (
-                                      self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) * self._params.headwayInSec / 3600.
+                                          self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) * self._params.headwayInSec / 3600.
         stopping_time = self.getRouteLength() / self._params.stopSpacingInMeters * self._params.minStopTimeInSec
-        stopped_time = self._params.passengerWaitInSec * passengers_per_stop + stopping_time
+        stopped_time = perPassenger * passengers_per_stop + stopping_time
         spd = self.getRouteLength() * car_speed / (stopped_time * car_speed + self.getRouteLength())
         if np.isnan(spd):
             spd = 0.25
@@ -309,7 +314,7 @@ class BusMode(Mode):
                 carSpeed = n.car_speed
                 # if np.isnan(carSpeed):
                 #     print("AAAH")
-                bus_speed = self.getSubNetworkSpeed(carSpeed)
+                bus_speed = self.getSubNetworkSpeed(carSpeed, n.dedicated)
                 # if np.isnan(bus_speed):
                 #     print("AAAH")
                 speeds.append(bus_speed)
@@ -321,7 +326,7 @@ class BusMode(Mode):
         for n in self._networks:
             if n.L > 0:
                 n_bus = self._N[n]
-                bus_speed = self.getSubNetworkSpeed(n.car_speed)
+                bus_speed = self.getSubNetworkSpeed(n.car_speed, n.dedicated)
                 seconds.append(n_bus)
                 meters.append(n_bus * bus_speed)
         if sum(seconds) > 0:
@@ -331,9 +336,13 @@ class BusMode(Mode):
             return next(iter(self._networks)).car_speed
 
     def calculateBlockedDistance(self, network) -> float:
+        if network.dedicated:
+            perPassenger = self._params.passengerWaitInSecDedicated
+        else:
+            perPassenger = self._params.passengerWaitInSec
         if network.car_speed > 0:
             out = network.avgLinkLength / (
-                    self._params.minStopTimeInSec + self._params.headwayInSec * self._params.passengerWaitInSec * (
+                    self._params.minStopTimeInSec + self._params.headwayInSec * perPassenger * (
                     self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) / (
                             self.getRouteLength() / self._params.stopSpacingInMeters)) / self._params.headwayInSec
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
@@ -408,6 +417,7 @@ class Network:
         self.L_blocked = dict()
         self._modes = dict()
         self.car_speed = networkFlowParams.freeFlowSpeed
+        self.dedicated = data.loc[idx, "Dedicated"]
         self.isJammed = False
 
     @property
@@ -630,7 +640,7 @@ class ModeParamFactory:
             data = self.modeData["bus"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
             costs = Costs(data.PerMileCost / 1609.34, data.PerStartCost, 0.0, 1.0)
-            modeParams = BusModeParams(data.Headway, data.VehicleSize, 15., data.StopSpacing, 5.,
+            modeParams = BusModeParams(data.Headway, data.VehicleSize, 15., data.StopSpacing, 5., 3.,
                                        data.VehicleOperatingCostPerHour, data.PerStartCost)
             return modeParams, costs
         elif modeName.lower() == "rail":
