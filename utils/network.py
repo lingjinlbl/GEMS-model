@@ -72,7 +72,6 @@ class Mode:
         self.__idx = idx
         self._networks = networks
         self._averagePassengerDistanceInSystem = 0.0
-        # self.costs = Costs(0.0, 0.0, 0.0, 1.0)
         self.__bad = False
         for n in networks:
             n.addMode(self)
@@ -95,10 +94,6 @@ class Mode:
     @property
     def perMile(self):
         return self.params.loc[self.__idx, "PerMileCost"]
-
-    # @relativeLength.setter
-    # def relativeLength(self, relativeLength):
-    #     self.params.loc[self.__idx, "RelativeLength"] = L
 
     def updateModeBlockedDistance(self):
         for n in self._networks:
@@ -191,14 +186,6 @@ class RailMode(Mode):
     @property
     def headwayInSec(self):
         return self.params.loc[self.__idx, "Headway"]
-
-    # @routeAveragedSpeed.setter
-    # def routeAveragedSpeed(self, speedInMetersPerSecond):
-    #     self.params.loc[self.__idx, "SpeedInMetersPerSecond"] = speedInMetersPerSecond
-    #
-    # @vehicleOperatingCostPerHour.setter
-    # def vehicleOperatingCostPerHour(self, operatingCosts):
-    #     self.params.loc[self.__idx, "VehicleOperatingCostsPerHour"] = operatingCosts
 
     def getSpeed(self):
         return self.routeAveragedSpeed
