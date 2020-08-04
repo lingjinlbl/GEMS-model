@@ -3,9 +3,8 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-from utils.OD import DemandIndex, OriginDestination
-from utils.choiceCharacteristics import ModalChoiceCharacteristics, CollectedChoiceCharacteristics
-
+from utils.OD import DemandIndex
+from utils.choiceCharacteristics import ModalChoiceCharacteristics
 
 
 class PopulationGroup:

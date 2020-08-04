@@ -1,10 +1,13 @@
-from utils.network import Network, NetworkFlowParams, AutoMode, AutoModeParams, BusMode, BusModeParams, TravelDemand
 import pandas as pd
 import pytest
 
+from utils.network import Network, NetworkFlowParams, AutoMode, AutoModeParams, BusMode, BusModeParams, TravelDemand
+
+
 @pytest.fixture
 def net():
-    return Network(pd.DataFrame({"Length": {0: 1000}}), 0., NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
+    return Network(pd.DataFrame({"Length": {0: 1000}, "Dedicated": {0: True}}), 0.,
+                   NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
 
 
 def test_mfd(net):

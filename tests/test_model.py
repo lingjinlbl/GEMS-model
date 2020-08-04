@@ -11,14 +11,14 @@ def test_find_equilibrium():
     a = Model(ROOT_DIR + "/../input-data")
     a.initializeTimePeriod("AM-Peak")
     a.findEquilibrium()
-    busLaneDistance = np.arange(0, 5000, 500)
+    busLaneDistance = np.arange(500, 4500, 500)
     busSpeed = []
     carSpeed = []
     busModeShare = []
     carModeShare = []
     for dist in busLaneDistance:
-        a.scenarioData['subNetworkData'].at[12, "Length"] = dist
-        a.scenarioData['subNetworkData'].at[1, "Length"] = 5000 - dist
+        a.scenarioData['subNetworkData'].at[13, "Length"] = dist
+        a.scenarioData['subNetworkData'].at[2, "Length"] = 5000 - dist
         a.findEquilibrium()
         ms = a.getModeSplit()
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
@@ -30,7 +30,21 @@ def test_find_equilibrium():
     plt.scatter(busLaneDistance, busSpeed)
     plt.xlabel("Bus Lane Distance In Microtype A")
     plt.ylabel("Bus Speed In Microtype A")
+
+
+    plt.scatter(busLaneDistance, carSpeed)
+    # plt.xlabel("Bus Lane Distance In Microtype A")
+    # plt.ylabel("Bus Speed In Microtype A")
     if not os.path.exists(ROOT_DIR + "/../plots"):
         os.mkdir(ROOT_DIR + "/../plots")
     plt.savefig(ROOT_DIR + "/../plots/buslanevsspeed.png")
+
+    plt.clf()
+
+    plt.scatter(busLaneDistance, busModeShare)
+    plt.xlabel("Bus Lane Distance In Microtype A")
+    plt.ylabel("Bus Mode Share")
+    if not os.path.exists(ROOT_DIR + "/../plots"):
+        os.mkdir(ROOT_DIR + "/../plots")
+    plt.savefig(ROOT_DIR + "/../plots/buslanevsmodeshare.png")
     assert busSpeed[-1] / busSpeed[0] > 1.005  # bus lanes speed up bus traffic by a real amount
