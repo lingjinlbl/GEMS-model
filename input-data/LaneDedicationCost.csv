@@ -1,5 +1,5 @@
 MicrotypeID,ModeTypeID,CostPerMeter
-A,Bus,15.0
-B,Bus,10.0
-C,Bus,8.0
-D,Bus,8.0
+A,Bus,0.1250
+B,Bus,0.070
+C,Bus,0.070
+D,Bus,0.070

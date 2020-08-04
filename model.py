@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize, Bounds
+from scipy.optimize import minimize, Bounds, dual_annealing, shgo
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -33,20 +33,24 @@ class Optimizer:
         self.model.modifyNetworks(modification)
         userCosts, operatorCosts = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
-        print(userCosts.total + operatorCosts.total)
+        print(reallocations)
+        print(userCosts.total + operatorCosts.total + dedicationCosts)
         return userCosts.total + operatorCosts.total + dedicationCosts
 
-    def getBounds(self) -> Bounds:
+    def getBounds(self):
         upperBounds = self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values
-        lowerBounds = 0.0
-        return Bounds(lowerBounds, upperBounds)
+        lowerBounds = [0.0] * len(self.__fromSubNetworkIDs)
+        return list(zip(lowerBounds, upperBounds))
+        #return Bounds(lowerBounds, upperBounds)
 
     def x0(self) -> list:
         return self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values / 4.
 
     def minimize(self):
-        return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
-                        options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
+        return shgo(self.evaluate, self.getBounds())
+        # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
+        # return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
+        #                 options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
 
 
 class NetworkModification:
@@ -165,7 +169,7 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 0.05)
+                                     self.microtypes, self.__distanceBins, 0.075)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
@@ -210,6 +214,10 @@ if __name__ == "__main__":
     o = Optimizer("input-data", [2, 4, 6, 8], [13, 14, 15, 16])
     output = o.minimize()
     print("DONE")
+    print(output.x)
+    print(output.fun)
+    print(output.message)
+
     print("DONE")
     # cost2 = o.evaluate(np.array([10., 1.]))
     # print(cost2)

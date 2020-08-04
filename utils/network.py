@@ -640,7 +640,7 @@ class ModeParamFactory:
             data = self.modeData["bus"]
             data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
             costs = Costs(data.PerMileCost / 1609.34, data.PerStartCost, 0.0, 1.0)
-            modeParams = BusModeParams(data.Headway, data.VehicleSize, 15., data.StopSpacing, 5., 3.,
+            modeParams = BusModeParams(data.Headway, data.VehicleSize, 15., data.StopSpacing, 5., 2.,
                                        data.VehicleOperatingCostPerHour, data.PerStartCost)
             return modeParams, costs
         elif modeName.lower() == "rail":
