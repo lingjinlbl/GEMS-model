@@ -6,6 +6,9 @@ import pandas as pd
 from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 class Allocation:
     def __init__(self, mapping=None):
@@ -44,6 +47,18 @@ class ModeSplit:
         else:
             print("OH NO BAD MAPPING")
 
+    def __sub__(self, other):
+        output = []
+        for key in self._mapping.keys():
+            output.append(self[key] - other[key])
+        return np.linalg.norm(output)
+
+    def __rsub__(self, other):
+        output = []
+        for key in self._mapping.keys():
+            output.append(self[key] - other[key])
+        return np.linalg.norm(output)
+
     @property
     def demandForPmtPerHour(self):
         return self.__demandForPmtPerHour
@@ -52,12 +67,12 @@ class ModeSplit:
     def demandForPmtPerHour(self, demandForPMT):
         if demandForPMT < 0:
             self.__demandForPmtPerHour = 0
-            print("OH NO")
-        elif demandForPMT > 0:
+            print("OH NO NEGATIVE PMT ")
+        elif demandForPMT >= 0:
             self.__demandForPmtPerHour = demandForPMT
         else:
             self.__demandForPmtPerHour = 0
-            print("OH NO")
+            print("OH NO BAD PMT ")
 
     @property
     def demandForTripsPerHour(self):
@@ -67,12 +82,12 @@ class ModeSplit:
     def demandForTripsPerHour(self, demandForTrips):
         if demandForTrips < 0:
             self.__demandForTripsPerHour = 0
-            print("OH NO")
-        elif demandForTrips > 0:
+            print("OH NO NEGATIVE DEMAND FOR TRIPS")
+        elif demandForTrips >= 0:
             self.__demandForTripsPerHour = demandForTrips
         else:
             self.__demandForTripsPerHour = 0
-            print("OH NO")
+            print("OH NO BAD TRIP")
 
     def __setitem__(self, key, value):
         self._mapping[key] = value

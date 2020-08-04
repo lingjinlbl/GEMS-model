@@ -11,6 +11,9 @@ class TimePeriods:
     def __getitem__(self, item) -> float:
         return self.__timePeriods[item]
 
+    def __iter__(self):
+        return iter(self.__timePeriods.items())
+
     def importTimePeriods(self, df: pd.DataFrame):
         for row in df.itertuples():
             self[row.TimePeriodID] = row.DurationInHours

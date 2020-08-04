@@ -1,3 +1,3 @@
-﻿MicrotypeID,Headway,PerStartCost,PerMileCost,VehicleCapacity,StopSpacing,SpeedInMetersPerSecond
-A,300,4.0,0,2000,800,15
-B,600,4.0,0,2000,1600,20
+﻿MicrotypeID,Headway,PerStartCost,PerMileCost,VehicleCapacity,StopSpacing,SpeedInMetersPerSecond,VehicleOperatingCostPerHour
+A,300,4.0,0,2000,800,15,200.0
+B,600,4.0,0,2000,1600,20,200.0

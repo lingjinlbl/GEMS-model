@@ -20,11 +20,9 @@ class DemandClass:
 
     def __iadd__(self, other: Dict[str, float]):
         self.__params.update(other)
-        print("UPDATED")
 
     def __add__(self, other: Dict[str, float]):
         self.__params.update(other)
-        print("UPDATED")
         return self
 
     def __getitem__(self, item) -> float:
@@ -47,11 +45,22 @@ class DemandClass:
             mode_split[modes[ind]] = probabilities[ind]
         return mode_split
 
+    def getCostPerCapita(self, mcc: ModalChoiceCharacteristics, modeSplit, params=None) -> float:
+        if params is None:
+            params = self.__params
+        costPerCapita = 0.
+        for mode, split in modeSplit:
+            costPerCapita += mcc[mode].travel_time * params["VOT"] * split
+            costPerCapita += mcc[mode].wait_time * params["VOT"] * split
+            costPerCapita += mcc[mode].cost * params["VOM"] * split
+        return costPerCapita
+
 
 class Population:
     def __init__(self):
         self.__populationGroups = dict()
         self.__demandClasses = dict()
+        self.__totalCosts = dict()
         self.totalPopulation = 0
 
     def __setitem__(self, key: DemandIndex, value: DemandClass):
@@ -80,3 +89,15 @@ class Population:
 
     def __iter__(self):
         return iter(self.__demandClasses.items())
+
+    # def getCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
+    #              originDestination: OriginDestination) -> CollectedTotalCosts:
+    #     collectedTotalCosts = CollectedTotalCosts()
+    #     for di, dc in self.__demandClasses.items():
+    #         od = originDestination[di]
+    #
+    #         for odi, portion in od.items():
+    #             costs = dc.getCostPerCapita(collectedChoiceCharacteristics[od])
+    #         collectedTotalCosts[di] = TotalCosts
+    #         print("aah")
+    #     return collectedTotalCosts

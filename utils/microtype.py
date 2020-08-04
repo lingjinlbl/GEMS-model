@@ -4,7 +4,47 @@
 import numpy as np
 import pandas as pd
 
-from .network import Network, NetworkCollection, NetworkFlowParams, Costs, ModeParamFactory
+from .network import Network, NetworkCollection, NetworkFlowParams, Costs, ModeParamFactory, TotalOperatorCosts
+
+
+class CollectedTotalOperatorCosts:
+    def __init__(self):
+        self.__costs = dict()
+        self.total = 0.
+
+    def __setitem__(self, key: str, value: TotalOperatorCosts):
+        self.__costs[key] = value
+        self.updateTotals(value)
+
+    def __getitem__(self, item: str) -> TotalOperatorCosts:
+        return self.__costs[item]
+
+    def updateTotals(self, value: TotalOperatorCosts):
+        for mode, cost in value:
+            self.total += cost
+
+    def __mul__(self, other):
+        out = CollectedTotalOperatorCosts()
+        for mode in self.__costs.keys():
+            out[mode] = self[mode] * other
+        return out
+
+    def __add__(self, other):
+        out = CollectedTotalOperatorCosts()
+        for mode in other.__costs.keys():
+            if mode in self.__costs:
+                out[mode] = self[mode] + other[mode]
+            else:
+                out[mode] = other[mode]
+        return out
+
+    def __iadd__(self, other):
+        for mode in other.__costs.keys():
+            if mode in self.__costs:
+                self[mode] = self[mode] + other[mode]
+            else:
+                self[mode] = other[mode]
+        return self
 
 
 class Microtype:
@@ -134,7 +174,7 @@ class MicrotypeCollection:
             allModes = set()
             for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
                 joined = modeToSubNetworkData.loc[
-                    modeToSubNetworkData['SubnetworkID'] == subNetworkData.loc[idx, "SubnetworkID"]]
+                    modeToSubNetworkData['SubnetworkID'] == idx]
                 subNetwork = Network(subNetworkData, idx, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
                 for n in joined.itertuples():
                     subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
@@ -149,3 +189,11 @@ class MicrotypeCollection:
 
     def getModeSpeeds(self) -> dict:
         return {idx: m.getModeSpeeds() for idx, m in self}
+
+    def getOperatorCosts(self) -> CollectedTotalOperatorCosts:
+        operatorCosts = CollectedTotalOperatorCosts()
+        for mID, m in self:
+            assert isinstance(m, Microtype)
+            operatorCosts[mID] = m.networks.getModeOperatingCosts()
+        return operatorCosts
+
