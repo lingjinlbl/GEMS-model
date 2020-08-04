@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize, Bounds, dual_annealing, shgo
+from scipy.optimize import shgo
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -26,7 +26,10 @@ class Optimizer:
         perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
             pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
         cost = np.sum(reallocations * perMeterCosts)
-        return cost
+        if np.isnan(cost):
+            return np.inf
+        else:
+            return cost
 
     def evaluate(self, reallocations: np.ndarray) -> float:
         modification = NetworkModification(reallocations, self.__fromSubNetworkIDs, self.__toSubNetworkIDs)
@@ -41,7 +44,7 @@ class Optimizer:
         upperBounds = self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values
         lowerBounds = [0.0] * len(self.__fromSubNetworkIDs)
         return list(zip(lowerBounds, upperBounds))
-        #return Bounds(lowerBounds, upperBounds)
+        # return Bounds(lowerBounds, upperBounds)
 
     def x0(self) -> list:
         return self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values / 4.
@@ -64,24 +67,6 @@ class NetworkModification:
             yield (self.fromSubNetworkIDs[i], self.toSubNetworkIDs[i]), self.reallocations[i]
 
 
-class ModeData:
-    def __init__(self, path: str):
-        self.__path = path
-        self.data = dict()
-        self.loadData()
-
-    def __setitem__(self, key: str, value: pd.DataFrame):
-        self.data[key] = value
-
-    def __getitem__(self, item: str) -> pd.DataFrame:
-        return self.data[item]
-
-    def loadData(self):
-        (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "modes")))
-        for file in fileNames:
-            self[file.split(".")[0]] = pd.read_csv(os.path.join(self.__path, "modes", file))
-
-
 class ScenarioData:
     def __init__(self, path: str, data=None):
         self.__path = path
@@ -91,11 +76,19 @@ class ScenarioData:
         else:
             self.data = data
 
-    def __setitem__(self, key: str, value: pd.DataFrame):
+    def __setitem__(self, key: str, value):
         self.data[key] = value
 
-    def __getitem__(self, item: str) -> pd.DataFrame:
+    def __getitem__(self, item: str):
         return self.data[item]
+
+    def loadModeData(self):
+        collected = dict()
+        (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "modes")))
+        for file in fileNames:
+            collected[file.split(".")[0]] = pd.read_csv(os.path.join(self.__path, "modes", file),
+                                                        index_col="MicrotypeID")
+        return collected
 
     def loadData(self):
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
@@ -111,6 +104,7 @@ class ScenarioData:
         self["tripGeneration"] = pd.read_csv(os.path.join(self.__path, "TripGeneration.csv"))
         self["laneDedicationCost"] = pd.read_csv(os.path.join(self.__path, "LaneDedicationCost.csv"),
                                                  index_col=["MicrotypeID", "ModeTypeID"])
+        self["modeData"] = self.loadModeData()
 
     def copy(self):
         return ScenarioData(self.__path, self.data.copy())
@@ -124,7 +118,6 @@ class Model:
         self.scenarioData = ScenarioData(path)
         self.__initialScenarioData = ScenarioData(path)
         self.__currentTimePeriod = None
-        self.modeData = ModeData(path)
         self.__microtypes = dict()  # MicrotypeCollection(self.modeData.data)
         self.__demand = dict()  # Demand()
         self.__choice = dict()  # CollectedChoiceCharacteristics()
@@ -139,7 +132,7 @@ class Model:
     @property
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
-            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.modeData.data)
+            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self["modeData"])
         return self.__microtypes[self.__currentTimePeriod]
 
     @property
@@ -169,14 +162,14 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 0.075)
+                                     self.microtypes, self.__distanceBins, 0.2)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
         diff = 1000.
         while diff > 0.00001:
             ms = self.getModeSplit()
-            self.demand.updateMFD(self.microtypes, 8)
+            self.demand.updateMFD(self.microtypes, 5)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
 
@@ -207,7 +200,7 @@ class Model:
             userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
             # print(self.getModeSplit())
-        return (userCosts, operatorCosts)
+        return userCosts, operatorCosts
 
 
 if __name__ == "__main__":

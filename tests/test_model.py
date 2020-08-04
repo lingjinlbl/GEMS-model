@@ -13,7 +13,10 @@ def test_find_equilibrium():
     a.findEquilibrium()
     busLaneDistance = np.arange(500, 4500, 500)
     busSpeed = []
-    carSpeed = []
+    carSpeedA = []
+    carSpeedB = []
+    carSpeedC = []
+    carSpeedD = []
     busModeShare = []
     carModeShare = []
     for dist in busLaneDistance:
@@ -23,7 +26,10 @@ def test_find_equilibrium():
         ms = a.getModeSplit()
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
         busSpeed.append(speeds.loc["bus", "A"])
-        carSpeed.append(speeds.loc["auto", "A"])
+        carSpeedA.append(speeds.loc["auto", "A"])
+        carSpeedB.append(speeds.loc["auto", "B"])
+        carSpeedC.append(speeds.loc["auto", "C"])
+        carSpeedD.append(speeds.loc["auto", "D"])
         busModeShare.append(ms["bus"])
         carModeShare.append(ms["auto"])
 
@@ -32,7 +38,10 @@ def test_find_equilibrium():
     plt.ylabel("Bus Speed In Microtype A")
 
 
-    plt.scatter(busLaneDistance, carSpeed)
+    plt.scatter(busLaneDistance, carSpeedA)
+    plt.scatter(busLaneDistance, carSpeedB)
+    plt.scatter(busLaneDistance, carSpeedC)
+    plt.scatter(busLaneDistance, carSpeedD)
     # plt.xlabel("Bus Lane Distance In Microtype A")
     # plt.ylabel("Bus Speed In Microtype A")
     if not os.path.exists(ROOT_DIR + "/../plots"):
