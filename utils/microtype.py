@@ -4,7 +4,7 @@
 import numpy as np
 import pandas as pd
 
-from .network import Network, NetworkCollection, NetworkFlowParams, Costs, ModeParamFactory, TotalOperatorCosts
+from .network import Network, NetworkCollection, NetworkFlowParams, Costs, TotalOperatorCosts
 
 
 class CollectedTotalOperatorCosts:

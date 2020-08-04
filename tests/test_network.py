@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from utils.network import Network, NetworkFlowParams, AutoMode, BusMode, BusModeParams, TravelDemand
+from utils.network import Network, NetworkFlowParams, AutoMode, BusMode, TravelDemand
 
 
 @pytest.fixture
