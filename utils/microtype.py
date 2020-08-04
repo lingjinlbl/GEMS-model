@@ -102,24 +102,24 @@ class Microtype:
     def getThroughTimeCostWait(self, mode: str, distanceInMiles: float) -> (float, float, float):
         speedMilesPerHour = np.max([self.getModeSpeed(mode), 0.01]) * 2.23694
         if np.isnan(speedMilesPerHour):
-            speed = self.getModeSpeed("auto")
-        timeInHours = distanceInMiles / speedMilesPerHour * self.networks.modes[mode].costs.vottMultiplier
-        cost = distanceInMiles * self.networks.modes[mode].costs.perMeter * 1609.34
+            speedMilesPerHour = self.getModeSpeed("auto")
+        timeInHours = distanceInMiles / speedMilesPerHour
+        cost = distanceInMiles * self.networks.modes[mode].perMile
         wait = 0.
         return timeInHours, cost, wait
 
     def getStartTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
-        cost = self.networks.modes[mode].costs.perStart
+        cost = self.networks.modes[mode].perStart
         if mode == 'bus':
-            wait = self.networks.modes['bus'].params.headwayInSec / 3600. / 2.  # TODO: Make getter
+            wait = self.networks.modes['bus'].headwayInSec / 3600. / 2.  # TODO: Make getter
         else:
             wait = 0.
         return time, cost, wait
 
     def getEndTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
-        cost = self.networks.modes[mode].costs.perEnd
+        cost = self.networks.modes[mode].perEnd
         wait = 0.
         return time, cost, wait
 
@@ -165,11 +165,10 @@ class MicrotypeCollection:
         return self.__microtypes[item]
 
     def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame):
-        modeParamFactory = ModeParamFactory(self.modeData)
         uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
         for microtypeID in uniqueMicrotypes:
             subNetworkToModes = dict()
-            modeToModeParams = dict()
+            modeToModeData = dict()
             costs = dict()
             allModes = set()
             for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
@@ -180,9 +179,9 @@ class MicrotypeCollection:
                     subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                     allModes.add(n.ModeTypeID.lower())
             for mode in allModes:
-                (modeToModeParams[mode], costs[mode]) = modeParamFactory.get(mode, microtypeID)
-            networkCollection = NetworkCollection(subNetworkToModes, modeToModeParams)
-            self[microtypeID] = Microtype(microtypeID, networkCollection, costs)
+                modeToModeData[mode] = self.modeData[mode]
+            networkCollection = NetworkCollection(subNetworkToModes, modeToModeData, microtypeID)
+            self[microtypeID] = Microtype(microtypeID, networkCollection)
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())

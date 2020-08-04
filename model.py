@@ -132,7 +132,7 @@ class Model:
     @property
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
-            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self["modeData"])
+            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData["modeData"])
         return self.__microtypes[self.__currentTimePeriod]
 
     @property

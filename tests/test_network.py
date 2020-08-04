@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from utils.network import Network, NetworkFlowParams, AutoMode, AutoModeParams, BusMode, BusModeParams, TravelDemand
+from utils.network import Network, NetworkFlowParams, AutoMode, BusMode, BusModeParams, TravelDemand
 
 
 @pytest.fixture
@@ -11,7 +11,7 @@ def net():
 
 
 def test_mfd(net):
-    auto = AutoMode([net], AutoModeParams())
+    auto = AutoMode([net], pd.DataFrame({"VehicleSize": 1}, index=["A"]), "A")
     net.addMode(auto)
     net.MFD()
     bs1 = net.getBaseSpeed()
@@ -19,7 +19,10 @@ def test_mfd(net):
     net.MFD()
     bs2 = net.getBaseSpeed()
     assert bs2 < bs1
-    bus = BusMode([net], BusModeParams())
+    busParams = pd.DataFrame(
+        {"VehicleSize": 1, "Headway": 300, "PassengerWait": 5, "PassengerWaitDedicated": 2., "MinStopTime": 15.,
+         "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300}, index=["A"])
+    bus = BusMode([net], busParams, "A")
     net.addMode(bus)
     net.updateBlockedDistance()
     net.MFD()
