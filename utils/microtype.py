@@ -112,7 +112,7 @@ class Microtype:
         time = 0.
         cost = self.networks.modes[mode].perStart
         if mode == 'bus':
-            wait = self.networks.modes['bus'].headwayInSec / 3600. / 2.  # TODO: Make getter
+            wait = self.networks.modes['bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
         else:
             wait = 0.
         return time, cost, wait
@@ -120,7 +120,10 @@ class Microtype:
     def getEndTimeCostWait(self, mode: str) -> (float, float, float):
         time = 0.
         cost = self.networks.modes[mode].perEnd
-        wait = 0.
+        if mode == 'bus':
+            wait = self.networks.modes['bus'].headwayInSec / 3600. / 4.
+        else:
+            wait = 0.
         return time, cost, wait
 
     def getFlows(self):
