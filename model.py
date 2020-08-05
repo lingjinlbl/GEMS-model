@@ -13,16 +13,29 @@ from utils.population import Population
 
 
 class Optimizer:
-    def __init__(self, path: str, fromSubNetworkIDs: list, toSubNetworkIDs: list):
+    def __init__(self, path: str, fromToSubNetworkIDs=None, modesAndMicrotypes=None):
         self.__path = path
-        self.__fromSubNetworkIDs = fromSubNetworkIDs
-        self.__toSubNetworkIDs = toSubNetworkIDs
+        self.__fromToSubNetworkIDs = fromToSubNetworkIDs
+        self.__modesAndMicrotypes = modesAndMicrotypes
         self.model = Model(path)
+        print("Done")
+
+    def nSubNetworks(self):
+        return len(self.__fromToSubNetworkIDs)
+
+    def nModes(self):
+        return len(self.__modesAndMicrotypes)
+
+    def toSubNetworkIDs(self):
+        return [toID for fromID, toID in self.__fromToSubNetworkIDs]
+
+    def fromSubNetworkIDs(self):
+        return [fromID for fromID, toID in self.__fromToSubNetworkIDs]
 
     def getDedicationCost(self, reallocations: np.ndarray) -> float:
-        microtypes = self.model.scenarioData["subNetworkData"].loc[self.__toSubNetworkIDs, "MicrotypeID"]
+        microtypes = self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
         modes = self.model.scenarioData["modeToSubNetworkData"].loc[
-            self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(self.__toSubNetworkIDs), "ModeTypeID"]
+            self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(self.toSubNetworkIDs()), "ModeTypeID"]
         perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
             pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
         cost = np.sum(reallocations * perMeterCosts)
@@ -32,8 +45,15 @@ class Optimizer:
             return cost
 
     def evaluate(self, reallocations: np.ndarray) -> float:
-        modification = NetworkModification(reallocations, self.__fromSubNetworkIDs, self.__toSubNetworkIDs)
-        self.model.modifyNetworks(modification)
+        if self.__fromToSubNetworkIDs is not None:
+            networkModification = NetworkModification(reallocations[:self.nSubNetworks()], self.__fromToSubNetworkIDs)
+        else:
+            networkModification = None
+        if self.__modesAndMicrotypes is not None:
+            transitModification = TransitScheduleModification(reallocations[-self.nSubNetworks():], self.__modesAndMicrotypes)
+        else:
+            transitModification = None
+        self.model.modifyNetworks(networkModification, transitModification)
         userCosts, operatorCosts = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
@@ -41,13 +61,13 @@ class Optimizer:
         return userCosts.total + operatorCosts.total + dedicationCosts
 
     def getBounds(self):
-        upperBounds = self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values
-        lowerBounds = [0.0] * len(self.__fromSubNetworkIDs)
+        upperBounds = self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values
+        lowerBounds = [0.0] * len(self.fromSubNetworkIDs())
         return list(zip(lowerBounds, upperBounds))
         # return Bounds(lowerBounds, upperBounds)
 
     def x0(self) -> list:
-        return self.model.scenarioData["subNetworkData"].loc[self.__fromSubNetworkIDs, "Length"].values / 4.
+        return self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values / 4.
 
     def minimize(self):
         return shgo(self.evaluate, self.getBounds())
@@ -56,15 +76,24 @@ class Optimizer:
         #                 options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
 
 
+class TransitScheduleModification:
+    def __init__(self, headways: np.ndarray, modesAndMicrotypes: list):
+        self.headways = headways
+        self.modesAndMicrotypes = modesAndMicrotypes
+
+    def __iter__(self):
+        for i in range(len(self.headways)):
+            yield (self.modesAndMicrotypes[i]), self.headways[i]
+
+
 class NetworkModification:
-    def __init__(self, reallocations: np.ndarray, fromSubNetworkIDs: list, toSubNetworkIDs: list):
+    def __init__(self, reallocations: np.ndarray, fromToSubNetworkIDs: list):
         self.reallocations = reallocations
-        self.fromSubNetworkIDs = fromSubNetworkIDs
-        self.toSubNetworkIDs = toSubNetworkIDs
+        self.fromToSubNetworkIDs = fromToSubNetworkIDs
 
     def __iter__(self):
         for i in range(len(self.reallocations)):
-            yield (self.fromSubNetworkIDs[i], self.toSubNetworkIDs[i]), self.reallocations[i]
+            yield (self.fromToSubNetworkIDs[i]), self.reallocations[i]
 
 
 class ScenarioData:
@@ -183,13 +212,18 @@ class Model:
     def getOperatorCosts(self):
         return self.microtypes.getOperatorCosts()
 
-    def modifyNetworks(self, modification: NetworkModification):
+    def modifyNetworks(self, networkModification: NetworkModification, scheduleModification: TransitScheduleModification):
         originalScenarioData = self.__initialScenarioData.copy()
-        for ((fromNetwork, toNetwork), laneDistance) in modification:
-            oldFromLaneDistance = originalScenarioData["subNetworkData"].loc[fromNetwork, "Length"]
-            self.scenarioData["subNetworkData"].loc[fromNetwork, "Length"] = oldFromLaneDistance - laneDistance
-            oldToLaneDistance = originalScenarioData["subNetworkData"].loc[toNetwork, "Length"]
-            self.scenarioData["subNetworkData"].loc[toNetwork, "Length"] = oldToLaneDistance + laneDistance
+        if networkModification is not None:
+            for ((fromNetwork, toNetwork), laneDistance) in networkModification:
+                oldFromLaneDistance = originalScenarioData["subNetworkData"].loc[fromNetwork, "Length"]
+                self.scenarioData["subNetworkData"].loc[fromNetwork, "Length"] = oldFromLaneDistance - laneDistance
+                oldToLaneDistance = originalScenarioData["subNetworkData"].loc[toNetwork, "Length"]
+                self.scenarioData["subNetworkData"].loc[toNetwork, "Length"] = oldToLaneDistance + laneDistance
+
+        if scheduleModification is not None:
+            for ((microtypeID, modeName), newHeadway) in scheduleModification:
+                self.scenarioData["modeData"][modeName].loc[microtypeID, "Headway"] = newHeadway
 
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
@@ -204,7 +238,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    o = Optimizer("input-data", [2, 4, 6, 8], [13, 14, 15, 16])
+    o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     output = o.minimize()
     print("DONE")
     print(output.x)
