@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from scipy.optimize import shgo
+from scipy.optimize import minimize, Bounds
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -13,10 +14,11 @@ from utils.population import Population
 
 
 class Optimizer:
-    def __init__(self, path: str, fromToSubNetworkIDs=None, modesAndMicrotypes=None):
+    def __init__(self, path: str, fromToSubNetworkIDs=None, modesAndMicrotypes=None, method="shgo"):
         self.__path = path
         self.__fromToSubNetworkIDs = fromToSubNetworkIDs
         self.__modesAndMicrotypes = modesAndMicrotypes
+        self.__method = method
         self.model = Model(path)
         print("Done")
 
@@ -81,14 +83,21 @@ class Optimizer:
         upperBoundsHeadway = [3600.] * self.nModes()
         lowerBoundsHeadway = [120.] * self.nModes()
         bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
-        return bounds
-        # return Bounds(lowerBounds, upperBounds)
+        if self.__method == "shgo":
+            return bounds
+        else:
+            return Bounds(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway)
 
-    def x0(self) -> list:
-        return self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values / 4.
+    def x0(self) -> np.ndarray:
+        network = [10.0] * self.nSubNetworks()
+        headways = [300.0] * self.nModes()
+        return np.array(network + headways)
 
     def minimize(self):
-        return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
+        if self.__method == "shgo":
+            return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
+        else:
+            return minimize(self.evaluate, self.x0(), bounds=self.getBounds(), method=self.__method)
         # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
         # return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
         #                 options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
@@ -209,16 +218,18 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 0.2)
+                                     self.microtypes, self.__distanceBins, 0.275)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
         diff = 1000.
-        while diff > 0.00001:
+        i = 0
+        while (diff > 0.00001) & (i < 10):
             ms = self.getModeSplit()
             self.demand.updateMFD(self.microtypes, 5)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
+            i += 1
 
     def getModeSplit(self):
         mode_split = self.demand.getTotalModeSplit()
@@ -259,7 +270,8 @@ class Model:
 if __name__ == "__main__":
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 4, 6, 8], [13, 14, 15, 16])),
-                  modesAndMicrotypes=list(zip(["A", "B", "C", "D"], ["bus", "bus", "bus", "bus"])))
+                  modesAndMicrotypes=list(zip(["A", "B", "C", "D"], ["bus", "bus", "bus", "bus"])),
+                  method="shgo")
     output = o.minimize()
     print("DONE")
     print(output.x)
