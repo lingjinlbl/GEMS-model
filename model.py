@@ -21,10 +21,16 @@ class Optimizer:
         print("Done")
 
     def nSubNetworks(self):
-        return len(self.__fromToSubNetworkIDs)
+        if self.__fromToSubNetworkIDs is not None:
+            return len(self.__fromToSubNetworkIDs)
+        else:
+            return 0
 
     def nModes(self):
-        return len(self.__modesAndMicrotypes)
+        if self.__modesAndMicrotypes is not None:
+            return len(self.__modesAndMicrotypes)
+        else:
+            return 0
 
     def toSubNetworkIDs(self):
         return [toID for fromID, toID in self.__fromToSubNetworkIDs]
@@ -33,16 +39,20 @@ class Optimizer:
         return [fromID for fromID, toID in self.__fromToSubNetworkIDs]
 
     def getDedicationCost(self, reallocations: np.ndarray) -> float:
-        microtypes = self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
-        modes = self.model.scenarioData["modeToSubNetworkData"].loc[
-            self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(self.toSubNetworkIDs()), "ModeTypeID"]
-        perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
-            pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
-        cost = np.sum(reallocations * perMeterCosts)
-        if np.isnan(cost):
-            return np.inf
+        if self.nSubNetworks() > 0:
+            microtypes = self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
+            modes = self.model.scenarioData["modeToSubNetworkData"].loc[
+                self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(
+                    self.toSubNetworkIDs()), "ModeTypeID"]
+            perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
+                pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
+            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)
+            if np.isnan(cost):
+                return np.inf
+            else:
+                return cost
         else:
-            return cost
+            return 0.0
 
     def evaluate(self, reallocations: np.ndarray) -> float:
         if self.__fromToSubNetworkIDs is not None:
@@ -50,7 +60,8 @@ class Optimizer:
         else:
             networkModification = None
         if self.__modesAndMicrotypes is not None:
-            transitModification = TransitScheduleModification(reallocations[-self.nSubNetworks():], self.__modesAndMicrotypes)
+            transitModification = TransitScheduleModification(reallocations[-self.nSubNetworks():],
+                                                              self.__modesAndMicrotypes)
         else:
             transitModification = None
         self.model.modifyNetworks(networkModification, transitModification)
@@ -61,16 +72,23 @@ class Optimizer:
         return userCosts.total + operatorCosts.total + dedicationCosts
 
     def getBounds(self):
-        upperBounds = self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values
-        lowerBounds = [0.0] * len(self.fromSubNetworkIDs())
-        return list(zip(lowerBounds, upperBounds))
+        if self.__fromToSubNetworkIDs is not None:
+            upperBoundsROW = list(self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values)
+            lowerBoundsROW = [0.0] * len(self.fromSubNetworkIDs())
+        else:
+            upperBoundsROW = []
+            lowerBoundsROW = []
+        upperBoundsHeadway = [3600.] * self.nModes()
+        lowerBoundsHeadway = [120.] * self.nModes()
+        bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
+        return bounds
         # return Bounds(lowerBounds, upperBounds)
 
     def x0(self) -> list:
         return self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values / 4.
 
     def minimize(self):
-        return shgo(self.evaluate, self.getBounds())
+        return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
         # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
         # return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
         #                 options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
@@ -212,7 +230,8 @@ class Model:
     def getOperatorCosts(self):
         return self.microtypes.getOperatorCosts()
 
-    def modifyNetworks(self, networkModification: NetworkModification, scheduleModification: TransitScheduleModification):
+    def modifyNetworks(self, networkModification: NetworkModification,
+                       scheduleModification: TransitScheduleModification):
         originalScenarioData = self.__initialScenarioData.copy()
         if networkModification is not None:
             for ((fromNetwork, toNetwork), laneDistance) in networkModification:
@@ -238,7 +257,9 @@ class Model:
 
 
 if __name__ == "__main__":
-    o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
+    # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
+    o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 4, 6, 8], [13, 14, 15, 16])),
+                  modesAndMicrotypes=list(zip(["A", "B", "C", "D"], ["bus", "bus", "bus", "bus"])))
     output = o.minimize()
     print("DONE")
     print(output.x)
