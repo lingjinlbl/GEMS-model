@@ -102,7 +102,7 @@ class ModeSplit:
         return list(self._mapping.keys())
 
     def __str__(self):
-        return str([mode + ': ' + str(self[mode]) + '| ' for mode in self.keys()])
+        return str([mode + ': ' + str(self[mode]) for mode in self.keys()])
 
     def __iter__(self):
         return iter(self._mapping.items())
@@ -234,7 +234,7 @@ class TripCollection:
         if item in self.__trips:
             return self.__trips[item]
         else:
-            print("Not in database! for " + str(item))
+            # print("Not in database! for " + str(item))
             if item.o == item.d:
                 allocation = Allocation({item.o: 1.0})
             else:

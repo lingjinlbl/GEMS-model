@@ -114,7 +114,7 @@ class Mode:
         return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
 
     def getSpeed(self):
-        return max(self._N, key=self._N.get).car_speed
+        return max(self._N, key=self._N.get).getBaseSpeed()
 
     def getN(self, network):
         return self._N[network]
@@ -324,7 +324,7 @@ class BusMode(Mode):
             if n.L == 0:
                 speeds.append(np.inf)
             else:
-                carSpeed = n.car_speed
+                carSpeed = n.getBaseSpeed()
                 # if np.isnan(carSpeed):
                 #     print("AAAH")
                 bus_speed = self.getSubNetworkSpeed(carSpeed, n.dedicated)
@@ -339,14 +339,14 @@ class BusMode(Mode):
         for n in self._networks:
             if n.L > 0:
                 n_bus = self._N[n]
-                bus_speed = self.getSubNetworkSpeed(n.car_speed, n.dedicated)
+                bus_speed = self.getSubNetworkSpeed(n.getBaseSpeed(), n.dedicated)
                 seconds.append(n_bus)
                 meters.append(n_bus * bus_speed)
         if sum(seconds) > 0:
             spd = sum(meters) / sum(seconds)
             return spd
         else:
-            return next(iter(self._networks)).car_speed
+            return next(iter(self._networks)).getBaseSpeed()
 
     def calculateBlockedDistance(self, network) -> float:
         if network.dedicated:
@@ -458,7 +458,10 @@ class Network:
         # mode.reset()
 
     def getBaseSpeed(self):
-        return self.car_speed
+        if self.car_speed > 0.25:
+            return self.car_speed
+        else:
+            return 0.25
 
     def updateBlockedDistance(self):
         for mode in self._modes.values():
