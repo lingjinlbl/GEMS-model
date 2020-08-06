@@ -24,6 +24,7 @@ sdist/
 var/
 wheels/
 *.egg-info/
+.idea/
 .installed.cfg
 *.egg
 MANIFEST
