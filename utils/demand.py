@@ -155,7 +155,7 @@ class Demand:
                                                       self.__distanceBins[odi.distBin])
 
         for microtypeID, microtype in microtypes:
-            microtype.updateNetworkSpeeds(10)
+            microtype.updateNetworkSpeeds(5)
 
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):

@@ -1,6 +1,7 @@
 from typing import List, Dict
 
 import numpy as np
+import pandas as pd
 
 from utils.supply import TravelDemand, TravelDemands
 
@@ -53,50 +54,6 @@ class NetworkFlowParams:
         self.avgLinkLength = avg_link_length
 
 
-class ModeParams:
-    def __init__(self, name: str, relative_length=1.0):
-        self.name = name
-        self.relativeLength = relative_length
-
-
-class WalkModeParams(ModeParams):
-    def __init__(self, speedInMetersPerSecond):
-        super().__init__("walk", 0.0)
-        self.speedInMetersPerSecond = speedInMetersPerSecond
-
-
-class RailModeParams(ModeParams):
-    def __init__(self, headway_in_sec=600, speed_in_meters_sec=20., min_stop_time=30., stop_spacing=800.,
-                 passenger_wait=0.1, vehicle_operating_cost_per_hour=200., fare=0.0):
-        super().__init__("rail")
-        self.speedInMetersPerSecond = speed_in_meters_sec
-        self.headwayInSec = headway_in_sec
-        self.minStopTimeInSec = min_stop_time
-        self.stopSpacingInMeters = stop_spacing
-        self.passengerWaitInSec = passenger_wait
-        self.vehicleOperatingCostPerHour = vehicle_operating_cost_per_hour
-        self.fare = fare
-
-
-class AutoModeParams(ModeParams):
-    def __init__(self):
-        super().__init__("auto")
-
-
-class BusModeParams(ModeParams):
-    def __init__(self, headway_in_sec=600, relative_length=3.0, min_stop_time=5., stop_spacing=500.,
-                 passenger_wait=5., passenger_wait_dedicated=2., vehicle_operating_cost_per_hour=50., fare=0.0):
-        super().__init__("bus")
-        self.relativeLength = relative_length
-        self.headwayInSec = headway_in_sec
-        self.minStopTimeInSec = min_stop_time
-        self.stopSpacingInMeters = stop_spacing
-        self.passengerWaitInSec = passenger_wait
-        self.passengerWaitInSecDedicated = passenger_wait_dedicated
-        self.vehicleOperatingCostPerHour = vehicle_operating_cost_per_hour
-        self.fare = fare
-
-
 class Costs:
     def __init__(self, per_meter=0.0, per_start=0.0, per_end=0.0, vott_multiplier=1.0):
         self.perMeter = per_meter
@@ -106,21 +63,37 @@ class Costs:
 
 
 class Mode:
-    def __init__(self, networks: List, params: ModeParams):
-        self.name = params.name
+    def __init__(self, networks: List, params: pd.DataFrame, idx: str, name: str):
+        self.name = name
         self._N_tot = 0.0
         self._N = dict()
         self._L_blocked = dict()
         self.params = params
+        self.__idx = idx
         self._networks = networks
         self._averagePassengerDistanceInSystem = 0.0
-        self.costs = Costs(0.0, 0.0, 0.0, 1.0)
         self.__bad = False
         for n in networks:
             n.addMode(self)
             self._N[n] = 0.0
             self._L_blocked[n] = 0.0
         self.travelDemand = TravelDemand()
+
+    @property
+    def relativeLength(self):
+        return self.params.loc[self.__idx, "VehicleSize"]
+
+    @property
+    def perStart(self):
+        return self.params.loc[self.__idx, "PerStartCost"]
+
+    @property
+    def perEnd(self):
+        return self.params.loc[self.__idx, "PerEndCost"]
+
+    @property
+    def perMile(self):
+        return self.params.loc[self.__idx, "PerMileCost"]
 
     def updateModeBlockedDistance(self):
         for n in self._networks:
@@ -134,14 +107,14 @@ class Mode:
         """even"""
         n_networks = len(self._networks)
         for n in self._networks:
-            n.N_eq[self.name] = self._N_tot / n_networks * self.params.relativeLength
+            n.N_eq[self.name] = self._N_tot / n_networks * self.relativeLength
             self._N[n] = self._N_tot / n_networks
 
     def __str__(self):
         return str([self.name + ': N=' + str(self._N) + ', L_blocked=' + str(self._L_blocked)])
 
     def getSpeed(self):
-        return max(self._N, key=self._N.get).car_speed
+        return max(self._N, key=self._N.get).getBaseSpeed()
 
     def getN(self, network):
         return self._N[network]
@@ -181,40 +154,53 @@ class Mode:
 
 
 class WalkMode(Mode):
-    def __init__(self, networks, modeParams: ModeParams) -> None:
-        assert (isinstance(modeParams, WalkModeParams))
-        super().__init__(networks, modeParams)
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
+        super().__init__(networks, modeParams, idx, "walk")
+        self.__idx = idx
+
+    @property
+    def speedInMetersPerSecond(self):
+        return self.params.loc[self.__idx, "SpeedInMetersPerSecond"]
 
     def getSpeed(self):
-        assert (isinstance(self.params, WalkModeParams))
-        return self.params.speedInMetersPerSecond
+        return self.speedInMetersPerSecond
 
 
 class RailMode(Mode):
-    def __init__(self, networks, modeParams: ModeParams) -> None:
-        assert (isinstance(modeParams, RailModeParams))
-        self.routeAveragedSpeed = modeParams.speedInMetersPerSecond
-        self._params = modeParams
-        super().__init__(networks, modeParams)
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
+        super().__init__(networks, modeParams, idx, "rail")
+        self.__idx = idx
+
+    @property
+    def routeAveragedSpeed(self):
+        return self.params.loc[self.__idx, "SpeedInMetersPerSecond"]
+
+    @property
+    def vehicleOperatingCostPerHour(self):
+        return self.params.loc[self.__idx, "VehicleOperatingCostsPerHour"]
+
+    @property
+    def fare(self):
+        return self.params.loc[self.__idx, "PerStartCost"]
+
+    @property
+    def headwayInSec(self):
+        return self.params.loc[self.__idx, "Headway"]
 
     def getSpeed(self):
-        assert (isinstance(self.params, RailModeParams))
-        return self.params.speedInMetersPerSecond
+        return self.routeAveragedSpeed
 
     def getRouteLength(self):
         return sum([n.L for n in self._networks])
 
     def getOperatorCosts(self) -> float:
-        assert (isinstance(self.params, RailModeParams))
-        return sum(self.getNs()) * self.params.vehicleOperatingCostPerHour
+        return sum(self.getNs()) * self.vehicleOperatingCostPerHour
 
     def getOperatorRevenues(self) -> float:
-        assert (isinstance(self.params, RailModeParams))
-        return self.travelDemand.tripStartRatePerHour * self.params.fare
+        return self.travelDemand.tripStartRatePerHour * self.fare
 
     def updateN(self, demand: TravelDemand):
-        assert isinstance(self._params, RailModeParams)
-        n_new = self.getRouteLength() / self.routeAveragedSpeed / self._params.headwayInSec
+        n_new = self.getRouteLength() / self.routeAveragedSpeed / self.headwayInSec
         self._N_tot = n_new
         self.allocateVehicles()
 
@@ -226,9 +212,9 @@ class RailMode(Mode):
 
 
 class AutoMode(Mode):
-    def __init__(self, networks, modeParams: ModeParams) -> None:
-        assert (isinstance(modeParams, AutoModeParams))
-        super().__init__(networks, modeParams)
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
+        super().__init__(networks, modeParams, idx, "auto")
+        self.__idx = idx
 
     def allocateVehicles(self):
         """for constant car speed"""
@@ -249,7 +235,7 @@ class AutoMode(Mode):
         n_eq_other = sum(other_mode_n_eq)
         L_tot = sum(lengths)
         L_blocked_tot = sum(blocked_lengths)
-        density_av = (self._N_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.params.relativeLength
+        density_av = (self._N_tot + n_eq_other) / (L_tot - L_blocked_tot) * self.relativeLength
         if self._N_tot > 0:
             n_new = np.nan_to_num(np.array(
                 [density_av * (lengths[i] - blocked_lengths[i]) - other_mode_n_eq[i] for i in range(len(lengths))]))
@@ -260,23 +246,50 @@ class AutoMode(Mode):
         n_new[~should_be_empty] += to_reallocate * n_new[~should_be_empty] / np.sum(n_new[~should_be_empty])
         n_new[should_be_empty] = 0
         for ind, n in enumerate(self._networks):
-            n.N_eq[self.name] = n_new[ind] * self.params.relativeLength
+            n.N_eq[self.name] = n_new[ind] * self.relativeLength
             self._N[n] = n_new[ind]
 
 
 class BusMode(Mode):
-    def __init__(self, networks, busModeParams: ModeParams) -> None:
-        assert (isinstance(busModeParams, BusModeParams))
-        super().__init__(networks, busModeParams)
-        self._params = busModeParams
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
+        super().__init__(networks, modeParams, idx, "bus")
+        self.__idx = idx
         self.routeAveragedSpeed = super().getSpeed()
-        self.addVehicles(self.getRouteLength() / self.routeAveragedSpeed / self._params.headwayInSec)
+        self.addVehicles(self.getRouteLength() / self.routeAveragedSpeed / self.headwayInSec)
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = 0.0
         self.updateModeBlockedDistance()
 
+    @property
+    def headwayInSec(self):
+        return self.params.loc[self.__idx, "Headway"]
+
+    @property
+    def passengerWaitInSec(self):
+        return self.params.loc[self.__idx, "PassengerWait"]
+
+    @property
+    def passengerWaitInSecDedicated(self):
+        return self.params.loc[self.__idx, "PassengerWaitDedicated"]
+
+    @property
+    def stopSpacingInMeters(self):
+        return self.params.loc[self.__idx, "StopSpacing"]
+
+    @property
+    def minStopTimeInSec(self):
+        return self.params.loc[self.__idx, "MinStopTime"]
+
+    @property
+    def fare(self):
+        return self.params.loc[self.__idx, "PerStartCost"]
+
+    @property
+    def vehicleOperatingCostPerHour(self):
+        return self.params.loc[self.__idx, "VehicleOperatingCostPerHour"]
+
     def updateN(self, demand: TravelDemand):
-        n_new = self.getRouteLength() / self.routeAveragedSpeed / self._params.headwayInSec
+        n_new = self.getRouteLength() / self.routeAveragedSpeed / self.headwayInSec
         self._N_tot = n_new
         self.allocateVehicles()
 
@@ -289,13 +302,13 @@ class BusMode(Mode):
         #                               self.routeAveragedSpeed / self.stop_spacing * self.N_tot)
         # return car_speed / (1 + averageStopDuration * car_speed / self.stop_spacing)
         if dedicated:
-            perPassenger = self._params.passengerWaitInSecDedicated
+            perPassenger = self.passengerWaitInSecDedicated
         else:
-            perPassenger = self._params.passengerWaitInSec
+            perPassenger = self.passengerWaitInSec
         car_travel_time = self.getRouteLength() / car_speed
         passengers_per_stop = (
-                                      self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) * self._params.headwayInSec / 3600.
-        stopping_time = self.getRouteLength() / self._params.stopSpacingInMeters * self._params.minStopTimeInSec
+                                      self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) * self.headwayInSec / 3600.
+        stopping_time = self.getRouteLength() / self.stopSpacingInMeters * self.minStopTimeInSec
         stopped_time = perPassenger * passengers_per_stop + stopping_time
         spd = self.getRouteLength() * car_speed / (stopped_time * car_speed + self.getRouteLength())
         if np.isnan(spd):
@@ -311,7 +324,7 @@ class BusMode(Mode):
             if n.L == 0:
                 speeds.append(np.inf)
             else:
-                carSpeed = n.car_speed
+                carSpeed = n.getBaseSpeed()
                 # if np.isnan(carSpeed):
                 #     print("AAAH")
                 bus_speed = self.getSubNetworkSpeed(carSpeed, n.dedicated)
@@ -326,25 +339,25 @@ class BusMode(Mode):
         for n in self._networks:
             if n.L > 0:
                 n_bus = self._N[n]
-                bus_speed = self.getSubNetworkSpeed(n.car_speed, n.dedicated)
+                bus_speed = self.getSubNetworkSpeed(n.getBaseSpeed(), n.dedicated)
                 seconds.append(n_bus)
                 meters.append(n_bus * bus_speed)
         if sum(seconds) > 0:
             spd = sum(meters) / sum(seconds)
             return spd
         else:
-            return next(iter(self._networks)).car_speed
+            return next(iter(self._networks)).getBaseSpeed()
 
     def calculateBlockedDistance(self, network) -> float:
         if network.dedicated:
-            perPassenger = self._params.passengerWaitInSecDedicated
+            perPassenger = self.passengerWaitInSecDedicated
         else:
-            perPassenger = self._params.passengerWaitInSec
+            perPassenger = self.passengerWaitInSec
         if network.car_speed > 0:
             out = network.avgLinkLength / (
-                    self._params.minStopTimeInSec + self._params.headwayInSec * perPassenger * (
+                    self.minStopTimeInSec + self.headwayInSec * perPassenger * (
                     self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) / (
-                            self.getRouteLength() / self._params.stopSpacingInMeters)) / self._params.headwayInSec
+                            self.getRouteLength() / self.stopSpacingInMeters)) / self.headwayInSec
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
             # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
         else:
@@ -371,10 +384,10 @@ class BusMode(Mode):
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         for ind, n in enumerate(self._networks):
             if speeds[ind] > 0:
-                n.N_eq[self.name] = self._N_tot * lengths[ind] / speeds[ind] / T_tot * self._params.relativeLength
-                self._N[n] = n.N_eq[self.name] / self._params.relativeLength
+                n.N_eq[self.name] = self._N_tot * lengths[ind] / speeds[ind] / T_tot * self.relativeLength
+                self._N[n] = n.N_eq[self.name] / self.relativeLength
             else:
-                n.N_eq[self.name] = self._N_tot / lengths[ind] * self._params.relativeLength
+                n.N_eq[self.name] = self._N_tot / lengths[ind] * self.relativeLength
                 self._N[n] = self._N_tot / lengths[ind]
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = self.getOccupancy()
@@ -393,12 +406,10 @@ class BusMode(Mode):
             return self.travelDemand.rateOfPmtPerHour
 
     def getOperatorCosts(self) -> float:
-        assert (isinstance(self.params, BusModeParams))
-        return sum(self.getNs()) * self.params.vehicleOperatingCostPerHour
+        return sum(self.getNs()) * self.vehicleOperatingCostPerHour
 
     def getOperatorRevenues(self) -> float:
-        assert (isinstance(self.params, BusModeParams))
-        return self.travelDemand.tripStartRatePerHour * self.params.fare
+        return self.travelDemand.tripStartRatePerHour * self.fare
 
 
 class Network:
@@ -447,7 +458,10 @@ class Network:
         # mode.reset()
 
     def getBaseSpeed(self):
-        return self.car_speed
+        if self.car_speed > 0.25:
+            return self.car_speed
+        else:
+            return 0.25
 
     def updateBlockedDistance(self):
         for mode in self._modes.values():
@@ -510,16 +524,16 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, networksAndModes=None, modeParams=None, verbose=False):
+    def __init__(self, networksAndModes=None, modeToModeData=None, microtypeID=None, verbose=False):
         self._networks = list()
-        if isinstance(networksAndModes, Dict) and isinstance(modeParams, Dict):
-            self.populateNetworksAndModes(networksAndModes, modeParams)
+        if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
+            self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)
         self.modes = dict()
         self.demands = TravelDemands([])
         self.verbose = verbose
         self.resetModes()
 
-    def populateNetworksAndModes(self, networksAndModes, modeParams):
+    def populateNetworksAndModes(self, networksAndModes, modeToModeData, microtypeID):
         modeToNetwork = dict()
         if isinstance(networksAndModes, Dict):
             for (network, modeNames) in networksAndModes.items():
@@ -535,18 +549,18 @@ class NetworkCollection:
         for (modeName, networks) in modeToNetwork.items():
             assert (isinstance(modeName, str))
             assert (isinstance(networks, List))
-            params = modeParams[modeName]
-            if isinstance(params, BusModeParams):
-                BusMode(networks, params)
-            elif isinstance(params, AutoModeParams):
-                AutoMode(networks, params)
-            elif isinstance(params, WalkModeParams):
-                WalkMode(networks, params)
-            elif isinstance(params, RailModeParams):
-                RailMode(networks, params)
-            elif isinstance(params, ModeParams):
+            params = modeToModeData[modeName]
+            if modeName == "bus":
+                BusMode(networks, params, microtypeID)
+            elif modeName == "auto":
+                AutoMode(networks, params, microtypeID)
+            elif modeName == "walk":
+                WalkMode(networks, params, microtypeID)
+            elif modeName == "rail":
+                RailMode(networks, params, microtypeID)
+            else:
                 print("BAD!")
-                Mode(networks, params)
+                Mode(networks, params, microtypeID, "bad")
 
     def isJammed(self):
         return np.any([n.isJammed for n in self._networks])
@@ -629,36 +643,3 @@ class NetworkCollection:
         for name, mode in self.modes.items():
             out[name] = (mode.getOperatorCosts(), mode.getOperatorRevenues())
         return out
-
-
-class ModeParamFactory:
-    def __init__(self, modeData: dict):
-        self.modeData = modeData
-
-    def get(self, modeName: str, microtypeID: str) -> (ModeParams, Costs):
-        if modeName.lower() == "bus":
-            data = self.modeData["bus"]
-            data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
-            costs = Costs(data.PerMileCost / 1609.34, data.PerStartCost, 0.0, 1.0)
-            modeParams = BusModeParams(data.Headway, data.VehicleSize, 15., data.StopSpacing, 5., 2.,
-                                       data.VehicleOperatingCostPerHour, data.PerStartCost)
-            return modeParams, costs
-        elif modeName.lower() == "rail":
-            data = self.modeData["rail"]
-            data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
-            costs = Costs(data.PerMileCost / 1609.34, data.PerStartCost, 0.0, 1.0)
-            modeParams = RailModeParams(data.Headway, data.SpeedInMetersPerSecond, 15., data.StopSpacing, 5.,
-                                        data.VehicleOperatingCostPerHour, data.PerStartCost)
-            return modeParams, costs
-        elif modeName.lower() == "auto":
-            data = self.modeData["auto"]
-            data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
-            return AutoModeParams(), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost, 1.0)
-        elif modeName.lower() == "walk":
-            data = self.modeData["walk"]
-            data = data.loc[data["MicrotypeID"] == microtypeID].iloc[0]
-            return WalkModeParams(data.SpeedInMetersPerSecond), Costs(data.PerMileCost / 1609.34, 0.0, data.PerEndCost,
-                                                                      1.0)
-        else:
-            print("BAD MODE " + modeName)
-            return AutoModeParams, Costs()
