@@ -1,4 +1,4 @@
-# GEMS Model Implementation
+# GESM Model Implementation
 
 This is a python implementation of the supply/demand equilibrium model, as well as a wrapper that allows optimization to be performed on total costs. Some examples can be seen [here](task-3-model.ipynb)
 
