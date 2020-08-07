@@ -59,6 +59,9 @@ class ModeSplit:
             output.append(self[key] - other[key])
         return np.linalg.norm(output)
 
+    def toDict(self):
+        return self._mapping.copy()
+
     @property
     def demandForPmtPerHour(self):
         return self.__demandForPmtPerHour
