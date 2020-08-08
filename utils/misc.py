@@ -17,6 +17,7 @@ class TimePeriods:
     def importTimePeriods(self, df: pd.DataFrame):
         for row in df.itertuples():
             self[row.TimePeriodID] = row.DurationInHours
+        print("|  Loaded ", len(df), " time periods")
 
 
 class DistanceBins:
@@ -32,3 +33,4 @@ class DistanceBins:
     def importDistanceBins(self, df: pd.DataFrame):
         for row in df.itertuples():
             self[row.DistanceBinID] = row.MeanDistanceInMiles
+        print("|  Loaded ", len(df), " distance bins")

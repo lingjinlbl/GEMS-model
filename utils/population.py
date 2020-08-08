@@ -93,6 +93,7 @@ class Population:
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
                 out = DemandClass(group.set_index("mode").drop(columns=['PopulationGroupTypeID','TripPurposeID']))
                 self[demandIndex] = out
+        print("|  Loaded ", len(populations), " population groups")
 
     def __iter__(self):
         return iter(self.__demandClasses.items())

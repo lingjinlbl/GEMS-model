@@ -227,6 +227,9 @@ class Model:
 
     def initializeTimePeriod(self, timePeriod: str):
         self.__currentTimePeriod = timePeriod
+        if timePeriod not in self.__microtypes:
+            print("-------------------------------")
+            print("|  Loading time period ", timePeriod)
         self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"])
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
