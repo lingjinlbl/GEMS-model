@@ -202,8 +202,6 @@ class ODindex:
             self.d = d
         else:
             print("AAAAH BAD ODindex")
-        assert isinstance(self.o, str)
-        assert isinstance(self.d, str)
         self.distBin = distBin
 
     def __eq__(self, other):
@@ -236,7 +234,7 @@ class TripCollection:
         self.__trips[key] = value
 
     def __getitem__(self, item: ODindex) -> Trip:
-        assert isinstance(item, ODindex)
+        # assert isinstance(item, ODindex)
         if item in self.__trips:
             return self.__trips[item]
         else:

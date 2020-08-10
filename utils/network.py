@@ -81,19 +81,19 @@ class Mode:
 
     @property
     def relativeLength(self):
-        return self.params.loc[self.__idx, "VehicleSize"]
+        return self.params.at[self.__idx, "VehicleSize"]
 
     @property
     def perStart(self):
-        return self.params.loc[self.__idx, "PerStartCost"]
+        return self.params.at[self.__idx, "PerStartCost"]
 
     @property
     def perEnd(self):
-        return self.params.loc[self.__idx, "PerEndCost"]
+        return self.params.at[self.__idx, "PerEndCost"]
 
     @property
     def perMile(self):
-        return self.params.loc[self.__idx, "PerMileCost"]
+        return self.params.at[self.__idx, "PerMileCost"]
 
     def updateModeBlockedDistance(self):
         for n in self._networks:
@@ -160,7 +160,7 @@ class WalkMode(Mode):
 
     @property
     def speedInMetersPerSecond(self):
-        return self.params.loc[self.__idx, "SpeedInMetersPerSecond"]
+        return self.params.at[self.__idx, "SpeedInMetersPerSecond"]
 
     def getSpeed(self):
         return self.speedInMetersPerSecond
@@ -173,19 +173,19 @@ class RailMode(Mode):
 
     @property
     def routeAveragedSpeed(self):
-        return self.params.loc[self.__idx, "SpeedInMetersPerSecond"]
+        return self.params.at[self.__idx, "SpeedInMetersPerSecond"]
 
     @property
     def vehicleOperatingCostPerHour(self):
-        return self.params.loc[self.__idx, "VehicleOperatingCostsPerHour"]
+        return self.params.at[self.__idx, "VehicleOperatingCostsPerHour"]
 
     @property
     def fare(self):
-        return self.params.loc[self.__idx, "PerStartCost"]
+        return self.params.at[self.__idx, "PerStartCost"]
 
     @property
     def headwayInSec(self):
-        return self.params.loc[self.__idx, "Headway"]
+        return self.params.at[self.__idx, "Headway"]
 
     def getSpeed(self):
         return self.routeAveragedSpeed
@@ -265,31 +265,31 @@ class BusMode(Mode):
 
     @property
     def headwayInSec(self):
-        return self.params.loc[self.__idx, "Headway"]
+        return self.params.at[self.__idx, "Headway"]
 
     @property
     def passengerWaitInSec(self):
-        return self.params.loc[self.__idx, "PassengerWait"]
+        return self.params.at[self.__idx, "PassengerWait"]
 
     @property
     def passengerWaitInSecDedicated(self):
-        return self.params.loc[self.__idx, "PassengerWaitDedicated"]
+        return self.params.at[self.__idx, "PassengerWaitDedicated"]
 
     @property
     def stopSpacingInMeters(self):
-        return self.params.loc[self.__idx, "StopSpacing"]
+        return self.params.at[self.__idx, "StopSpacing"]
 
     @property
     def minStopTimeInSec(self):
-        return self.params.loc[self.__idx, "MinStopTime"]
+        return self.params.at[self.__idx, "MinStopTime"]
 
     @property
     def fare(self):
-        return self.params.loc[self.__idx, "PerStartCost"]
+        return self.params.at[self.__idx, "PerStartCost"]
 
     @property
     def vehicleOperatingCostPerHour(self):
-        return self.params.loc[self.__idx, "VehicleOperatingCostPerHour"]
+        return self.params.at[self.__idx, "VehicleOperatingCostPerHour"]
 
     def updateN(self, demand: TravelDemand):
         n_new = self.routeLength / self.routeAveragedSpeed / self.headwayInSec
@@ -436,11 +436,11 @@ class Network:
 
     @property
     def L(self):
-        return self.data.loc[self.__idx, "Length"]
+        return self.data.at[self.__idx, "Length"]
 
     @L.setter
     def L(self, L):
-        self.data.loc[self.__idx, "Length"] = L
+        self.data.at[self.__idx, "Length"] = L
 
     def __str__(self):
         return str(list(self.N_eq.keys()))

@@ -72,12 +72,12 @@ class TravelDemands:
 
     def addModeThroughTrips(self, mode: str, demand: float, trip_distance: float):
         if demand > 0:
-            current_demand = self._demands[mode].rateOfPmtPerHour
-            current_distance = self._demands[mode].averageDistanceInSystemInMiles
+            # current_demand = self._demands[mode].rateOfPmtPerHour
+            # current_distance = self._demands[mode].averageDistanceInSystemInMiles
             self._demands[mode].rateOfPmtPerHour += demand * trip_distance
-            self._demands[mode].averageDistanceInSystemInMiles = (
-                                                                         current_demand * current_distance + demand * trip_distance) / (
-                                                                         current_demand + demand)
+            # self._demands[mode].averageDistanceInSystemInMiles = (
+            #                                                              current_demand * current_distance + demand * trip_distance) / (
+            #                                                              current_demand + demand)
 
     def __str__(self):
         return 'Start Rate: ' + str(
