@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, List
 
 import numpy as np
@@ -6,7 +7,6 @@ import pandas as pd
 from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
 
-import warnings
 warnings.filterwarnings("ignore")
 
 
@@ -320,7 +320,18 @@ class OriginDestination:
         self.originDestination[key] = value
 
     def __getitem__(self, item: DemandIndex):
-        return self.originDestination[item]
+        if item not in self.originDestination:
+            print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
+            subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
+                        self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
+                                                       self.__distances["TripPurposeID"] == item.tripPurpose)]
+            out = dict()
+            for row in subitem.itertuples():
+                out[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.Portion
+            self.originDestination[item] = out
+            return out
+        else:
+            return self.originDestination[item]
 
     def __contains__(self, item):
         return item in self.originDestination
@@ -337,10 +348,12 @@ class OriginDestination:
             for tripClass, grouped in merged.groupby(["HomeMicrotypeID", "PopulationGroupTypeID", "TripPurposeID"]):
                 grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
                 tot = np.sum(grouped["tot"])
-                assert tot == 1.0
+                grouped["tot"] = grouped["tot"] / tot
+                assert abs(tot - 1) < 0.0001  # TODO: FIX
                 distribution = dict()
                 for row in grouped.itertuples():
-                    distribution[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
+                    distribution[
+                        ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
                 self[DemandIndex(*tripClass)] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
