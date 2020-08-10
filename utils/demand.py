@@ -135,27 +135,19 @@ class Demand:
             microtype.resetDemand()
 
         for (di, odi), ms in self.__modeSplit.items():
-            assert (isinstance(ms, ModeSplit))
-            assert (isinstance(odi, ODindex))
-            assert (isinstance(di, DemandIndex))
+            # assert (isinstance(ms, ModeSplit))
+            # assert (isinstance(odi, ODindex))
+            # assert (isinstance(di, DemandIndex))
             for mode, split in ms:
                 microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
                 microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
                 newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
-                # through_microtypes = []
-                # allocation = []
-                # for m, a in self.__trips[odi].allocation:
-                #     if (a > 0) & (mode in microtypes[m].mode_names):
-                #         through_microtypes.append(m)
-                #         allocation.append(a)
-                # allocation = np.array(allocation)
-                # allocation /= np.sum(allocation)
                 for k, portion in newAllocation.items():
                     microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
                                                       self.__distanceBins[odi.distBin])
 
         for microtypeID, microtype in microtypes:
-            microtype.updateNetworkSpeeds(5)
+            microtype.updateNetworkSpeeds(nIters)
 
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):

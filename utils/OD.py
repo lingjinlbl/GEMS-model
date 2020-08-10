@@ -30,6 +30,9 @@ class Allocation:
     def __iter__(self):
         return iter(self._mapping.items())
 
+    def pop(self, item):
+        self._mapping.pop(item)
+
 
 class ModeSplit:
     def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0):

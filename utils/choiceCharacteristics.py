@@ -102,6 +102,6 @@ def filterAllocation(mode: str, inputAllocation, microtypes: MicrotypeCollection
             through_microtypes.append(m)
             allocation.append(a)
             tot += a
-    allocation = np.array(allocation) / tot
+    #allocation = np.array(allocation) / tot
     # allocation /= np.sum(allocation)
-    return dict(zip(through_microtypes, allocation))
+    return {m: a/tot for m, a in zip(through_microtypes, allocation)}#dict(zip(through_microtypes, allocation))
