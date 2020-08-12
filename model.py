@@ -73,7 +73,7 @@ class Optimizer:
         userCosts, operatorCosts = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
-        print(userCosts.total + operatorCosts.total + dedicationCosts)
+        print(userCosts.total, operatorCosts.total, dedicationCosts)
         return userCosts.total + operatorCosts.total + dedicationCosts
 
     def getBounds(self):
@@ -234,7 +234,7 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 1.1)
+                                     self.microtypes, self.__distanceBins, 0.7)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
@@ -242,17 +242,18 @@ class Model:
         i = 0
         while (diff > 0.00001) & (i < 20):
             ms = self.getModeSplit()
-            self.demand.updateMFD(self.microtypes, 7)
+            self.demand.updateMFD(self.microtypes, 5)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
-            c = self.getOperatorCosts().total
-            if np.isnan(c):
-                print("----")
-
-            c2 = self.getUserCosts().total
-            if np.isnan(c2):
-                print("----")
-            i += 1
+            # c = self.getOperatorCosts().total
+            # if np.isnan(c):
+            #     print("----")
+            #
+            # c2 = self.getUserCosts().total
+            # if np.isnan(c2):
+            #     print("----")
+            # i += 1
+        ms = self.getModeSplit()
 
     def getModeSplit(self, timePeriod=None):
         if timePeriod is None:
@@ -301,6 +302,10 @@ class Model:
 
 
 if __name__ == "__main__":
+    # a = Model("input-data-production")
+    # a.initializeTimePeriod("morning_rush")
+    # a.findEquilibrium()
+    # ms = a.getModeSplit()
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
     #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),
@@ -308,16 +313,16 @@ if __name__ == "__main__":
     o = Optimizer("input-data",
                   modesAndMicrotypes=list(zip(["A", "B", "C", "D"], ["bus", "bus", "bus", "bus"])),
                   method="noisy")
-    # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
-    # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
-    # o.evaluate(np.array([300., 200., 200., 200.]))
+    # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
+    # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
+    # # o.evaluate(np.array([300., 200., 200., 200.]))
     output = o.minimize()
     print("DONE")
-    print(output.x)
-    print(output.fun)
-    print(output.message)
-
-    print("DONE")
+    # print(output.x)
+    # print(output.fun)
+    # print(output.message)
+    #
+    # print("DONE")
     # cost2 = o.evaluate(np.array([10., 1.]))
     # print(cost2)
     # cost3 = o.evaluate(np.array([500., 10.]))

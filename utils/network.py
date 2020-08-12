@@ -362,7 +362,7 @@ class BusMode(Mode):
             out = network.avgLinkLength / (
                     self.minStopTimeInSec + self.headwayInSec * perPassenger * (
                     self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) / (
-                            self.routeLength / self.stopSpacingInMeters)) / self.headwayInSec
+                            self.routeLength / self.stopSpacingInMeters * 3600.)) / self.headwayInSec
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
             # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
         else:
@@ -398,7 +398,7 @@ class BusMode(Mode):
         #     print("AAAH")
 
     def getOccupancy(self) -> float:
-        return self.travelDemand.averageDistanceInSystemInMiles / self.routeAveragedSpeed * self.travelDemand.tripStartRatePerHour / self._N_tot
+        return self.travelDemand.averageDistanceInSystemInMiles / (self.routeAveragedSpeed * 2.23694) * self.travelDemand.tripStartRatePerHour / self._N_tot
 
     def getPassengerFlow(self) -> float:
         if np.any([n.isJammed for n in self._networks]):
@@ -436,7 +436,7 @@ class Network:
 
     @property
     def L(self):
-        return self.data.at[self.__idx, "Length"]
+        return self.data.loc[self.__idx, "Length"]
 
     @L.setter
     def L(self, L):

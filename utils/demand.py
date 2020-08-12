@@ -188,8 +188,8 @@ class Demand:
                 mcc = collectedChoiceCharacteristics[odi]
                 cost = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour
                 costDefault = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour # TODO: Add default
-                totalCost += cost
-                totalCostDefault += costDefault
+                totalCost -= cost
+                totalCostDefault -= costDefault
             out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault)
         return out
 
