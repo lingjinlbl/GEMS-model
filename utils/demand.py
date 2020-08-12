@@ -135,27 +135,19 @@ class Demand:
             microtype.resetDemand()
 
         for (di, odi), ms in self.__modeSplit.items():
-            assert (isinstance(ms, ModeSplit))
-            assert (isinstance(odi, ODindex))
-            assert (isinstance(di, DemandIndex))
+            # assert (isinstance(ms, ModeSplit))
+            # assert (isinstance(odi, ODindex))
+            # assert (isinstance(di, DemandIndex))
             for mode, split in ms:
                 microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
                 microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
                 newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
-                # through_microtypes = []
-                # allocation = []
-                # for m, a in self.__trips[odi].allocation:
-                #     if (a > 0) & (mode in microtypes[m].mode_names):
-                #         through_microtypes.append(m)
-                #         allocation.append(a)
-                # allocation = np.array(allocation)
-                # allocation /= np.sum(allocation)
                 for k, portion in newAllocation.items():
                     microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
                                                       self.__distanceBins[odi.distBin])
 
         for microtypeID, microtype in microtypes:
-            microtype.updateNetworkSpeeds(5)
+            microtype.updateNetworkSpeeds(nIters)
 
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):
@@ -165,11 +157,12 @@ class Demand:
                 # dg = self.__population[demandIndex]
                 ms = self.__population[demandIndex].updateModeSplit(collectedChoiceCharacteristics[odi])
                 self[demandIndex, odi].updateMapping(ms)
+                self[demandIndex, odi] *= oldModeSplit
         newModeSplit = self.getTotalModeSplit()
         diff = oldModeSplit - newModeSplit
         return diff
 
-    def getTotalModeSplit(self) -> ModeSplit:
+    def getTotalModeSplit(self, otherModeSplit=None) -> ModeSplit:
         demand = 0
         trips = dict()
         for ms in self.__modeSplit.values():
@@ -178,7 +171,11 @@ class Demand:
                 trips[mode] = new_demand
             demand += ms.demandForTripsPerHour
         for mode in trips.keys():
-            trips[mode] /= demand
+            if otherModeSplit is not None:
+                trips[mode] /= (demand*2.)
+                trips[mode] += otherModeSplit[mode] / 2.
+            else:
+                trips[mode] /= demand
         return ModeSplit(trips)
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
@@ -195,9 +192,9 @@ class Demand:
                 ms = self[(demandIndex, odi)]
                 mcc = collectedChoiceCharacteristics[odi]
                 cost = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour
-                costDefault = demandClass.getCostPerCapita(mcc, ms, defaultParams) * ms.demandForTripsPerHour
-                totalCost += cost
-                totalCostDefault += costDefault
+                costDefault = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour # TODO: Add default
+                totalCost -= cost
+                totalCostDefault -= costDefault
             out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault)
         return out
 

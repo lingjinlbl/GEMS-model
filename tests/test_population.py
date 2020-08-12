@@ -12,8 +12,8 @@ def pop():
 
 def test_import_population(pop):
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-    popdata = pd.read_csv(ROOT_DIR + "/../input-data-simpler/Population.csv")
-    popgroups = pd.read_csv(ROOT_DIR + "/../input-data-simpler/PopulationGroups.csv")
+    popdata = pd.read_csv(ROOT_DIR + "/../input-data/Population.csv")
+    popgroups = pd.read_csv(ROOT_DIR + "/../input-data/PopulationGroups.csv")
     pop.importPopulation(popdata, popgroups)
     assert True
     return pop

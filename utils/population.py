@@ -15,29 +15,36 @@ class PopulationGroup:
 
 
 class DemandClass:
-    def __init__(self):
-        self.__params = {"ASC": 0.0, "VOT": 15.0, "VOM": 1.0}
+    def __init__(self, params: pd.DataFrame):
+        self.__params = params.to_dict(orient="index")
 
-    def __iadd__(self, other: Dict[str, float]):
-        self.__params.update(other)
-
-    def __add__(self, other: Dict[str, float]):
-        self.__params.update(other)
-        return self
+    # def __iadd__(self, other: Dict[str, float]):
+    #     self.__params.update(other)
+    #
+    # def __add__(self, other: Dict[str, float]):
+    #     self.__params.update(other)
+    #     return self
 
     def __getitem__(self, item) -> float:
-        return self.__params[item]
+        item1, item2 = item
+        if item1 in self.__params:
+            return self.__params[item1].setdefault(item2, 0.0)
+        else:
+            return 0.0
 
     def updateModeSplit(self, mcc: ModalChoiceCharacteristics) -> Dict[str, float]:
-        utils = np.array([], dtype=float)
         k = 1.0
         modes = mcc.modes()
-        for mode in modes:
+        utils = np.zeros(len(modes), dtype=float)
+        for idx, mode in enumerate(modes):
             util = 0.
-            util += -mcc[mode].travel_time * self["VOT"]
-            util += -mcc[mode].wait_time * self["VOT"]
-            util += -mcc[mode].cost * self["VOM"]
-            utils = np.append(utils, util)
+            util += self[mode, "Intercept"]
+            util += (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"]
+            util += (mcc[mode].wait_time * 60.0) * self[mode, "BetaWaitTime"]
+            util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
+            util += mcc[mode].cost * self[mode, "VOM"]
+            utils[idx] = util
+            #utils = np.append(utils, util)
         exp_utils = np.exp(utils * k)
         probabilities = exp_utils / np.sum(exp_utils)
         mode_split = dict()
@@ -46,13 +53,17 @@ class DemandClass:
         return mode_split
 
     def getCostPerCapita(self, mcc: ModalChoiceCharacteristics, modeSplit, params=None) -> float:
-        if params is None:
-            params = self.__params
+        if params is not None:
+            params = DemandClass(params)
+        else:
+            params = self
         costPerCapita = 0.
         for mode, split in modeSplit:
-            costPerCapita += mcc[mode].travel_time * params["VOT"] * split
-            costPerCapita += mcc[mode].wait_time * params["VOT"] * split
-            costPerCapita += mcc[mode].cost * params["VOM"] * split
+            costPerCapita += params[mode, "Intercept"] * split
+            costPerCapita += (mcc[mode].travel_time * 60.0) * params[mode, "BetaTravelTime"] * split
+            costPerCapita += (mcc[mode].wait_time * 60.0) * params[mode, "BetaWaitTime"] * split
+            costPerCapita += (mcc[mode].wait_time * 60.0) ** 2.0 * params[mode, "BetaWaitTimeSquared"] * split
+            costPerCapita += mcc[mode].cost * params[mode, "VOM"] * split
         return costPerCapita
 
 
@@ -70,7 +81,11 @@ class Population:
         return self.__demandClasses[item]
 
     def getPopulation(self, homeMicrotypeID: str, populationGroupType: str):
-        return self.__populationGroups[homeMicrotypeID, populationGroupType].population
+        if (homeMicrotypeID, populationGroupType) in self.__populationGroups:
+            return self.__populationGroups[homeMicrotypeID, populationGroupType].population
+        else:
+            print("OH NO, no population group ", populationGroupType, " in microtype ", homeMicrotypeID)
+            return 0
 
     def importPopulation(self, populations: pd.DataFrame, populationGroups: pd.DataFrame):
         for row in populations.itertuples():
@@ -81,11 +96,11 @@ class Population:
                                                                                             row.Population)
             self.totalPopulation += row.Population
         for homeMicrotypeID in populations["MicrotypeID"].unique():
-            for row in populationGroups.iterrows():
-                demandIndex = DemandIndex(homeMicrotypeID, row[1].PopulationGroupTypeID, row[1].TripPurposeID)
-                params = row[1][2:].to_dict()
-                out = DemandClass() + params
-                self[demandIndex] = DemandClass() + params  # TODO: disaggregate by mode
+            for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
+                demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
+                out = DemandClass(group.set_index("Mode").drop(columns=['PopulationGroupTypeID', 'TripPurposeID']))
+                self[demandIndex] = out
+        print("|  Loaded ", len(populations), " population groups")
 
     def __iter__(self):
         return iter(self.__demandClasses.items())

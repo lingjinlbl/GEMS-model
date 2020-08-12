@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, List
 
 import numpy as np
@@ -6,7 +7,6 @@ import pandas as pd
 from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
 
-import warnings
 warnings.filterwarnings("ignore")
 
 
@@ -30,6 +30,9 @@ class Allocation:
     def __iter__(self):
         return iter(self._mapping.items())
 
+    def pop(self, item):
+        self._mapping.pop(item)
+
 
 class ModeSplit:
     def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0):
@@ -47,6 +50,9 @@ class ModeSplit:
         else:
             print("OH NO BAD MAPPING")
 
+    def copy(self):
+        return ModeSplit(self._mapping.copy(), self.demandForTripsPerHour, self.__demandForPmtPerHour)
+
     def __sub__(self, other):
         output = []
         for key in self._mapping.keys():
@@ -58,6 +64,17 @@ class ModeSplit:
         for key in self._mapping.keys():
             output.append(self[key] - other[key])
         return np.linalg.norm(output)
+
+    def __mul__(self, other):
+        out = self.copy()
+        for key in out._mapping.keys():
+            out[key] = out[key] / 2 + other[key]/2
+        return out
+
+    def __imul__(self, other):
+        for key in self._mapping.keys():
+            self[key] = self[key] / 2 + other[key]/2
+        return self
 
     def toDict(self):
         return self._mapping.copy()
@@ -199,8 +216,6 @@ class ODindex:
             self.d = d
         else:
             print("AAAAH BAD ODindex")
-        assert isinstance(self.o, str)
-        assert isinstance(self.d, str)
         self.distBin = distBin
 
     def __eq__(self, other):
@@ -233,7 +248,7 @@ class TripCollection:
         self.__trips[key] = value
 
     def __getitem__(self, item: ODindex) -> Trip:
-        assert isinstance(item, ODindex)
+        # assert isinstance(item, ODindex)
         if item in self.__trips:
             return self.__trips[item]
         else:
@@ -252,6 +267,8 @@ class TripCollection:
                 self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
             else:
                 self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
+        print("-------------------------------")
+        print("|  Loaded ", len(df), " trips")
 
     def __iter__(self):
         return iter(self.__trips.items())
@@ -261,24 +278,39 @@ class TripGeneration:
     def __init__(self):
         self.__data = pd.DataFrame()
         self.__tripClasses = dict()
+        self.__currentTimePeriod = "BAD"
+
+    @property
+    def tripClasses(self):
+        if self.__currentTimePeriod not in self.__tripClasses:
+            self.__tripClasses[self.__currentTimePeriod] = dict()
+        return self.__tripClasses[self.__currentTimePeriod]
 
     def __setitem__(self, key: (str, str), value: float):
-        self.__tripClasses[key] = value
+        self.tripClasses[key] = value
 
     def __getitem__(self, item: (str, str)):
-        return self.__tripClasses[item]
+        return self.tripClasses[item]
+
+    def __contains__(self, item):
+        return item in self.__tripClasses
 
     def importTripGeneration(self, df: pd.DataFrame):
         self.__data = df
+        print("|  Loaded ", len(df), " trip generation rates")
+        print("-------------------------------")
 
     def initializeTimePeriod(self, timePeriod: str):
-        self.__tripClasses = dict()
-        relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriod]
-        for row in relevantDemand.itertuples():
-            self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
+        # self.__tripClasses = dict()
+        self.__currentTimePeriod = timePeriod
+        if timePeriod not in self:
+            relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriod]
+            for row in relevantDemand.itertuples():
+                self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
+            print("|  Loaded ", len(relevantDemand), " demand classes")
 
     def __iter__(self):
-        return iter(self.__tripClasses.items())
+        return iter(self.tripClasses.items())
 
 
 class OriginDestination:
@@ -286,31 +318,57 @@ class OriginDestination:
         self.__ods = pd.DataFrame()
         self.__distances = pd.DataFrame()
         self.__originDestination = dict()
+        self.__currentTimePeriod = "BAD"
+
+    @property
+    def originDestination(self):
+        if self.__currentTimePeriod not in self.__originDestination:
+            self.__originDestination[self.__currentTimePeriod] = dict()
+        return self.__originDestination[self.__currentTimePeriod]
 
     def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame):
         self.__ods = ods
         self.__distances = distances
+        print("|  Loaded ", len(ods), " ODs and ", len(distances), "unique distance bins")
 
     def __setitem__(self, key: DemandIndex, value: dict):
-        self.__originDestination[key] = value
+        self.originDestination[key] = value
 
     def __getitem__(self, item: DemandIndex):
-        return self.__originDestination[item]
+        if item not in self.originDestination:
+            print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
+            subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
+                        self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
+                                                       self.__distances["TripPurposeID"] == item.tripPurpose)]
+            out = dict()
+            for row in subitem.itertuples():
+                out[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.Portion
+            self.originDestination[item] = out
+            return out
+        else:
+            return self.originDestination[item]
+
+    def __contains__(self, item):
+        return item in self.originDestination
 
     def initializeTimePeriod(self, timePeriod: str):
-        self.__originDestination = dict()
-        relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]
-        merged = relevantODs.merge(self.__distances,
-                                   on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
-                                   suffixes=("_OD", "_Dist"),
-                                   how="inner")
-        for tripClass, grouped in merged.groupby(["HomeMicrotypeID", "PopulationGroupTypeID", "TripPurposeID"]):
-            grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
-            tot = np.sum(grouped["tot"])
-            assert tot == 1.0
-            distribution = dict()
-            for row in grouped.itertuples():
-                distribution[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
-            self[DemandIndex(*tripClass)] = distribution
+        self.__currentTimePeriod = timePeriod
+        if timePeriod not in self.__originDestination:
+            print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]), " distance bins")
+            relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]
+            merged = relevantODs.merge(self.__distances,
+                                       on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
+                                       suffixes=("_OD", "_Dist"),
+                                       how="inner")
+            for tripClass, grouped in merged.groupby(["HomeMicrotypeID", "PopulationGroupTypeID", "TripPurposeID"]):
+                grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
+                tot = np.sum(grouped["tot"])
+                grouped["tot"] = grouped["tot"] / tot
+                assert abs(tot - 1) < 0.0001  # TODO: FIX
+                distribution = dict()
+                for row in grouped.itertuples():
+                    distribution[
+                        ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
+                self[DemandIndex(*tripClass)] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour

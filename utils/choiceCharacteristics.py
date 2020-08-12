@@ -96,10 +96,12 @@ class CollectedChoiceCharacteristics:
 def filterAllocation(mode: str, inputAllocation, microtypes: MicrotypeCollection):
     through_microtypes = []
     allocation = []
+    tot = 0.0
     for m, a in inputAllocation:
         if (a > 0) & (mode in microtypes[m].mode_names):
             through_microtypes.append(m)
             allocation.append(a)
-    allocation = np.array(allocation)
-    allocation /= np.sum(allocation)
-    return dict(zip(through_microtypes, allocation))
+            tot += a
+    #allocation = np.array(allocation) / tot
+    # allocation /= np.sum(allocation)
+    return {m: a/tot for m, a in zip(through_microtypes, allocation)}#dict(zip(through_microtypes, allocation))
