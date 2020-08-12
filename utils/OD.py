@@ -50,6 +50,9 @@ class ModeSplit:
         else:
             print("OH NO BAD MAPPING")
 
+    def copy(self):
+        return ModeSplit(self._mapping.copy(), self.demandForTripsPerHour, self.__demandForPmtPerHour)
+
     def __sub__(self, other):
         output = []
         for key in self._mapping.keys():
@@ -61,6 +64,17 @@ class ModeSplit:
         for key in self._mapping.keys():
             output.append(self[key] - other[key])
         return np.linalg.norm(output)
+
+    def __mul__(self, other):
+        out = self.copy()
+        for key in out._mapping.keys():
+            out[key] = out[key] / 2 + other[key]/2
+        return out
+
+    def __imul__(self, other):
+        for key in self._mapping.keys():
+            self[key] = self[key] / 2 + other[key]/2
+        return self
 
     def toDict(self):
         return self._mapping.copy()

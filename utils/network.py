@@ -315,7 +315,7 @@ class BusMode(Mode):
         stopped_time = perPassenger * passengers_per_stop + stopping_time
         spd = self.routeLength * car_speed / (stopped_time * car_speed + self.routeLength)
         if np.isnan(spd):
-            spd = 0.25
+            spd = 0.1
             self.__bad = True
         else:
             self.__bad = False
@@ -398,7 +398,8 @@ class BusMode(Mode):
         #     print("AAAH")
 
     def getOccupancy(self) -> float:
-        return self.travelDemand.averageDistanceInSystemInMiles / (self.routeAveragedSpeed * 2.23694) * self.travelDemand.tripStartRatePerHour / self._N_tot
+        return self.travelDemand.averageDistanceInSystemInMiles / (
+                    self.routeAveragedSpeed * 2.23694) * self.travelDemand.tripStartRatePerHour / self._N_tot
 
     def getPassengerFlow(self) -> float:
         if np.any([n.isJammed for n in self._networks]):
@@ -461,10 +462,10 @@ class Network:
         # mode.reset()
 
     def getBaseSpeed(self):
-        if self.car_speed > 0.25:
+        if self.car_speed > 0.01:
             return self.car_speed
         else:
-            return 0.25
+            return 0.01
 
     def updateBlockedDistance(self):
         for mode in self._modes.values():
