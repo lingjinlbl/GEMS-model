@@ -78,7 +78,8 @@ class Optimizer:
 
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
-            upperBoundsROW = list(self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values)
+            upperBoundsROW = list(
+                self.model.scenarioData["subNetworkData"].loc[self.fromSubNetworkIDs(), "Length"].values)
             lowerBoundsROW = [0.0] * len(self.fromSubNetworkIDs())
         else:
             upperBoundsROW = []
@@ -108,7 +109,8 @@ class Optimizer:
             b = self.getBounds()
             return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
         elif self.__method == "noisy":
-            return minimizeCompass(self.evaluate, self.x0(), bounds=self.getBounds(), paired=False, deltainit=200.0, errorcontrol=False)
+            return minimizeCompass(self.evaluate, self.x0(), bounds=self.getBounds(), paired=False, deltainit=200.0,
+                                   errorcontrol=False)
         else:
             return minimize(self.evaluate, self.x0(), bounds=self.getBounds(), method=self.__method)
         # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
@@ -254,7 +256,7 @@ class Model:
             #     print("----")
             # i += 1
             print(ms)
-            # print(self.getModeSpeeds().loc['auto',['A_1','A_2','A_4','B_1','B_2','B_4']])
+            # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
         ms = self.getModeSplit()
 
     def getModeSplit(self, timePeriod=None):
@@ -308,7 +310,7 @@ if __name__ == "__main__":
     a.initializeTimePeriod("morning_rush")
     a.findEquilibrium()
     ms = a.getModeSplit()
-    print(ms)
+    # print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
     #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),
