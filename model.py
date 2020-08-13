@@ -253,7 +253,7 @@ class Model:
             # if np.isnan(c2):
             #     print("----")
             # i += 1
-            #print(ms)
+            print(ms)
         ms = self.getModeSplit()
 
     def getModeSplit(self, timePeriod=None):
@@ -307,6 +307,7 @@ if __name__ == "__main__":
     a.initializeTimePeriod("morning_rush")
     a.findEquilibrium()
     ms = a.getModeSplit()
+    print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
     #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),
