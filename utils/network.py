@@ -169,6 +169,26 @@ class WalkMode(Mode):
         return self.speedInMetersPerSecond
 
 
+class BikeMode(Mode):
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
+        super().__init__(networks, modeParams, idx, "bike")
+        self.__idx = idx
+
+    @property
+    def speedInMetersPerSecond(self):
+        return self.params.at[self.__idx, "SpeedInMetersPerSecond"]
+
+    def getSpeed(self):
+        return self.speedInMetersPerSecond
+
+    def allocateVehicles(self):
+        """by length"""
+        L_tot = sum([n.L for n in self._networks])
+        for n in self._networks:
+            n.N_eq[self.name] = n.L * self._N_tot / L_tot * self.relativeLength
+            self._N[n] = n.L * self._N_tot / L_tot
+
+
 class RailMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
         super().__init__(networks, modeParams, idx, "rail")
@@ -581,6 +601,8 @@ class NetworkCollection:
                 AutoMode(networks, params, microtypeID)
             elif modeName == "walk":
                 WalkMode(networks, params, microtypeID)
+            elif modeName == "bike":
+                BikeMode(networks, params, microtypeID)
             elif modeName == "rail":
                 RailMode(networks, params, microtypeID)
             else:
