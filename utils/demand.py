@@ -172,7 +172,7 @@ class Demand:
             demand += ms.demandForTripsPerHour
         for mode in trips.keys():
             if otherModeSplit is not None:
-                trips[mode] /= (demand*2.)
+                trips[mode] /= (demand * 2.)
                 trips[mode] += otherModeSplit[mode] / 2.
             else:
                 trips[mode] /= demand
@@ -192,7 +192,7 @@ class Demand:
                 ms = self[(demandIndex, odi)]
                 mcc = collectedChoiceCharacteristics[odi]
                 cost = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour
-                costDefault = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour # TODO: Add default
+                costDefault = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour  # TODO: Add default
                 totalCost -= cost
                 totalCostDefault -= costDefault
             out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault)
