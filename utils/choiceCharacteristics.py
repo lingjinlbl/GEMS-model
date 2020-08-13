@@ -1,6 +1,4 @@
-import numpy as np
-
-from .microtype import MicrotypeCollection
+# from .microtype import MicrotypeCollection
 from .misc import DistanceBins
 
 
@@ -63,7 +61,7 @@ class CollectedChoiceCharacteristics:
         return self.__choiceCharacteristics[item]
 
     def initializeChoiceCharacteristics(self, trips,
-                                        microtypes: MicrotypeCollection, distanceBins: DistanceBins):
+                                        microtypes, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
         for odIndex, trip in trips:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
@@ -78,22 +76,21 @@ class CollectedChoiceCharacteristics:
         for mcc in self.__choiceCharacteristics.values():
             mcc.reset()
 
-    def updateChoiceCharacteristics(self, microtypes: MicrotypeCollection, trips):
+    def updateChoiceCharacteristics(self, microtypes, trips):
         self.resetChoiceCharacteristics()
         for odIndex, trip in trips:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             modes = set.intersection(*common_modes)
             for mode in modes:
-                self[odIndex][mode] += ChoiceCharacteristics(*microtypes[odIndex.o].getStartTimeCostWait(mode))
-                self[odIndex][mode] += ChoiceCharacteristics(*microtypes[odIndex.d].getEndTimeCostWait(mode))
+                self[odIndex][mode] += microtypes[odIndex.o].getStartTimeCostWait(mode)
+                self[odIndex][mode] += microtypes[odIndex.d].getEndTimeCostWait(mode)
                 newAllocation = filterAllocation(mode, trip.allocation, microtypes)
                 for microtypeID, allocation in newAllocation.items():
-                    self[odIndex][mode] += ChoiceCharacteristics(
-                        *microtypes[microtypeID].getThroughTimeCostWait(mode, self.__distanceBins[
-                            odIndex.distBin] * allocation))
+                    self[odIndex][mode] += microtypes[microtypeID].getThroughTimeCostWait(mode, self.__distanceBins[
+                        odIndex.distBin] * allocation)
 
 
-def filterAllocation(mode: str, inputAllocation, microtypes: MicrotypeCollection):
+def filterAllocation(mode: str, inputAllocation, microtypes):
     through_microtypes = []
     allocation = []
     tot = 0.0
@@ -102,6 +99,6 @@ def filterAllocation(mode: str, inputAllocation, microtypes: MicrotypeCollection
             through_microtypes.append(m)
             allocation.append(a)
             tot += a
-    #allocation = np.array(allocation) / tot
+    # allocation = np.array(allocation) / tot
     # allocation /= np.sum(allocation)
-    return {m: a/tot for m, a in zip(through_microtypes, allocation)}#dict(zip(through_microtypes, allocation))
+    return {m: a / tot for m, a in zip(through_microtypes, allocation)}  # dict(zip(through_microtypes, allocation))

@@ -68,12 +68,12 @@ class ModeSplit:
     def __mul__(self, other):
         out = self.copy()
         for key in out._mapping.keys():
-            out[key] = out[key] / 2 + other[key]/2
+            out[key] = out[key] / 2 + other[key] / 2
         return out
 
     def __imul__(self, other):
         for key in self._mapping.keys():
-            self[key] = self[key] / 2 + other[key]/2
+            self[key] = self[key] / 2 + other[key] / 2
         return self
 
     def toDict(self):
@@ -168,12 +168,10 @@ class DemandUnit:
         for mode in self.mode_split.keys():
             choice_characteristics = ChoiceCharacteristics()
             for microtype in self.allocation.keys():
-                time, cost, wait = microtype.getThroughTimeCostWait(mode, self.distance * self.allocation[microtype])
-                choice_characteristics += ChoiceCharacteristics(time, cost, wait)
-                time, cost, wait = microtype.getStartTimeCostWait(mode)
-                choice_characteristics += ChoiceCharacteristics(time, cost, wait)
-                time, cost, wait = microtype.getEndTimeCostWait(mode)
-                choice_characteristics += ChoiceCharacteristics(time, cost, wait)
+                choice_characteristics += microtype.getThroughTimeCostWait(mode,
+                                                                           self.distance * self.allocation[microtype])
+                choice_characteristics += microtype.getStartTimeCostWait(mode)
+                choice_characteristics += microtype.getEndTimeCostWait(mode)
             mode_characteristics[mode] = choice_characteristics
         return mode_characteristics
 
@@ -338,8 +336,8 @@ class OriginDestination:
         if item not in self.originDestination:
             print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
             subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
-                        self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
-                                                       self.__distances["TripPurposeID"] == item.tripPurpose)]
+                    self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
+                                                   self.__distances["TripPurposeID"] == item.tripPurpose)]
             out = dict()
             for row in subitem.itertuples():
                 out[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.Portion

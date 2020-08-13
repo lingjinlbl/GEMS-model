@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 
+from .choiceCharacteristics import ChoiceCharacteristics
 from .network import Network, NetworkCollection, NetworkFlowParams, Costs, TotalOperatorCosts
 
 
@@ -99,16 +100,16 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    def getThroughTimeCostWait(self, mode: str, distanceInMiles: float) -> (float, float, float):
+    def getThroughTimeCostWait(self, mode: str, distanceInMiles: float) -> ChoiceCharacteristics:
         speedMilesPerHour = np.max([self.getModeSpeed(mode), 0.01]) * 2.23694
         if np.isnan(speedMilesPerHour):
             speedMilesPerHour = self.getModeSpeed("auto")
         timeInHours = distanceInMiles / speedMilesPerHour
         cost = distanceInMiles * self.networks.modes[mode].perMile
         wait = 0.
-        return timeInHours, cost, wait
+        return ChoiceCharacteristics(timeInHours, cost, wait)
 
-    def getStartTimeCostWait(self, mode: str) -> (float, float, float):
+    def getStartTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
         time = 0.
         cost = self.networks.modes[mode].perStart
         if mode == 'bus':
@@ -116,16 +117,16 @@ class Microtype:
                        'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
         else:
             wait = 0.
-        return time, cost, wait
+        return ChoiceCharacteristics(time, cost, wait)
 
-    def getEndTimeCostWait(self, mode: str) -> (float, float, float):
+    def getEndTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
         time = 0.
         cost = self.networks.modes[mode].perEnd
         if mode == 'bus':
             wait = self.networks.modes['bus'].headwayInSec / 3600. / 4.
         else:
             wait = 0.
-        return time, cost, wait
+        return ChoiceCharacteristics(time, cost, wait)
 
     def getFlows(self):
         return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
