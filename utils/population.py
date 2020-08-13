@@ -45,7 +45,7 @@ class DemandClass:
             util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
             util += mcc[mode].cost * self[mode, "VOM"]
             utils[idx] = util
-            #utils = np.append(utils, util)
+            # utils = np.append(utils, util)
         exp_utils = np.exp(utils * k)
         probabilities = exp_utils / np.sum(exp_utils)
         mode_split = dict()

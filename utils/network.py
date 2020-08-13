@@ -420,7 +420,7 @@ class BusMode(Mode):
 
     def getOccupancy(self) -> float:
         return self.travelDemand.averageDistanceInSystemInMiles / (
-                    self.routeAveragedSpeed * 2.23694) * self.travelDemand.tripStartRatePerHour / self._N_tot
+                self.routeAveragedSpeed * 2.23694) * self.travelDemand.tripStartRatePerHour / self._N_tot
 
     def getPassengerFlow(self) -> float:
         if np.any([n.isJammed for n in self._networks]):

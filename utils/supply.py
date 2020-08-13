@@ -75,7 +75,9 @@ class TravelDemands:
             current_demand = self._demands[mode].rateOfPmtPerHour
             current_distance = self._demands[mode].averageDistanceInSystemInMiles
             self._demands[mode].rateOfPmtPerHour += demand * trip_distance_in_meters / 1609.34
-            self._demands[mode].averageDistanceInSystemInMiles = (current_demand * current_distance + demand * trip_distance_in_meters / 1609.34) / (current_demand + demand)
+            self._demands[mode].averageDistanceInSystemInMiles = (
+                                                                             current_demand * current_distance + demand * trip_distance_in_meters / 1609.34) / (
+                                                                             current_demand + demand)
 
     def __str__(self):
         return 'Start Rate: ' + str(
