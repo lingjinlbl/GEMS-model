@@ -107,17 +107,19 @@ class Microtype:
         timeInHours = distanceInMiles / speedMilesPerHour
         cost = distanceInMiles * self.networks.modes[mode].perMile
         wait = 0.
-        return ChoiceCharacteristics(timeInHours, cost, wait)
+        return ChoiceCharacteristics(timeInHours, cost, wait, 0.0)
 
     def getStartTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
         time = 0.
         cost = self.networks.modes[mode].perStart
-        if mode == 'bus':
+        if mode in ['bus', 'rail']:
             wait = self.networks.modes[
                        'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
         else:
             wait = 0.
-        return ChoiceCharacteristics(time, cost, wait)
+        walkAccessTime = self.networks.modes[mode].getAccessDistance() * self.networks.modes[
+            'walk'].speedInMetersPerSecond / 3600.0
+        return ChoiceCharacteristics(time, cost, wait, walkAccessTime)
 
     def getEndTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
         time = 0.
@@ -126,7 +128,9 @@ class Microtype:
             wait = self.networks.modes['bus'].headwayInSec / 3600. / 4.
         else:
             wait = 0.
-        return ChoiceCharacteristics(time, cost, wait)
+        walkEgressTime = self.networks.modes[mode].getAccessDistance() * self.networks.modes[
+            'walk'].speedInMetersPerSecond / 3600.0
+        return ChoiceCharacteristics(time, cost, wait, walkEgressTime)
 
     def getFlows(self):
         return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
@@ -184,7 +188,7 @@ class MicrotypeCollection:
                 for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
                         modeToSubNetworkData['SubnetworkID'] == idx]
-                    subNetwork = Network(subNetworkData, idx, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
+                    subNetwork = Network(subNetworkData, idx, NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.17, 50))
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())

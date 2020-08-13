@@ -95,6 +95,9 @@ class Mode:
     def perMile(self):
         return self.params.at[self.__idx, "PerMileCost"]
 
+    def getAccessDistance(self) -> float:
+        return 0.0
+
     def updateModeBlockedDistance(self):
         for n in self._networks:
             self._L_blocked[n] = n.L_blocked[self.name]
@@ -186,6 +189,17 @@ class RailMode(Mode):
     @property
     def headwayInSec(self):
         return self.params.at[self.__idx, "Headway"]
+
+    @property
+    def stopSpacingInMeters(self):
+        return self.params.at[self.__idx, "StopSpacing"]
+
+    @property
+    def portionAreaCovered(self):
+        return self.params.at[self.__idx, "CoveragePortion"]
+
+    def getAccessDistance(self) -> float:
+        return self.stopSpacingInMeters / 4.0 / self.portionAreaCovered ** 2.0
 
     def getSpeed(self):
         return self.routeAveragedSpeed
@@ -290,6 +304,13 @@ class BusMode(Mode):
     @property
     def vehicleOperatingCostPerHour(self):
         return self.params.at[self.__idx, "VehicleOperatingCostPerHour"]
+
+    @property
+    def portionAreaCovered(self):
+        return self.params.at[self.__idx, "CoveragePortion"]
+
+    def getAccessDistance(self) -> float:
+        return self.stopSpacingInMeters / 4.0 / self.portionAreaCovered ** 2.0
 
     def updateN(self, demand: TravelDemand):
         n_new = self.routeLength / self.routeAveragedSpeed / self.headwayInSec

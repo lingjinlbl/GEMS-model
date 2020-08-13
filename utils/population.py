@@ -42,6 +42,7 @@ class DemandClass:
             util += (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"]
             util += (mcc[mode].wait_time * 60.0) * self[mode, "BetaWaitTime"]
             util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
+            util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
             util += mcc[mode].cost * self[mode, "VOM"]
             utils[idx] = util
             #utils = np.append(utils, util)
@@ -63,6 +64,7 @@ class DemandClass:
             costPerCapita += (mcc[mode].travel_time * 60.0) * params[mode, "BetaTravelTime"] * split
             costPerCapita += (mcc[mode].wait_time * 60.0) * params[mode, "BetaWaitTime"] * split
             costPerCapita += (mcc[mode].wait_time * 60.0) ** 2.0 * params[mode, "BetaWaitTimeSquared"] * split
+            costPerCapita += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"] * split
             costPerCapita += mcc[mode].cost * params[mode, "VOM"] * split
         return costPerCapita
 

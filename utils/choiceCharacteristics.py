@@ -3,16 +3,18 @@ from .misc import DistanceBins
 
 
 class ChoiceCharacteristics:
-    def __init__(self, travel_time=0., cost=0., wait_time=0.):
+    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0):
         self.travel_time = travel_time
         self.cost = cost
         self.wait_time = wait_time
+        self.access_time = access_time
 
     def __add__(self, other):
         if isinstance(other, ChoiceCharacteristics):
             self.travel_time += other.travel_time
             self.cost += other.cost
             self.wait_time += other.wait_time
+            self.access_time += other.access_time
             return self
         else:
             print('TOUGH LUCK, BUDDY')
@@ -23,6 +25,7 @@ class ChoiceCharacteristics:
             self.travel_time += other.travel_time
             self.cost += other.cost
             self.wait_time += other.wait_time
+            self.access_time += other.access_time
             return self
         else:
             print('TOUGH LUCK, BUDDY')
