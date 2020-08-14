@@ -52,11 +52,11 @@ class TravelDemands:
         for mode in self._modes:
             self._demands[mode].reset()
 
-    def setSingleDemand(self, mode, demand: float, trip_distance_in_meters: float):
+    def setSingleDemand(self, mode, demand: float, trip_distance_in_miles: float):
         self._demands[mode].tripStartRatePerHour = demand
         self._demands[mode].tripEndRatePerHour = demand
-        self._demands[mode].rateOfPmtPerHour = demand * trip_distance_in_meters / 1609.34
-        self._demands[mode].averageDistanceInSystemInMiles = trip_distance_in_meters / 1609.34
+        self._demands[mode].rateOfPmtPerHour = demand * trip_distance_in_miles
+        self._demands[mode].averageDistanceInSystemInMiles = trip_distance_in_miles
 
     # def addSingleDemand(self, mode, demand: float, trip_distance_in_meters: float):
     #     self._demands[mode].tripStartRatePerHour += demand
@@ -70,11 +70,11 @@ class TravelDemands:
     def addModeEnds(self, mode: str, demand: float):
         self._demands[mode].tripEndRatePerHour += demand
 
-    def addModeThroughTrips(self, mode: str, demand: float, trip_distance_in_meters: float):
+    def addModeThroughTrips(self, mode: str, demand: float, trip_distance_in_miles: float):
         if demand > 0:
             # current_demand = self._demands[mode].rateOfPmtPerHour
             # current_distance = self._demands[mode].averageDistanceInSystemInMiles
-            self._demands[mode].rateOfPmtPerHour += demand * trip_distance_in_meters / 1609.34
+            self._demands[mode].rateOfPmtPerHour += demand * trip_distance_in_miles
             # self._demands[mode].averageDistanceInSystemInMiles = (
             #                                                              current_demand * current_distance + demand * trip_distance_in_meters / 1609.34) / (
             #                                                              current_demand + demand)

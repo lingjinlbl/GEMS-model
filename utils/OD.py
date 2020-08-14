@@ -215,6 +215,7 @@ class ODindex:
         else:
             print("AAAAH BAD ODindex")
         self.distBin = distBin
+        self.__hash = hash((self.o, self.d, self.distBin))
 
     def __eq__(self, other):
         if isinstance(other, ODindex):
@@ -226,7 +227,7 @@ class ODindex:
             return False
 
     def __hash__(self):
-        return hash((self.o, self.d, self.distBin))
+        return self.__hash
 
     def __str__(self):
         return str(self.distBin) + " trip from " + self.o + " to " + self.d
