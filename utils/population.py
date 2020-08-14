@@ -44,6 +44,9 @@ class DemandClass:
             util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
             util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
             util += mcc[mode].cost * self[mode, "VOM"]
+            if mode == "bike":
+                util -= (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"] * self[
+                    mode, "ProtectedPreference"] * (mcc[mode].protected_distance / mcc.distanceInMiles)
             utils[idx] = util
             # utils = np.append(utils, util)
         exp_utils = np.exp(utils * k)

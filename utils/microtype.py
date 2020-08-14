@@ -107,7 +107,9 @@ class Microtype:
         timeInHours = distanceInMiles / speedMilesPerHour
         cost = distanceInMiles * self.networks.modes[mode].perMile
         wait = 0.
-        return ChoiceCharacteristics(timeInHours, cost, wait, 0.0)
+        accessTime = 0.
+        protectedDistance = self.networks.modes[mode].getPortionDedicated() * distanceInMiles
+        return ChoiceCharacteristics(timeInHours, cost, wait, accessTime, protectedDistance)
 
     def getStartTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
         time = 0.

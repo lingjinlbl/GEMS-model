@@ -3,11 +3,12 @@ from .misc import DistanceBins
 
 
 class ChoiceCharacteristics:
-    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0):
+    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, protected_distance=0):
         self.travel_time = travel_time
         self.cost = cost
         self.wait_time = wait_time
         self.access_time = access_time
+        self.protected_distance = protected_distance
 
     def __add__(self, other):
         if isinstance(other, ChoiceCharacteristics):
@@ -15,6 +16,7 @@ class ChoiceCharacteristics:
             self.cost += other.cost
             self.wait_time += other.wait_time
             self.access_time += other.access_time
+            self.protected_distance += other.protected_distance
             return self
         else:
             print('TOUGH LUCK, BUDDY')
@@ -26,6 +28,7 @@ class ChoiceCharacteristics:
             self.cost += other.cost
             self.wait_time += other.wait_time
             self.access_time += other.access_time
+            self.protected_distance += other.protected_distance
             return self
         else:
             print('TOUGH LUCK, BUDDY')
@@ -33,8 +36,9 @@ class ChoiceCharacteristics:
 
 
 class ModalChoiceCharacteristics:
-    def __init__(self, modes):
+    def __init__(self, modes, distanceInMiles=0.0):
         self.__modalChoiceCharacteristics = dict()
+        self.distanceInMiles = distanceInMiles
         for mode in modes:
             self.__modalChoiceCharacteristics[mode] = ChoiceCharacteristics()
 
@@ -73,7 +77,7 @@ class CollectedChoiceCharacteristics:
             #     if allocation > 0:
             #         common_modes.append(microtypes[microtypeID].mode_names)
             modes = set.intersection(*common_modes)
-            self[odIndex] = ModalChoiceCharacteristics(modes)
+            self[odIndex] = ModalChoiceCharacteristics(modes, distanceBins[odIndex.distBin])
 
     def resetChoiceCharacteristics(self):
         for mcc in self.__choiceCharacteristics.values():
