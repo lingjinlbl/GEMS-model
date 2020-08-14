@@ -11,7 +11,7 @@ def test_find_equilibrium():
     a = Model(ROOT_DIR + "/../input-data")
     a.initializeTimePeriod("PM-Peak")
     a.findEquilibrium()
-    busLaneDistance = np.arange(200, 4800, 400)
+    busLaneDistance = np.arange(100, 1900, 100)
     busSpeed = []
     carSpeedA = []
     carSpeedB = []
@@ -24,12 +24,12 @@ def test_find_equilibrium():
     ldCosts = []
     allCosts = []
     for dist in busLaneDistance:
-        a.scenarioData['subNetworkData'].at[13, "Length"] = dist
-        a.scenarioData['subNetworkData'].at[2, "Length"] = 5000 - dist
+        a.scenarioData['subNetworkData'].at[14, "Length"] = dist
+        a.scenarioData['subNetworkData'].at[4, "Length"] = 2000 - dist
         a.findEquilibrium()
         ms = a.getModeSplit()
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
-        busSpeed.append(speeds.loc["bus", "A"])
+        busSpeed.append(speeds.loc["bus", "B"])
         carSpeedA.append(speeds.loc["auto", "A"])
         carSpeedB.append(speeds.loc["auto", "B"])
         carSpeedC.append(speeds.loc["auto", "C"])
@@ -43,8 +43,8 @@ def test_find_equilibrium():
         allCosts.append(a.getUserCosts().totalEqualVOT + a.getOperatorCosts().total + 0.014*dist)
 
     plt.scatter(busLaneDistance, busSpeed, marker='<', label="Bus")
-    plt.xlabel("Bus Lane Distance In Microtype A")
-    plt.ylabel("Bus Speed In Microtype A")
+    plt.xlabel("Bus Lane Distance In Microtype B")
+    plt.ylabel("Bus Speed In Microtype B")
 
 
     plt.scatter(busLaneDistance, carSpeedA, label="A")
@@ -61,7 +61,7 @@ def test_find_equilibrium():
     plt.clf()
 
     plt.scatter(busLaneDistance, busModeShare)
-    plt.xlabel("Bus Lane Distance In Microtype A")
+    plt.xlabel("Bus Lane Distance In Microtype B")
     plt.ylabel("Bus Mode Share")
     if not os.path.exists(ROOT_DIR + "/../plots"):
         os.mkdir(ROOT_DIR + "/../plots")
@@ -72,14 +72,14 @@ def test_find_equilibrium():
     # plt.scatter(busLaneDistance, userCosts, label="user")
     # plt.scatter(busLaneDistance, operatorCosts, label="operator")
     # plt.scatter(busLaneDistance, ldCosts, label="lane dedication")
-    plt.xlabel("Bus Lane Distance In Microtype A")
+    plt.xlabel("Bus Lane Distance In Microtype B")
     plt.ylabel("Costs")
     plt.legend()
     if not os.path.exists(ROOT_DIR + "/../plots"):
         os.mkdir(ROOT_DIR + "/../plots")
     plt.savefig(ROOT_DIR + "/../plots/buslanevscost.png")
 
-    # assert busSpeed[-1] / busSpeed[0] > 1.005  # bus lanes speed up bus traffic by a real amount
+    assert busSpeed[-1] / busSpeed[0] > 1.005  # bus lanes speed up bus traffic by a real amount
 
     a = Model(ROOT_DIR + "/../input-data")
     a.initializeTimePeriod("AM-Peak")
