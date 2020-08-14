@@ -236,7 +236,7 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 1.)
+                                     self.microtypes, self.__distanceBins, 0.7)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
@@ -255,8 +255,8 @@ class Model:
             # if np.isnan(c2):
             #     print("----")
             # i += 1
-            # print(ms)
-            # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
+            print(ms)
+            print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
         ms = self.getModeSplit()
 
     def getModeSplit(self, timePeriod=None):
