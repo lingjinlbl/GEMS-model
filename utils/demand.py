@@ -89,6 +89,7 @@ class Demand:
         self.__modeSplit = dict()
         self.tripRate = 0.0
         self.demandForPMT = 0.0
+        self.pop = 0.0
         self.__population = Population()
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
@@ -120,8 +121,9 @@ class Demand:
                 modes = set.intersection(*common_modes)
                 tripRatePerHour = ratePerHourPerCapita * pop * portion
                 self.tripRate += tripRatePerHour
-                demandForPMT = ratePerHourPerCapita * pop * distanceBins[odi.distBin]
+                demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
                 self.demandForPMT += demandForPMT
+                self.pop += pop
                 modeSplit = dict()
                 for mode in modes:
                     if mode == "auto":
@@ -144,7 +146,7 @@ class Demand:
                 newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
                 for k, portion in newAllocation.items():
                     microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
-                                                      self.__distanceBins[odi.distBin] * 1609.34)
+                                                      self.__distanceBins[odi.distBin])
 
         for microtypeID, microtype in microtypes:
             microtype.updateNetworkSpeeds(nIters)
