@@ -306,8 +306,12 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data-production")
-    a.initializeTimePeriod("morning_rush")
+    # a = Model("input-data-production")
+    # a.initializeTimePeriod("morning_rush")
+    # a.findEquilibrium()
+    # ms = a.getModeSplit()
+    a = Model("input-data")
+    a.initializeTimePeriod("AM-Peak")
     a.findEquilibrium()
     ms = a.getModeSplit()
     # print(ms)
