@@ -144,7 +144,7 @@ class Demand:
                 newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
                 for k, portion in newAllocation.items():
                     microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
-                                                      self.__distanceBins[odi.distBin])
+                                                      self.__distanceBins[odi.distBin] * 1609.34)
 
         for microtypeID, microtype in microtypes:
             microtype.updateNetworkSpeeds(nIters)

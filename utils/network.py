@@ -135,13 +135,14 @@ class Mode:
 
     def getLittlesLawN(self, rateOfPmtPerHour: float, averageDistanceInSystemInMiles: float):
         speedInMilesPerHour = self.getSpeed() * 2.23694
-        if not (speedInMilesPerHour >= 3.0):
+        if not (speedInMilesPerHour >= 2.0):
             self.__bad = True
-            speedInMilesPerHour = 3.0
+            speedInMilesPerHour = 2.0
         else:
             self.__bad = False
-        averageTimeInSystemInHours = averageDistanceInSystemInMiles / speedInMilesPerHour
-        return rateOfPmtPerHour / averageDistanceInSystemInMiles * averageTimeInSystemInHours
+        # averageTimeInSystemInHours = averageDistanceInSystemInMiles / speedInMilesPerHour
+        # return rateOfPmtPerHour / averageDistanceInSystemInMiles * averageTimeInSystemInHours
+        return rateOfPmtPerHour / speedInMilesPerHour
 
     def getPassengerFlow(self) -> float:
         if np.any([n.isJammed for n in self._networks]):
@@ -350,11 +351,15 @@ class BusMode(Mode):
         else:
             perPassenger = self.passengerWaitInSec
         # car_travel_time = self.getRouteLength() / car_speed
-        passengers_per_stop = (
-                                      self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) * self.headwayInSec / 3600.
-        stopping_time = self.routeLength / self.stopSpacingInMeters * self.minStopTimeInSec
-        stopped_time = perPassenger * passengers_per_stop + stopping_time
-        spd = self.routeLength * car_speed / (stopped_time * car_speed + self.routeLength)
+        numberOfStops = self.routeLength / self.stopSpacingInMeters
+        pass_per_stop = (self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour
+                         ) / numberOfStops * self.headwayInSec / 3600.
+        stopping_time = numberOfStops * self.minStopTimeInSec
+        stopped_time = perPassenger * pass_per_stop + stopping_time
+        driving_time = self.routeLength / car_speed
+        m = self.routeLength
+        s = (stopped_time + self.routeLength / car_speed)
+        spd = self.routeLength / (stopped_time + driving_time)
         if np.isnan(spd):
             spd = 0.1
             self.__bad = True
@@ -400,10 +405,13 @@ class BusMode(Mode):
         else:
             perPassenger = self.passengerWaitInSec
         if network.car_speed > 0:
-            out = network.avgLinkLength / (
-                    self.minStopTimeInSec + self.headwayInSec * perPassenger * (
+            numberOfStops = self.routeLength / self.stopSpacingInMeters
+            meanTimePerStop = (self.minStopTimeInSec + self.headwayInSec * perPassenger * (
                     self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) / (
-                            self.routeLength / self.stopSpacingInMeters * 3600.)) / self.headwayInSec
+                                       numberOfStops * 3600.0))
+            portionOfTimeStopped = min([meanTimePerStop * meanTimePerStop / self.headwayInSec, 1.0])
+            out = network.avgLinkLength * portionOfTimeStopped
+            portionOfRouteBlocked = out / self.routeLength
             # busSpeed = self.getSubNetworkSpeed(network.car_speed)
             # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
         else:
@@ -428,11 +436,13 @@ class BusMode(Mode):
         T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         for ind, n in enumerate(self._networks):
             if speeds[ind] > 0:
-                n.N_eq[self.name] = self._N_tot * lengths[ind] / speeds[ind] / T_tot * self.relativeLength
-                self._N[n] = n.N_eq[self.name] / self.relativeLength
+                n_new = self._N_tot * lengths[ind] / speeds[ind] / T_tot
+                n.N_eq[self.name] = n_new * self.relativeLength
+                self._N[n] = n_new
             else:
-                n.N_eq[self.name] = self._N_tot / lengths[ind] * self.relativeLength
-                self._N[n] = self._N_tot / lengths[ind]
+                n_new = self._N_tot / lengths[ind]
+                n.N_eq[self.name] = n_new * self.relativeLength
+                self._N[n] = n_new
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = self.getOccupancy()
         # if np.isnan(self.occupancy):
@@ -515,7 +525,7 @@ class Network:
 
     def MFD(self):
         if self.L <= 0:
-            self.car_speed = np.nan
+            self.car_speed = 1.0
             return
         L_eq = self.L - self.getBlockedDistance()
         N_eq = self.getN_eq()

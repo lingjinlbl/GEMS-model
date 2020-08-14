@@ -83,8 +83,8 @@ class Microtype:
     def addModeEnds(self, mode, demand):
         self.networks.demands.addModeEnds(mode, demand)
 
-    def addModeDemandForPMT(self, mode, demand, trip_distance):
-        self.networks.demands.addModeThroughTrips(mode, demand, trip_distance)
+    def addModeDemandForPMT(self, mode, demand, trip_distance_in_meters):
+        self.networks.demands.addModeThroughTrips(mode, demand, trip_distance_in_meters)
 
     def setModeDemand(self, mode, demand, trip_distance):
         self.networks.demands.setSingleDemand(mode, demand, trip_distance)

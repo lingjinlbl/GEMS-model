@@ -255,7 +255,7 @@ class Model:
             # if np.isnan(c2):
             #     print("----")
             # i += 1
-            print(ms)
+            # print(ms)
             # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
         ms = self.getModeSplit()
 
