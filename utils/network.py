@@ -156,6 +156,9 @@ class Mode:
     def getOperatorRevenues(self) -> float:
         return 0.0
 
+    def getPortionDedicated(self) -> float:
+        return 0.0
+
 
 class WalkMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
@@ -174,6 +177,7 @@ class BikeMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
         super().__init__(networks, modeParams, idx, "bike")
         self.__idx = idx
+        self.bikeLanePreference = 2.0
 
     @property
     def speedInMetersPerSecond(self):
@@ -184,10 +188,23 @@ class BikeMode(Mode):
 
     def allocateVehicles(self):
         """by length"""
-        L_tot = sum([n.L for n in self._networks])
+        L_tot = sum([(n.L + n.L * (self.bikeLanePreference - 1) * n.dedicated) for n in self._networks])
         for n in self._networks:
-            n.N_eq[self.name] = n.L * self._N_tot / L_tot * self.relativeLength
-            self._N[n] = n.L * self._N_tot / L_tot
+            n.N_eq[self.name] = (n.L + n.L * (
+                        self.bikeLanePreference - 1) * n.dedicated) * self._N_tot / L_tot * self.relativeLength
+            self._N[n] = (n.L + n.L * (self.bikeLanePreference - 1) * n.dedicated) * self._N_tot / L_tot
+
+    def getPortionDedicated(self) -> float:
+        if self._N_tot > 0:
+            tot = 0.0
+            tot_dedicated = 0.0
+            for key, val in self._N.items():
+                tot += val
+                if key.dedicated:
+                    tot_dedicated += val
+            return tot_dedicated / tot
+        else:
+            return 0.0
 
 
 class RailMode(Mode):
