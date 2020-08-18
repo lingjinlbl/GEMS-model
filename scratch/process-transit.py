@@ -31,6 +31,7 @@ Auto['Length'] = subNetworks['LengthNetwork'].values * interliningFactor * subNe
 Auto['vMax'] = 18
 Auto['Type'] = "Road"
 Auto['Dedicated'] = False
+
 AutoBus = subNetworks[['MicrotypeID']].set_index('MicrotypeID')
 AutoBus['Length'] = subNetworks['LengthNetwork'].values * (
             1.0 - interliningFactor * subNetworks['NetworkFraction'].values) * 1609.34
@@ -61,10 +62,13 @@ Bike['Dedicated'] = True
 joined = pd.concat([Auto, AutoBus, Bus, Walk, Rail, Bike], axis=1,
                    keys=['Auto-Bike', 'Auto-Bus-Bike', 'Bus-Bike', 'Walk', 'Rail', 'Bike'],
                    names=['ModesAllowed', 'Field'])
+
 # subNetworks[pd.MultiIndex.from_tuples([('Length', 'Bus')])] = subNetworks["LengthNetwork"] * 1609.34 * interliningFactor * subNetworks["NetworkFraction"]
 out = joined.stack('ModesAllowed').reset_index()
 out = out.loc[(out['ModesAllowed'] != 'Rail') | (out['Length'] > 0)]
 out.index.name = "SubnetworkID"
+out['avgLinkLength'] = 50.0
+out['densityMax'] = 0.145
 
 collected = []
 

@@ -6,6 +6,7 @@ from scipy.optimize import shgo
 from scipy.optimize import minimize, Bounds
 from skopt import gp_minimize
 from noisyopt import minimizeCompass
+from copy import deepcopy
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -59,7 +60,7 @@ class Optimizer:
             return 0.0
 
     def evaluate(self, reallocations: np.ndarray) -> float:
-        self.model.resetNetworks()
+        # self.model.resetNetworks()
         if self.__fromToSubNetworkIDs is not None:
             networkModification = NetworkModification(reallocations[:self.nSubNetworks()], self.__fromToSubNetworkIDs)
         else:
@@ -178,7 +179,7 @@ class ScenarioData:
         self["modeData"] = self.loadModeData()
 
     def copy(self):
-        return ScenarioData(self.__path, self.data.copy())
+        return ScenarioData(self.__path, deepcopy(self.data))
 
     # def reallocate(self, fromSubNetwork, toSubNetwork, dist):
 
@@ -236,7 +237,7 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 0.7)
+                                     self.microtypes, self.__distanceBins, 1.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
@@ -255,7 +256,7 @@ class Model:
             # if np.isnan(c2):
             #     print("----")
             # i += 1
-            print(ms)
+            # print(ms)
             # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
         ms = self.getModeSplit()
 
