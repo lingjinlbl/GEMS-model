@@ -1,8 +1,8 @@
+from math import sqrt
 from typing import List, Dict
 
 import numpy as np
 import pandas as pd
-from math import sqrt
 from scipy.optimize import minimize
 
 from utils.supply import TravelDemand, TravelDemands
@@ -197,7 +197,6 @@ class WalkMode(Mode):
             self._L_blocked[n] = 0.0
             self._VMT[n] = 0.0
 
-
     @property
     def speedInMetersPerSecond(self):
         return self.params.at[self._idx, "SpeedInMetersPerSecond"]
@@ -340,16 +339,16 @@ class AutoMode(Mode):
         return np.array([1. / len(self.networks)] * len(self.networks))
 
     def cons(self):
-        return {'type': 'eq', 'fun': lambda x: sum(x) - 1.0,'jac' : lambda x: [1.0] * len(x)}
+        return {'type': 'eq', 'fun': lambda x: sum(x) - 1.0, 'jac': lambda x: [1.0] * len(x)}
 
     def bounds(self):
-        return [(0.0,1.0)] * len(self.networks)
+        return [(0.0, 1.0)] * len(self.networks)
 
     def assignVmtToNetworks(self):
         n_networks = len(self.networks)
         allocation = [1. / n_networks] * n_networks
         diff = self.getSpeedDifference(allocation)
-        res = minimize(self.getSpeedDifference, self.x0(), constraints= self.cons(), bounds= self.bounds())
+        res = minimize(self.getSpeedDifference, self.x0(), constraints=self.cons(), bounds=self.bounds())
         for n, a in zip(self.networks, res.x):
             self._VMT[n] = a * self._VMT_tot
             n.setVMT(self.name, self._VMT[n])

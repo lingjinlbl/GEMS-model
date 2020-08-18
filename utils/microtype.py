@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .choiceCharacteristics import ChoiceCharacteristics
-from .network import Network, NetworkCollection, NetworkFlowParams, Costs, TotalOperatorCosts
+from .network import Network, NetworkCollection, Costs, TotalOperatorCosts
 
 
 class CollectedTotalOperatorCosts:
