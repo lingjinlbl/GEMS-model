@@ -651,12 +651,12 @@ class NetworkCollection:
             self.demands[m.name] = m.travelDemand
         # self.updateNetworks()
 
-    def updateModes(self, n: int = 50):
-        allModes = [n.getModeValues() for n in self._networks]
-        uniqueModes = set([item for sublist in allModes for item in sublist])
+    def updateModes(self, n: int = 5):
+        # allModes = [n.getModeValues() for n in self._networks]
+        # uniqueModes = set([item for sublist in allModes for item in sublist])
         oldSpeeds = self.getModeSpeeds()
         for it in range(n):
-            for m in uniqueModes:
+            for m in self.modes.values(): # uniqueModes:
                 m.updateN(self.demands[m.name])
             # self.updateNetworks()
             self.updateMFD()
