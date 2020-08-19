@@ -19,9 +19,11 @@ def net():
 def test_mfd(net):
     auto = AutoMode([net], pd.DataFrame({"VehicleSize": 1}, index=["A"]), "A")
     net.addMode(auto)
+    auto.assignVmtToNetworks()
     net.updateBaseSpeed()
     bs1 = net.getBaseSpeed()
     auto.travelDemand.rateOfPmtPerHour = 100.0
+    auto.assignVmtToNetworks()
     net.updateBaseSpeed()
     bs2 = net.getBaseSpeed()
     assert bs2 < bs1
@@ -30,12 +32,17 @@ def test_mfd(net):
          "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300}, index=["A"])
     bus = BusMode([net], busParams, "A")
     net.addMode(bus)
+    bus.assignVmtToNetworks()
     net.updateBlockedDistance()
+    auto.assignVmtToNetworks()
     net.updateBaseSpeed()
     bs3 = net.getBaseSpeed()
     assert bs3 < bs2
     bus.tripStartRatePerHour = 3
     net.updateBlockedDistance()
+    bus.assignVmtToNetworks()
+    net.updateBlockedDistance()
+    auto.assignVmtToNetworks()
     net.updateBaseSpeed()
     bs4 = net.getBaseSpeed()
     assert bs4 < bs3
