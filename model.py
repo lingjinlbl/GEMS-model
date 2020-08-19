@@ -243,7 +243,7 @@ class Model:
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        while (diff > 0.00005) & (i < 20):
+        while (diff > 0.00003) & (i < 20):
             ms = self.getModeSplit()
             self.demand.updateMFD(self.microtypes, 5)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
@@ -256,9 +256,9 @@ class Model:
             # if np.isnan(c2):
             #     print("----")
             # i += 1
-            print(ms)
+            # print(ms)
             # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
-            print(diff)
+            # print(diff)
         ms = self.getModeSplit()
 
     def getModeSplit(self, timePeriod=None):

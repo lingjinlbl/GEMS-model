@@ -490,12 +490,13 @@ class BusMode(Mode):
             perPassenger = self.passengerWaitInSecDedicated
         else:
             perPassenger = self.passengerWaitInSec
-        numberOfStops = network.L / self.stopSpacingInMeters
+        numberOfStopsInSubnetwork = network.L / self.stopSpacingInMeters
+        numberOfStopsInRoute = self.getRouteLength() / self.stopSpacingInMeters
         pass_per_stop = (self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour
-                         ) / numberOfStops * self.headwayInSec / 3600.
-        stopping_time = numberOfStops * self.minStopTimeInSec
-        stopped_time = perPassenger * pass_per_stop + stopping_time
-        driving_time = self.routeLength / network.base_speed
+                         ) / numberOfStopsInRoute * self.headwayInSec / 3600.
+        stopping_time = numberOfStopsInSubnetwork * self.minStopTimeInSec
+        stopped_time = perPassenger * pass_per_stop * numberOfStopsInSubnetwork + stopping_time
+        driving_time = network.L / network.base_speed
         spd = network.L / (stopped_time + driving_time)
         if np.isnan(spd):
             spd = 0.1
@@ -629,7 +630,6 @@ class Network:
     def __init__(self, data, idx):
         self.data = data
         self._idx = idx
-        self.N_eq = dict()
         self.L_blocked = dict()
         self._modes = dict()
         self.base_speed = self.freeFlowSpeed
@@ -658,10 +658,9 @@ class Network:
         return self.data.at[self._idx, "Length"]
 
     def __str__(self):
-        return str(list(self.N_eq.keys()))
+        return str(list(self._VMT.keys()))
 
     def resetAll(self):
-        self.N_eq = dict()
         self.L_blocked = dict()
         self._modes = dict()
         self.base_speed = self.freeFlowSpeed
@@ -669,7 +668,8 @@ class Network:
 
     def resetModes(self):
         for mode in self._modes.values():
-            self.N_eq[mode.name] = mode.getN(self) * mode.params.relativeLength
+            # self.N_eq[mode.name] = mode.getN(self) * mode.params.relativeLength
+            self._VMT[mode] = mode._VMT[self]
             self.L_blocked[mode.name] = mode.getBlockedDistance(self)
         self.isJammed = False
         self.base_speed = self.freeFlowSpeed
@@ -734,8 +734,8 @@ class Network:
     def containsMode(self, mode: str) -> bool:
         return mode in self._modes.keys()
 
-    def addDensity(self, mode, N_eq):
-        self._modes[mode].addVehicles(N_eq)
+    # def addDensity(self, mode, N_eq):
+    #     self._modes[mode].addVehicles(N_eq)
 
     def getBlockedDistance(self) -> float:
         if self.L_blocked:
@@ -743,16 +743,15 @@ class Network:
         else:
             return 0.0
 
-    def getN_eq(self) -> float:
-        if self.N_eq:
-            return sum(list(self.N_eq.values()))
-        else:
-            return 0.0
+    # def getN_eq(self) -> float:
+    #     if self.N_eq:
+    #         return sum(list(self.N_eq.values()))
+    #     else:
+    #         return 0.0
 
     def addMode(self, mode: Mode):
         self._modes[mode.name] = mode
         self.L_blocked[mode.name] = 0.0
-        self.N_eq[mode.name] = 0.0
         self._VMT[mode.name] = 0.0
         return self
 

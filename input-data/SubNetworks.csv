@@ -2,7 +2,7 @@
 1,A,Auto-Bike,10000,16,0.145,Road,False,50
 2,A,Auto-Bus-Bike,5000,16,0.145,Road,False,50
 3,B,Auto-Bike,10000,18,0.145,Road,False,50
-4,B,Auto-Bus-Bike,2000,18,0.145,Road,False,50
+4,B,Auto-Bus-Bike,2000,14,0.145,Road,False,50
 5,C,Auto-Bike,10000,20,0.145,Road,False,50
 6,C,Auto-Bus-Bike,4000,20,0.145,Road,False,50
 7,D,Auto-Bike,10000,22,0.145,Road,False,50
@@ -12,7 +12,7 @@
 11,C,Walk,10000,1.35,,Sidewalk,True,
 12,D,Walk,10000,1.35,,Sidewalk,True,
 13,A,Bus,0,16,0.145,Road,True,50
-14,B,Bus,0,16,0.145,Road,True,50
+14,B,Bus,0,13,0.145,Road,True,50
 15,C,Bus,0,16,0.145,Road,True,50
 16,D,Bus,0,16,0.145,Road,True,50
 17,A,Rail,1000,25,,Subway,True,
