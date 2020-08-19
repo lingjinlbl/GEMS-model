@@ -9,7 +9,7 @@ from utils.network import Network, NetworkFlowParams, AutoMode, BusMode, TravelD
 
 data = pd.DataFrame(
     {"SubnetworkID": 1, "MicrotypeID": "A", "ModesAllowed": "Auto-Bus", "Dedicated": False, "Length": 1000.0,
-     "Type": "Road", "vMax": 16, "avgLinkLength": 50, "densityMax": 0.144})
+     "Type": "Road", "vMax": 16, "avgLinkLength": 50, "densityMax": 0.144},index=[1])
 
 @pytest.fixture
 def net():
