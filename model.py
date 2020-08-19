@@ -237,7 +237,7 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 3.0)
+                                     self.microtypes, self.__distanceBins, 1.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
@@ -258,13 +258,14 @@ class Model:
             # i += 1
             # print(ms)
             # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
+            # print(self.getModeSpeeds().loc['auto', ['A', 'B', 'C', 'D']])
             # print(diff)
         ms = self.getModeSplit()
 
-    def getModeSplit(self, timePeriod=None):
+    def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None):
         if timePeriod is None:
             timePeriod = self.__currentTimePeriod
-        mode_split = self.__demand[timePeriod].getTotalModeSplit()
+        mode_split = self.__demand[timePeriod].getTotalModeSplit(userClass, microtypeID)
         return mode_split
 
     def getUserCosts(self):
@@ -310,7 +311,7 @@ class Model:
 if __name__ == "__main__":
     a = Model("input-data")
     a.initializeTimePeriod("AM-Peak")
-    a.modifyNetworks(NetworkModification([2000,1000,1000,1000],list(zip([2, 4, 6, 8], [13, 14, 15, 16]))))
+    # a.modifyNetworks(NetworkModification([2000,1000,1000,1000],list(zip([2, 4, 6, 8], [13, 14, 15, 16]))))
     a.findEquilibrium()
     ms = a.getModeSplit()
     # a = Model("input-data")

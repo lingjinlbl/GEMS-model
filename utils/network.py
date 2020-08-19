@@ -9,6 +9,7 @@ from utils.supply import TravelDemand, TravelDemands
 
 np.seterr(all='ignore')
 
+mph2mps = 1609.34/3600
 
 class TotalOperatorCosts:
     def __init__(self):
@@ -133,7 +134,7 @@ class Mode:
     #     self.allocateVehicles()
 
     def getSpeedDifference(self, allocation: list):
-        speeds = np.array([n.NEF(a * self._VMT_tot, self.name) for n, a in zip(self.networks, allocation)])
+        speeds = np.array([n.NEF(a * self._VMT_tot * mph2mps, self.name) for n, a in zip(self.networks, allocation)])
         return np.linalg.norm(speeds - np.mean(speeds))
 
     def assignVmtToNetworks(self):
@@ -142,7 +143,7 @@ class Mode:
             VMT = self._VMT_tot * n.L / Ltot
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
-            self._speed[n] = n.NEF(VMT, self.name)
+            self._speed[n] = n.NEF(VMT * mph2mps, self.name)
 
     # def allocateVehicles(self):
     #     """even"""
@@ -374,7 +375,7 @@ class AutoMode(Mode):
         res = minimize(self.getSpeedDifference, self.x0(), constraints=self.constraints(), bounds=self.bounds())
         for n, a in zip(self.networks, res.x):
             self._VMT[n] = a * self._VMT_tot
-            self._speed[n] = n.NEF(a * self._VMT_tot, self.name)
+            self._speed[n] = n.NEF(a * self._VMT_tot * mph2mps, self.name)
             n.setVMT(self.name, self._VMT[n])
 
     # def allocateVehicles(self):
@@ -683,12 +684,12 @@ class Network:
 
     def NEF(self, Q=None, modeIgnored=None) -> float:
         if Q is None:
-            Qtot = sum([VMT for VMT in self._VMT.values()])
+            Qtot = sum([VMT for VMT in self._VMT.values()]) * mph2mps
         else:
             Qtot = Q
             for mode, Qmode in self._VMT.items():
                 if mode != modeIgnored:
-                    Qtot += Qmode
+                    Qtot += Qmode * mph2mps
         q = Qtot / (self.L - self.getBlockedDistance())
         qMax = self.freeFlowSpeed * self.jamDensity / 2.0
         if q <= qMax:
@@ -833,15 +834,16 @@ class NetworkCollection:
                 for n in m.networks:
                     n.updateBaseSpeed()
                 m.updateModeBlockedDistance()
+                self.getModeSpeeds()
                 # m.updateN(self.demands[m.name])
             # self.updateNetworks()
             # self.updateMFD()
             if self.verbose:
                 print(str(self))
-            if np.any([n.isJammed for n in self._networks]):
-                break
+            # if np.any([n.isJammed for n in self._networks]):
+            #     break
             newSpeeds = self.getModeSpeeds()
-            if np.sum(np.power(oldSpeeds - newSpeeds, 2)) < 0.000001:
+            if np.linalg.norm(oldSpeeds - newSpeeds) < 1e-9:
                 break
             else:
                 oldSpeeds = newSpeeds

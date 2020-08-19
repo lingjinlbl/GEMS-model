@@ -1,9 +1,9 @@
 ﻿MicrotypeID,PopulationGroupTypeID,Population
-A,low-income,600
-A,high-income,600
-B,low-income,300
-B,high-income,200
-C,low-income,200
-C,high-income,400
-D,low-income,50
-D,high-income,50
+A,low-income,6000
+A,high-income,7000
+B,low-income,5000
+B,high-income,2000
+C,low-income,3000
+C,high-income,4000
+D,low-income,500
+D,high-income,500
