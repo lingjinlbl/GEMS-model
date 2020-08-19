@@ -237,13 +237,13 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 1.0)
+                                     self.microtypes, self.__distanceBins, 3.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        while (diff > 0.00001) & (i < 20):
+        while (diff > 0.00005) & (i < 20):
             ms = self.getModeSplit()
             self.demand.updateMFD(self.microtypes, 5)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
@@ -256,8 +256,9 @@ class Model:
             # if np.isnan(c2):
             #     print("----")
             # i += 1
-            # print(ms)
+            print(ms)
             # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
+            print(diff)
         ms = self.getModeSplit()
 
     def getModeSplit(self, timePeriod=None):
@@ -307,8 +308,9 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data-production")
-    a.initializeTimePeriod("morning_rush")
+    a = Model("input-data")
+    a.initializeTimePeriod("AM-Peak")
+    a.modifyNetworks(NetworkModification([2000,1000,1000,1000],list(zip([2, 4, 6, 8], [13, 14, 15, 16]))))
     a.findEquilibrium()
     ms = a.getModeSplit()
     # a = Model("input-data")
