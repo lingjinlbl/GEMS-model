@@ -22,7 +22,8 @@ def test_mfd(net):
     auto.assignVmtToNetworks()
     net.updateBaseSpeed()
     bs1 = net.getBaseSpeed()
-    auto.travelDemand.rateOfPmtPerHour = 100.0
+    auto.travelDemand.rateOfPmtPerHour = 500.0
+    auto.updateDemand()
     auto.assignVmtToNetworks()
     net.updateBaseSpeed()
     bs2 = net.getBaseSpeed()
@@ -38,7 +39,8 @@ def test_mfd(net):
     net.updateBaseSpeed()
     bs3 = net.getBaseSpeed()
     assert bs3 < bs2
-    bus.tripStartRatePerHour = 3
+    bus.travelDemand.tripStartRatePerHour = 30
+    bus.updateDemand()
     net.updateBlockedDistance()
     bus.assignVmtToNetworks()
     net.updateBlockedDistance()

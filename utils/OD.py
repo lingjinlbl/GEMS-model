@@ -83,7 +83,11 @@ class ModeSplit:
         return self
 
     def toDict(self):
-        return self._mapping.copy()
+        out = self._mapping.copy()
+        out["PMT"] = self.__demandForPmtPerHour
+        out["Trips"] = self.__demandForTripsPerHour
+        return out
+
 
     @property
     def demandForPmtPerHour(self):

@@ -164,7 +164,7 @@ class Demand:
         diff = oldModeSplit - newModeSplit
         return diff
 
-    def getTotalModeSplit(self, userClass=None, microtypeID=None, otherModeSplit=None, distanceBin=None) -> ModeSplit:
+    def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
         demandForTrips = 0
         demandForDistance = 0
         trips = dict()

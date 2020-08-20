@@ -115,8 +115,11 @@ class Mode:
         # return self.params.to_numpy()[self._inds["PerMileCost"]]
         return self.params.at[self._idx, "PerMileCost"]
 
-    def updateDemand(self, travelDemand: TravelDemand):
-        self.travelDemand = travelDemand
+    def updateDemand(self, travelDemand= None):
+        if travelDemand is None:
+            travelDemand = self.travelDemand
+        else:
+            self.travelDemand = travelDemand
         self._VMT_tot = travelDemand.rateOfPmtPerHour * self.relativeLength
 
     def getDemandForVmtPerHour(self):
@@ -310,8 +313,9 @@ class RailMode(Mode):
         # return self.params.to_numpy()[self._inds["CoveragePortion"]]
         return self.params.at[self._idx, "CoveragePortion"]
 
-    def updateDemand(self, travelDemand: TravelDemand):
-        self.travelDemand = travelDemand
+    def updateDemand(self, travelDemand=None):
+        if travelDemand is not None:
+            self.travelDemand = travelDemand
         self._VMT_tot = self.getRouteLength() / self.headwayInSec
 
     def getAccessDistance(self) -> float:
@@ -465,8 +469,9 @@ class BusMode(Mode):
     def portionAreaCovered(self):
         return self.params.at[self._idx, "CoveragePortion"]
 
-    def updateDemand(self, travelDemand: TravelDemand):
-        self.travelDemand = travelDemand
+    def updateDemand(self, travelDemand=None):
+        if travelDemand is not None:
+            self.travelDemand = travelDemand
         self._VMT_tot = self.getRouteLength() / self.headwayInSec
 
     def getAccessDistance(self) -> float:
