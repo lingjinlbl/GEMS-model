@@ -3,6 +3,7 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+from random import uniform
 
 from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
@@ -43,6 +44,7 @@ class ModeSplit:
         else:
             assert (isinstance(mapping, Dict))
             self._mapping = mapping
+        self.__counter = 1.0
 
     def updateMapping(self, mapping: Dict[str, float]):
         if self._mapping.keys() == mapping.keys():
@@ -67,17 +69,25 @@ class ModeSplit:
 
     def __mul__(self, other):
         out = self.copy()
+        portion = 1. / self.__counter# uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in out._mapping.keys():
-            out[key] = out[key] / 2 + other[key] / 2
+            out[key] = out[key] * portion + other[key] * (1.0 - portion)
+        self.__counter += 0.2
         return out
 
     def __imul__(self, other):
+        portion = 1. / self.__counter# uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in self._mapping.keys():
-            self[key] = self[key] / 2 + other[key] / 2
+            self[key] = self[key] * portion + other[key] * (1.0 - portion)
+        self.__counter += 0.2
         return self
 
     def toDict(self):
-        return self._mapping.copy()
+        out = self._mapping.copy()
+        out["PMT"] = self.__demandForPmtPerHour
+        out["Trips"] = self.__demandForTripsPerHour
+        return out
+
 
     @property
     def demandForPmtPerHour(self):

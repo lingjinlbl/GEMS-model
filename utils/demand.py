@@ -164,21 +164,27 @@ class Demand:
         diff = oldModeSplit - newModeSplit
         return diff
 
-    def getTotalModeSplit(self, otherModeSplit=None) -> ModeSplit:
-        demand = 0
+    def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
+        demandForTrips = 0
+        demandForDistance = 0
         trips = dict()
-        for ms in self.__modeSplit.values():
-            for mode, split in ms:
-                new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
-                trips[mode] = new_demand
-            demand += ms.demandForTripsPerHour
+        for (di, odi), ms in self.__modeSplit.items():
+            relevant = ((userClass is None) or (di.populationGroupType == userClass)) & (
+                        (microtypeID is None) or (di.homeMicrotype == microtypeID)) & (
+                        (distanceBin is None) or (odi.distBin == distanceBin))
+            if relevant:
+                for mode, split in ms:
+                    new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
+                    trips[mode] = new_demand
+                demandForTrips += ms.demandForTripsPerHour
+                demandForDistance += ms.demandForPmtPerHour
         for mode in trips.keys():
             if otherModeSplit is not None:
-                trips[mode] /= (demand * 2.)
+                trips[mode] /= (demandForTrips * 2.)
                 trips[mode] += otherModeSplit[mode] / 2.
             else:
-                trips[mode] /= demand
-        return ModeSplit(trips)
+                trips[mode] /= demandForTrips
+        return ModeSplit(trips, demandForTrips, demandForDistance)
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                      originDestination: OriginDestination, defaultParams=None) -> CollectedTotalUserCosts:
