@@ -40,7 +40,7 @@ class ModeSplit:
         self.demandForTripsPerHour = demandForTrips
         self.demandForPmtPerHour = demandForPMT
         if mapping is None:
-            self._mapping = Dict[str, float]
+            self._mapping = dict()
         else:
             assert (isinstance(mapping, Dict))
             self._mapping = mapping
@@ -53,7 +53,7 @@ class ModeSplit:
             print("OH NO BAD MAPPING")
 
     def copy(self):
-        return ModeSplit(self._mapping.copy(), self.demandForTripsPerHour, self.__demandForPmtPerHour)
+        return ModeSplit(self._mapping.copy(), self.demandForTripsPerHour, self.demandForPmtPerHour)
 
     def __sub__(self, other):
         output = []
@@ -80,6 +80,24 @@ class ModeSplit:
         for key in self._mapping.keys():
             self[key] = self[key] * portion + other[key] * (1.0 - portion)
         self.__counter += 0.2
+        return self
+
+    def __add__(self, other):
+        out = self.copy()
+        for key in self._mapping.keys():
+            out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (self.demandForTripsPerHour + other.demandForTripsPerHour)
+        out.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
+        out.demandForPmtPerHour = (self.demandForPmtPerHour + other.demandForPmtPerHour)
+        return out
+
+    def __iadd__(self, other):
+        if self._mapping:
+            for key in self._mapping.keys():
+                self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (self.demandForTripsPerHour + other.demandForTripsPerHour)
+        else:
+            self._mapping = other._mapping.copy()
+        self.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
+        self.demandForPmtPerHour = (self.demandForPmtPerHour + other.demandForPmtPerHour)
         return self
 
     def toDict(self):

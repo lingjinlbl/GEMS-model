@@ -11,7 +11,7 @@ def test_find_equilibrium():
     a = Model(ROOT_DIR + "/../input-data")
     a.initializeTimePeriod("PM-Peak")
     a.findEquilibrium()
-    busLaneDistance = np.arange(50, 1950, 200)
+    busLaneDistance = np.arange(25, 1975, 50)
     busSpeed = []
     carSpeedA = []
     carSpeedB = []

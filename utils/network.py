@@ -9,7 +9,8 @@ from utils.supply import TravelDemand, TravelDemands
 
 np.seterr(all='ignore')
 
-mph2mps = 1609.34/3600
+mph2mps = 1609.34 / 3600
+
 
 class TotalOperatorCosts:
     def __init__(self):
@@ -115,7 +116,7 @@ class Mode:
         # return self.params.to_numpy()[self._inds["PerMileCost"]]
         return self.params.at[self._idx, "PerMileCost"]
 
-    def updateDemand(self, travelDemand= None):
+    def updateDemand(self, travelDemand=None):
         if travelDemand is None:
             travelDemand = self.travelDemand
         else:
@@ -336,16 +337,13 @@ class RailMode(Mode):
     def getDemandForVmtPerHour(self):
         return self.getRouteLength() / self.headwayInSec * 3600.
 
-    def updateN(self, demand: TravelDemand):
-        n_new = self.getRouteLength() / self.routeAveragedSpeed / self.headwayInSec
-        self._N_tot = n_new
-        self.allocateVehicles()
-
-    def allocateVehicles(self):
-        """ Assumes just one subNetwork """
-        n = self.networks[0]
-        n.N_eq[self.name] = self._N_tot
-        self._N[n] = n.N_eq[self.name]
+    def assignVmtToNetworks(self):
+        Ltot = sum([n.L for n in self.networks])
+        for n in self.networks:
+            VMT = self._VMT_tot * n.L / Ltot
+            self._VMT[n] = VMT
+            n.setVMT(self.name, self._VMT[n])
+            self._speed[n] = self.routeAveragedSpeed
 
 
 class AutoMode(Mode):
@@ -472,13 +470,13 @@ class BusMode(Mode):
     def updateDemand(self, travelDemand=None):
         if travelDemand is not None:
             self.travelDemand = travelDemand
-        self._VMT_tot = self.getRouteLength() / self.headwayInSec
+        self._VMT_tot = self.getDemandForVmtPerHour()
 
     def getAccessDistance(self) -> float:
         return self.stopSpacingInMeters / 4.0 / self.portionAreaCovered ** 2.0
 
     def getDemandForVmtPerHour(self):
-        return self.getRouteLength() / self.headwayInSec * 3600.
+        return self.getRouteLength() / self.headwayInSec * 3600. / 1609.34
 
     def getN(self, network):
         return network.L / self.routeAveragedSpeed / self.headwayInSec
@@ -528,10 +526,12 @@ class BusMode(Mode):
         # seconds = []
         for idx, n in enumerate(self.networks):
             if n.L > 0:
-                n_bus = self.getN(n)
+                # n_bus = self.getN(n)
                 bus_speed = self.getSubNetworkSpeed(n)
-                seconds[idx] = n_bus
-                meters[idx] = n_bus * bus_speed
+                # seconds[idx] = n_bus
+                # meters[idx] = n_bus * bus_speed
+                meters[idx] = n.L
+                seconds[idx] = n.L / bus_speed
         if np.sum(seconds) > 0:
             spd = np.sum(meters) / np.sum(seconds)
             return spd
@@ -572,11 +572,11 @@ class BusMode(Mode):
             spd = speeds[ind]
             times.append(n.L / spd)
             lengths.append(n.L)
-        T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
+        # T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
         for ind, n in enumerate(self.networks):
             assert isinstance(n, Network)
             if speeds[ind] > 0:
-                VMT = self._VMT_tot * lengths[ind] / speeds[ind] / T_tot
+                VMT = self._VMT_tot * lengths[ind] / self.getRouteLength()
                 self._VMT[n] = VMT
                 n.setVMT(self.name, self._VMT[n])
                 n.updateBaseSpeed()
@@ -584,7 +584,6 @@ class BusMode(Mode):
             else:
                 print("BAD WHY IS THIS SPEED NEGATIVE")
         self.updateCommercialSpeed()
-
 
     def updateCommercialSpeed(self):
         self.routeAveragedSpeed = self.getRouteLength() / sum([n.L / spd for n, spd in self._speed.items()])

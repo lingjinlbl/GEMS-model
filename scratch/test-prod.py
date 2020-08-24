@@ -15,24 +15,25 @@ modesplits = dict()
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 a = Model(ROOT_DIR + "/../input-data-production")
-original = 3916704.6807775586
-dist = 201670.0
+original = 41328699.75074827
+dist = 1.0 * original
 
-otherOriginal = 6075753.0
+otherOriginal = 64110779.85721326
+otherdist = 1.0 * otherOriginal
 
 for timePeriod in ['morning_rush','other_time','evening_rush']:
     a.initializeTimePeriod(timePeriod)
     a.scenarioData['subNetworkData'].at[3, "Length"] = dist
     a.scenarioData['subNetworkData'].at[1, "Length"] = original - dist
-    a.scenarioData['subNetworkData'].at[9, "Length"] = dist
-    a.scenarioData['subNetworkData'].at[7, "Length"] = otherOriginal - dist
+    a.scenarioData['subNetworkData'].at[9, "Length"] = otherdist
+    a.scenarioData['subNetworkData'].at[7, "Length"] = otherOriginal - otherdist
     a.findEquilibrium()
     spds[timePeriod] = a.getModeSpeeds()
     modesplits[timePeriod] = pd.DataFrame(a.getModeSplit().toDict(), index=["Aggregate"])
 
 all = pd.concat(spds)
 all.columns = pd.MultiIndex.from_tuples(all.columns.to_series().apply(lambda x: (x[0], x[2])))
-all.to_csv("speeds-1200-5pctbuslaneA1A2-hw2.csv")
+all.to_csv("speeds-1600-100pctbuslane-fixed.csv")
 # for g in all.columns.get_level_values(0).unique():
 #     plt.plot(all[g].loc[("morning_rush","bus"),:])
 
@@ -41,18 +42,21 @@ microtypes = a.scenarioData["populations"]["MicrotypeID"].unique()
 dbins = a.scenarioData["distanceBins"]["DistanceBinID"].unique()
 
 allModeSplits = dict()
-for popGroup in popGroups:
-    allModeSplits[popGroup] = pd.DataFrame(a.getModeSplit(userClass=popGroup).toDict(),index=["popGroup"])
-
-for microtype in microtypes:
-    allModeSplits[microtype] = pd.DataFrame(a.getModeSplit(microtypeID=microtype).toDict(), index=["microtype"])
+for timePeriod in a.scenarioData["timePeriods"].TimePeriodID.values:
     for popGroup in popGroups:
-        allModeSplits[popGroup + '_' + microtype] = pd.DataFrame(a.getModeSplit(userClass=popGroup,microtypeID=microtype).toDict(), index=["popGroupMicrotype"])
+        allModeSplits[popGroup + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, userClass=popGroup).toDict(),index=["popGroup"])
 
-for dbin in dbins:
-    allModeSplits[dbin] = pd.DataFrame(a.getModeSplit(distanceBin=dbin).toDict(), index=["dbin"])
+for timePeriod in a.scenarioData["timePeriods"].TimePeriodID.values:
+    for microtype in microtypes:
+        allModeSplits[microtype + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, microtypeID=microtype).toDict(), index=["microtype"])
+        for popGroup in popGroups:
+            allModeSplits[popGroup + '_' + microtype + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, userClass=popGroup,microtypeID=microtype).toDict(), index=["popGroupMicrotype"])
+
+for timePeriod in a.scenarioData["timePeriods"].TimePeriodID.values:
+    for dbin in dbins:
+        allModeSplits[dbin + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, distanceBin=dbin).toDict(), index=["dbin"])
 
 joined = pd.concat(allModeSplits)
-joined.to_csv("groupModeSplits-1200-5pctbuslaneA1A2-hw2.csv")
-pd.concat(modesplits).to_csv("modeSplits-1200-5pctbuslaneA1A2-hw2.csv")
+joined.to_csv("groupModeSplits-1600-100pctbuslane-fixed.csv")
+pd.concat(modesplits).to_csv("modeSplits-1600-100pctbuslane-fixed.csv")
 print("done")
