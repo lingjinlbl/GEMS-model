@@ -8,7 +8,7 @@ from skopt import gp_minimize
 from noisyopt import minimizeCompass
 from copy import deepcopy
 
-from utils.OD import TripCollection, OriginDestination, TripGeneration
+from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand, CollectedTotalUserCosts
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
@@ -110,7 +110,7 @@ class Optimizer:
             b = self.getBounds()
             return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
         elif self.__method == "noisy":
-            return minimizeCompass(self.evaluate, self.x0(), bounds=self.getBounds(), paired=False, deltainit=200.0,
+            return minimizeCompass(self.evaluate, self.x0(), bounds=self.getBounds(), paired=False, deltainit=500000.0,
                                    errorcontrol=False)
         else:
             return minimize(self.evaluate, self.x0(), bounds=self.getBounds(), method=self.__method)
@@ -243,8 +243,8 @@ class Model:
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        while (diff > 0.00003) & (i < 20):
-            ms = self.getModeSplit()
+        while (diff > 0.0001) & (i < 20):
+            ms = self.getModeSplit(self.__currentTimePeriod)
             self.demand.updateMFD(self.microtypes, 5)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
@@ -260,13 +260,21 @@ class Model:
             # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
             # print(self.getModeSpeeds().loc['auto', ['A', 'B', 'C', 'D']])
             # print(diff)
-        ms = self.getModeSplit()
+        ms = self.getModeSplit(self.__currentTimePeriod)
+        # print(ms)
 
-    def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None):
+    def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
         if timePeriod is None:
-            timePeriod = self.__currentTimePeriod
-        mode_split = self.__demand[timePeriod].getTotalModeSplit(userClass, microtypeID)
-        return mode_split
+            timePeriods = self.scenarioData["timePeriods"].TimePeriodID.values
+            weights = self.scenarioData["timePeriods"].DurationInHours.values
+        else:
+            timePeriods = [timePeriod]
+            weights = [1]
+        ms = ModeSplit()
+        for tp in timePeriods:
+            if tp in self.__demand:
+                ms += self.__demand[tp].getTotalModeSplit(userClass, microtypeID, distanceBin)
+        return ms
 
     def getUserCosts(self):
         return self.demand.getUserCosts(self.choice, self.__originDestination)
@@ -309,11 +317,11 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data")
-    a.initializeTimePeriod("AM-Peak")
+    # a = Model("input-data")
+    # a.initializeTimePeriod("AM-Peak")
     # a.modifyNetworks(NetworkModification([2000,1000,1000,1000],list(zip([2, 4, 6, 8], [13, 14, 15, 16]))))
-    a.findEquilibrium()
-    ms = a.getModeSplit()
+    # a.findEquilibrium()
+    # ms = a.getModeSplit()
     # a = Model("input-data")
     # a.initializeTimePeriod("AM-Peak")
     # a.findEquilibrium()
@@ -324,17 +332,17 @@ if __name__ == "__main__":
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
     #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),
     #               method="shgo")
-    # o = Optimizer("input-data",
-    #               fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
-    #               method="noisy")
+    o = Optimizer("input-data-production",
+                  fromToSubNetworkIDs=list(zip([1, 7, 43, 49, 85, 91, 121, 127], [3, 9, 45, 51, 87, 93, 123, 129])),
+                  method="noisy")
     # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
     # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
     # # o.evaluate(np.array([300., 200., 200., 200.]))
-    # output = o.minimize()
+    output = o.minimize()
     print("DONE")
-    # print(output.x)
-    # print(output.fun)
-    # print(output.message)
+    print(output.x)
+    print(output.fun)
+    print(output.message)
     #
     # print("DONE")
     # cost2 = o.evaluate(np.array([10., 1.]))
