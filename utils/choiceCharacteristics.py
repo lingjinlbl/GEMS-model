@@ -55,6 +55,9 @@ class ModalChoiceCharacteristics:
         for mode in self.modes():
             self[mode] = ChoiceCharacteristics()
 
+    def __contains__(self, item):
+        return item in self.__modalChoiceCharacteristics
+
 
 class CollectedChoiceCharacteristics:
     def __init__(self):

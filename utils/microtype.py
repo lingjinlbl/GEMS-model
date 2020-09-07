@@ -47,6 +47,9 @@ class CollectedTotalOperatorCosts:
                 self[mode] = other[mode]
         return self
 
+    def toDataFrame(self):
+        return pd.concat([val.toDataFrame([key]) for key, val in self.__costs.items()])
+
 
 class Microtype:
     def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):

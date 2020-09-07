@@ -56,20 +56,33 @@ class DemandClass:
             mode_split[modes[ind]] = probabilities[ind]
         return mode_split
 
-    def getCostPerCapita(self, mcc: ModalChoiceCharacteristics, modeSplit, params=None) -> float:
+    def getModeCostPerTrip(self, mcc: ModalChoiceCharacteristics, mode, params=None):
+        if mode not in mcc:
+            return np.nan
         if params is not None:
             params = DemandClass(params)
         else:
             params = self
-        costPerCapita = 0.
-        for mode, split in modeSplit:
-            costPerCapita += params[mode, "Intercept"] * split
-            costPerCapita += (mcc[mode].travel_time * 60.0) * params[mode, "BetaTravelTime"] * split
-            costPerCapita += (mcc[mode].wait_time * 60.0) * params[mode, "BetaWaitTime"] * split
-            costPerCapita += (mcc[mode].wait_time * 60.0) ** 2.0 * params[mode, "BetaWaitTimeSquared"] * split
-            costPerCapita += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"] * split
-            costPerCapita += mcc[mode].cost * params[mode, "VOM"] * split
-        return costPerCapita
+        costPerTrip = 0.0
+        costPerTrip += params[mode, "Intercept"]
+        costPerTrip += (mcc[mode].travel_time * 60.0) * params[mode, "BetaTravelTime"]
+        costPerTrip += (mcc[mode].wait_time * 60.0) * params[mode, "BetaWaitTime"]
+        costPerTrip += (mcc[mode].wait_time * 60.0) ** 2.0 * params[mode, "BetaWaitTimeSquared"]
+        costPerTrip += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
+        costPerTrip += mcc[mode].cost * params[mode, "VOM"]
+        return costPerTrip
+
+    def getCostPerCapita(self, mcc: ModalChoiceCharacteristics, modeSplit, modes=None, params=None) -> (float, float):
+        if modes is None:
+            modes = modeSplit.keys()
+        costPerCapita = 0.0
+        totalDemandForTrips = 0.0
+        for mode in modes:
+            split = modeSplit[mode]
+            costPerTrip = self.getModeCostPerTrip(mcc, mode, params)
+            costPerCapita = costPerTrip * split
+            totalDemandForTrips += modeSplit.demandForTripsPerHour * split
+        return costPerCapita, totalDemandForTrips
 
 
 class Population:

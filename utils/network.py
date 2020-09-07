@@ -47,6 +47,9 @@ class TotalOperatorCosts:
     def __str__(self):
         return [key + ' ' + str(item) for key, item in self.__costs.items()]
 
+    def toDataFrame(self, index=None):
+        return pd.DataFrame(self.__costs, index=index)
+
 
 class NetworkFlowParams:
     def __init__(self, smoothing, free_flow_speed, wave_velocity, jam_density, max_flow, avg_link_length):

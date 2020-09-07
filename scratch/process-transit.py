@@ -11,21 +11,31 @@ path = os.path.join(ROOT_DIR, "..", "input-data-production", "TransitService.csv
 transitService = pd.read_csv(path)
 transitService["ServicePerMile"] = transitService["veh_revenue_miles"] / transitService["dir_route_miles"] / 365.0
 
+path = os.path.join(ROOT_DIR, "..", "input-data-production", "TransitSystemCosts.csv")
+transitCosts = pd.read_csv(path)[["Geotype","Mode","Intercept","BetaFleetSize"]]
+transitCosts["costPerVehicleHour"] = transitCosts["BetaFleetSize"]/365.0/18.0
+
 subNetworks["Geotype"] = subNetworks["MicrotypeID"].str[0]
 
 geoDists = subNetworks.groupby("Geotype").agg({"LengthNetwork": sum}).merge(
     transitService.loc[transitService["mode_group"] == "bus"], left_on="Geotype", right_on="geotype")
+geoDists = geoDists.merge(
+    transitCosts.loc[transitCosts["Mode"] == "bus"], left_on="geotype", right_on="Geotype"
+)
 geoDists["NetworkFraction"] = geoDists["dir_route_miles"] / geoDists["LengthNetwork"] / miles2meters
 interliningFactor = 0.3
 
 railDists = subNetworks.groupby("Geotype").agg({"LengthNetwork": sum}).merge(
     transitService.loc[transitService["mode_group"] == "rail"], left_on="Geotype", right_on="geotype")
+railDists = railDists.merge(
+    transitCosts.loc[transitCosts["Mode"] == "rail"], left_on="geotype", right_on="Geotype"
+)
 railDists["NetworkFraction"] = railDists["dir_route_miles"] / railDists["LengthNetwork"] / miles2meters
 
-subNetworks = subNetworks.merge(geoDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile"]], left_on="Geotype",
+subNetworks = subNetworks.merge(geoDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile","costPerVehicleHour"]], left_on="Geotype",
                                 right_on="geotype", how='left')
 
-subNetworks = subNetworks.merge(railDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile"]], left_on="Geotype",
+subNetworks = subNetworks.merge(railDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile","costPerVehicleHour"]], left_on="Geotype",
                                 right_on="geotype", suffixes=('', '_rail'), how='left').fillna(0)
 
 Auto = subNetworks[['MicrotypeID']].set_index('MicrotypeID')
