@@ -1,16 +1,19 @@
+import pandas as pd
+
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
 from .choiceCharacteristics import CollectedChoiceCharacteristics, filterAllocation
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins
 from .population import Population
 
-import pandas as pd
-
 
 class TotalUserCosts:
-    def __init__(self, total=0., totalEqualVOT=0., demandForTripsPerHour=0., demandForPMTPerHour=0.):
+    def __init__(self, total=0., totalEqualVOT=0., totalIVT=0., totalOVT=0., demandForTripsPerHour=0.,
+                 demandForPMTPerHour=0.):
         self.total = total
         self.totalEqualVOT = totalEqualVOT
+        self.totalIVT = totalIVT
+        self.totalOVT = totalOVT
         self.demandForTripsPerHour = demandForTripsPerHour
         self.demandForPMTPerHour = demandForPMTPerHour
 
@@ -21,6 +24,8 @@ class TotalUserCosts:
         result = TotalUserCosts()
         result.total = self.total * other
         result.totalEqualVOT = self.totalEqualVOT * other
+        result.totalIVT = self.totalIVT * other
+        result.totalOVT = self.totalOVT * other
         result.demandForTripsPerHour = self.demandForTripsPerHour * other
         result.demandForPMTPerHour = self.demandForPMTPerHour * other
         return result
@@ -31,24 +36,30 @@ class TotalUserCosts:
     def __imul__(self, other):
         self.total *= other
         self.totalEqualVOT *= other
+        self.totalIVT *= totalIVT
+        self.totalOVT *= totalOVT
         self.demandForTripsPerHour *= other
         self.demandForPMTPerHour *= other
         return self
 
     def copy(self):
-        return TotalUserCosts(self.total, self.totalEqualVOT, self.demandForTripsPerHour, self.demandForPMTPerHour)
+        return TotalUserCosts(self.total, self.totalEqualVOT, self.totalIVT, self.totalOVT, self.demandForTripsPerHour,
+                              self.demandForPMTPerHour)
 
     def __add__(self, other):
         out = self.copy()
         out.total += other.total
         out.totalEqualVOT += other.totalEqualVOT
+        out.totalIVT += other.totalIVT
+        out.totalOVT += other.totalOVT
         out.demandForTripsPerHour += other.demandForTripsPerHour
         out.demandForPMTPerHour += other.demandForPMTPerHour
         return out
 
     def toDataFrame(self, index=None):
         return pd.DataFrame({"totalCost": self.total, "demandForTripsPerHour": self.demandForTripsPerHour,
-                      "demandForPMTPerHour": self.demandForPMTPerHour}, index=index)
+                             "inVehicleTime": self.totalIVT, "outOfVehicleTime": self.totalOVT,
+                             "demandForPMTPerHour": self.demandForPMTPerHour}, index=index)
 
 
 class CollectedTotalUserCosts:
@@ -218,19 +229,23 @@ class Demand:
             totalCostDefault = 0.
             totalDemandForTripsPerHour = 0.
             totalDemandForPMTPerHour = 0.
+            totalInVehicle = 0.
+            totalOutVehicle = 0.
             od = originDestination[demandIndex]
             demandClass = self.__population[demandIndex]
             for odi, portion in od.items():
                 ms = self[(demandIndex, odi)]
                 mcc = collectedChoiceCharacteristics[odi]
-                cost, totalDemandForTripsPerHour = demandClass.getCostPerCapita(mcc, ms, modes)
+                cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms, modes)
                 # costDefault = demandClass.getCostPerCapita(mcc, ms, modes) * ms.demandForTripsPerHour  # TODO: Add default
-                totalCost -= cost * totalDemandForTripsPerHour
+                totalCost -= cost * demandForTripsPerHour
+                totalInVehicle += inVehicle * demandForTripsPerHour
+                totalOutVehicle += outVehicle * demandForTripsPerHour
                 totalCostDefault -= 0.0
-                totalDemandForTripsPerHour += totalDemandForTripsPerHour
-                totalDemandForPMTPerHour += totalDemandForTripsPerHour * self.__distanceBins[odi.distBin]
-            out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault, totalDemandForTripsPerHour,
-                                              totalDemandForPMTPerHour)
+                totalDemandForTripsPerHour += demandForTripsPerHour
+                totalDemandForPMTPerHour += distance * demandForTripsPerHour
+            out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault, totalInVehicle, totalOutVehicle,
+                                              totalDemandForTripsPerHour, totalDemandForPMTPerHour)
         return out
 
     def __str__(self):

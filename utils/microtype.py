@@ -112,7 +112,7 @@ class Microtype:
         wait = 0.
         accessTime = 0.
         protectedDistance = self.networks.modes[mode].getPortionDedicated() * distanceInMiles
-        return ChoiceCharacteristics(timeInHours, cost, wait, accessTime, protectedDistance)
+        return ChoiceCharacteristics(timeInHours, cost, wait, accessTime, protectedDistance, distanceInMiles)
 
     def getStartTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
         time = 0.

@@ -10,7 +10,7 @@ sys.path.append("/Users/zaneedell/Desktop/git/task-3-modeling")
 
 from model import Model
 
-for factor in range(0,110,10):
+for factor in range(0,105,5):
     spds = dict()
     modesplits = dict()
     userCosts = dict()
@@ -18,14 +18,14 @@ for factor in range(0,110,10):
 
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     a = Model(ROOT_DIR + "/../input-data-production")
-    original = a.scenarioData['subNetworkData'].at[43, "Length"]
+    original = a.scenarioData['subNetworkData'].at[1, "Length"]
     dist = factor * original / 100.
     string = str(factor) + "pctbuslane.csv"
 
     for timePeriod in ['morning_rush','other_time','evening_rush']:
         a.initializeTimePeriod(timePeriod)
-        a.scenarioData['subNetworkData'].at[45, "Length"] = dist
-        a.scenarioData['subNetworkData'].at[43, "Length"] = original - dist
+        a.scenarioData['subNetworkData'].at[3, "Length"] = dist
+        a.scenarioData['subNetworkData'].at[1, "Length"] = original - dist
         a.findEquilibrium()
         spds[timePeriod] = a.getModeSpeeds()
         modesplits[timePeriod] = pd.DataFrame(a.getModeSplit().toDict(), index=["Aggregate"])
@@ -34,10 +34,10 @@ for factor in range(0,110,10):
 
     all = pd.concat(spds)
     all.columns = pd.MultiIndex.from_tuples(all.columns.to_series().apply(lambda x: (x[0], x[2])))
-    all.to_csv("out/B_speeds-" + string)
+    all.to_csv("out/A_speeds-" + string)
 
-    pd.concat(userCosts).to_csv("out/B_userCosts-"+string)
-    pd.concat(operatorCosts).to_csv("out/B_operatorCosts-"+string)
+    pd.concat(userCosts).to_csv("out/A_userCosts-"+string)
+    pd.concat(operatorCosts).to_csv("out/A_operatorCosts-"+string)
     # for g in all.columns.get_level_values(0).unique():
     #     plt.plot(all[g].loc[("morning_rush","bus"),:])
 
@@ -61,5 +61,5 @@ for factor in range(0,110,10):
             allModeSplits[dbin + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, distanceBin=dbin).toDict(), index=["dbin"])
 
     joined = pd.concat(allModeSplits)
-    joined.to_csv("out/B_groupModeSplits-"+string)
-    pd.concat(modesplits).to_csv("out/B_modeSplits-"+string)
+    joined.to_csv("out/A_groupModeSplits-"+string)
+    pd.concat(modesplits).to_csv("out/A_modeSplits-"+string)

@@ -18,13 +18,6 @@ class DemandClass:
     def __init__(self, params: pd.DataFrame):
         self.__params = params.to_dict(orient="index")
 
-    # def __iadd__(self, other: Dict[str, float]):
-    #     self.__params.update(other)
-    #
-    # def __add__(self, other: Dict[str, float]):
-    #     self.__params.update(other)
-    #     return self
-
     def __getitem__(self, item) -> float:
         item1, item2 = item
         if item1 in self.__params:
@@ -58,31 +51,43 @@ class DemandClass:
 
     def getModeCostPerTrip(self, mcc: ModalChoiceCharacteristics, mode, params=None):
         if mode not in mcc:
-            return np.nan
+            return np.nan, np.nan, np.nan, np.nan
         if params is not None:
             params = DemandClass(params)
         else:
             params = self
         costPerTrip = 0.0
+        inVehicleTime = 0.0
+        outVehicleTime = 0.0
+        distance = 0.0
         costPerTrip += params[mode, "Intercept"]
         costPerTrip += (mcc[mode].travel_time * 60.0) * params[mode, "BetaTravelTime"]
         costPerTrip += (mcc[mode].wait_time * 60.0) * params[mode, "BetaWaitTime"]
         costPerTrip += (mcc[mode].wait_time * 60.0) ** 2.0 * params[mode, "BetaWaitTimeSquared"]
         costPerTrip += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
         costPerTrip += mcc[mode].cost * params[mode, "VOM"]
-        return costPerTrip
+        inVehicleTime += mcc[mode].travel_time * 60.0
+        outVehicleTime += mcc[mode].wait_time * 60.0 + mcc[mode].access_time * 60.0
+        distance += mcc[mode].distance
+        return costPerTrip, inVehicleTime, outVehicleTime, distance
 
     def getCostPerCapita(self, mcc: ModalChoiceCharacteristics, modeSplit, modes=None, params=None) -> (float, float):
         if modes is None:
             modes = modeSplit.keys()
         costPerCapita = 0.0
         totalDemandForTrips = 0.0
+        inVehicleTime = 0.0
+        outVehicleTime = 0.0
+        distance = 0.0
         for mode in modes:
             split = modeSplit[mode]
-            costPerTrip = self.getModeCostPerTrip(mcc, mode, params)
-            costPerCapita = costPerTrip * split
+            costPerTrip, inVehicle, outVehicle, dist = self.getModeCostPerTrip(mcc, mode, params)
+            costPerCapita += costPerTrip * split
+            inVehicleTime += inVehicle * split
+            outVehicleTime += outVehicle * split
+            distance += dist * split
             totalDemandForTrips += modeSplit.demandForTripsPerHour * split
-        return costPerCapita, totalDemandForTrips
+        return costPerCapita, inVehicleTime, outVehicleTime, totalDemandForTrips, distance
 
 
 class Population:
@@ -123,14 +128,3 @@ class Population:
     def __iter__(self):
         return iter(self.__demandClasses.items())
 
-    # def getCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-    #              originDestination: OriginDestination) -> CollectedTotalCosts:
-    #     collectedTotalCosts = CollectedTotalCosts()
-    #     for di, dc in self.__demandClasses.items():
-    #         od = originDestination[di]
-    #
-    #         for odi, portion in od.items():
-    #             costs = dc.getCostPerCapita(collectedChoiceCharacteristics[od])
-    #         collectedTotalCosts[di] = TotalCosts
-    #         print("aah")
-    #     return collectedTotalCosts
