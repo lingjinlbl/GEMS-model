@@ -47,6 +47,9 @@ class CollectedTotalOperatorCosts:
                 self[mode] = other[mode]
         return self
 
+    def toDataFrame(self):
+        return pd.concat([val.toDataFrame([key]) for key, val in self.__costs.items()])
+
 
 class Microtype:
     def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):
@@ -109,7 +112,7 @@ class Microtype:
         wait = 0.
         accessTime = 0.
         protectedDistance = self.networks.modes[mode].getPortionDedicated() * distanceInMiles
-        return ChoiceCharacteristics(timeInHours, cost, wait, accessTime, protectedDistance)
+        return ChoiceCharacteristics(timeInHours, cost, wait, accessTime, protectedDistance, distanceInMiles)
 
     def getStartTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
         time = 0.

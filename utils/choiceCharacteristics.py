@@ -3,12 +3,13 @@ from .misc import DistanceBins
 
 
 class ChoiceCharacteristics:
-    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, protected_distance=0):
+    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, protected_distance=0, distance=0):
         self.travel_time = travel_time
         self.cost = cost
         self.wait_time = wait_time
         self.access_time = access_time
         self.protected_distance = protected_distance
+        self.distance = distance
 
     def __add__(self, other):
         if isinstance(other, ChoiceCharacteristics):
@@ -17,6 +18,7 @@ class ChoiceCharacteristics:
             self.wait_time += other.wait_time
             self.access_time += other.access_time
             self.protected_distance += other.protected_distance
+            self.distance += other.distance
             return self
         else:
             print('TOUGH LUCK, BUDDY')
@@ -29,6 +31,7 @@ class ChoiceCharacteristics:
             self.wait_time += other.wait_time
             self.access_time += other.access_time
             self.protected_distance += other.protected_distance
+            self.distance += other.distance
             return self
         else:
             print('TOUGH LUCK, BUDDY')
@@ -54,6 +57,9 @@ class ModalChoiceCharacteristics:
     def reset(self):
         for mode in self.modes():
             self[mode] = ChoiceCharacteristics()
+
+    def __contains__(self, item):
+        return item in self.__modalChoiceCharacteristics
 
 
 class CollectedChoiceCharacteristics:
@@ -95,6 +101,7 @@ class CollectedChoiceCharacteristics:
                 for microtypeID, allocation in newAllocation.items():
                     self[odIndex][mode] += microtypes[microtypeID].getThroughTimeCostWait(mode, self.__distanceBins[
                         odIndex.distBin] * allocation)
+                # assert self[odIndex][mode].distance == self[odIndex].distanceInMiles
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):

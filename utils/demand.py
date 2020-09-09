@@ -1,3 +1,5 @@
+import pandas as pd
+
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit
 from .choiceCharacteristics import CollectedChoiceCharacteristics, filterAllocation
 from .microtype import MicrotypeCollection
@@ -6,9 +8,14 @@ from .population import Population
 
 
 class TotalUserCosts:
-    def __init__(self, total=0., totalEqualVOT=0.):
+    def __init__(self, total=0., totalEqualVOT=0., totalIVT=0., totalOVT=0., demandForTripsPerHour=0.,
+                 demandForPMTPerHour=0.):
         self.total = total
         self.totalEqualVOT = totalEqualVOT
+        self.totalIVT = totalIVT
+        self.totalOVT = totalOVT
+        self.demandForTripsPerHour = demandForTripsPerHour
+        self.demandForPMTPerHour = demandForPMTPerHour
 
     def __str__(self):
         return str(self.total) + ' ' + str(self.totalEqualVOT)
@@ -17,6 +24,10 @@ class TotalUserCosts:
         result = TotalUserCosts()
         result.total = self.total * other
         result.totalEqualVOT = self.totalEqualVOT * other
+        result.totalIVT = self.totalIVT * other
+        result.totalOVT = self.totalOVT * other
+        result.demandForTripsPerHour = self.demandForTripsPerHour * other
+        result.demandForPMTPerHour = self.demandForPMTPerHour * other
         return result
 
     def __rmul__(self, other):
@@ -25,16 +36,30 @@ class TotalUserCosts:
     def __imul__(self, other):
         self.total *= other
         self.totalEqualVOT *= other
+        self.totalIVT *= other
+        self.totalOVT *= other
+        self.demandForTripsPerHour *= other
+        self.demandForPMTPerHour *= other
         return self
 
     def copy(self):
-        return TotalUserCosts(self.total, self.totalEqualVOT)
+        return TotalUserCosts(self.total, self.totalEqualVOT, self.totalIVT, self.totalOVT, self.demandForTripsPerHour,
+                              self.demandForPMTPerHour)
 
     def __add__(self, other):
         out = self.copy()
         out.total += other.total
         out.totalEqualVOT += other.totalEqualVOT
+        out.totalIVT += other.totalIVT
+        out.totalOVT += other.totalOVT
+        out.demandForTripsPerHour += other.demandForTripsPerHour
+        out.demandForPMTPerHour += other.demandForPMTPerHour
         return out
+
+    def toDataFrame(self, index=None):
+        return pd.DataFrame({"totalCost": self.total, "demandForTripsPerHour": self.demandForTripsPerHour,
+                             "inVehicleTime": self.totalIVT, "outOfVehicleTime": self.totalOVT,
+                             "demandForPMTPerHour": self.demandForPMTPerHour}, index=index)
 
 
 class CollectedTotalUserCosts:
@@ -42,6 +67,8 @@ class CollectedTotalUserCosts:
         self.__costs = dict()
         self.total = 0.
         self.totalEqualVOT = 0.
+        self.demandForTripsPerHour = 0.
+        self.demandForPMTPerHour = 0.
 
     def __setitem__(self, key: DemandIndex, value: TotalUserCosts):
         self.__costs[key] = value
@@ -56,11 +83,15 @@ class CollectedTotalUserCosts:
     def updateTotals(self, value: TotalUserCosts):
         self.total = sum([c.total for c in self.__costs.values()])
         self.totalEqualVOT = sum([c.totalEqualVOT for c in self.__costs.values()])
+        self.demandForTripsPerHour = sum([c.demandForTripsPerHour for c in self.__costs.values()])
+        self.demandForPMTPerHour = sum([c.demandForPMTPerHour for c in self.__costs.values()])
 
     def copy(self):
         out = CollectedTotalUserCosts()
         out.total = self.total
         out.totalEqualVOT = self.totalEqualVOT
+        out.demandForTripsPerHour = self.demandForTripsPerHour
+        out.demandForPMTPerHour = self.demandForPMTPerHour
         out.__costs = self.__costs.copy()
         return out
 
@@ -82,6 +113,10 @@ class CollectedTotalUserCosts:
         for di, cost in other:
             self[di] = self.__costs.setdefault(di, TotalUserCosts()) + cost
         return self
+
+    def toDataFrame(self, index=None):
+        return pd.concat([val.toDataFrame(key.toIndex()) for key, val in self.__costs.items()])
+        # return pd.concat([val.toDataFrame([key.toIndex()]) for key, val in self.__costs.items()])
 
 
 class Demand:
@@ -170,8 +205,8 @@ class Demand:
         trips = dict()
         for (di, odi), ms in self.__modeSplit.items():
             relevant = ((userClass is None) or (di.populationGroupType == userClass)) & (
-                        (microtypeID is None) or (di.homeMicrotype == microtypeID)) & (
-                        (distanceBin is None) or (odi.distBin == distanceBin))
+                    (microtypeID is None) or (di.homeMicrotype == microtypeID)) & (
+                               (distanceBin is None) or (odi.distBin == distanceBin))
             if relevant:
                 for mode, split in ms:
                     new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
@@ -187,23 +222,30 @@ class Demand:
         return ModeSplit(trips, demandForTrips, demandForDistance)
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-                     originDestination: OriginDestination, defaultParams=None) -> CollectedTotalUserCosts:
-        if defaultParams is None:
-            defaultParams = {"ASC": 0.0, "VOT": 15.0, "VOM": 1.0}
+                     originDestination: OriginDestination, modes=None) -> CollectedTotalUserCosts:
         out = CollectedTotalUserCosts()
         for demandIndex, utilityParams in self.__population:
             totalCost = 0.
             totalCostDefault = 0.
+            totalDemandForTripsPerHour = 0.
+            totalDemandForPMTPerHour = 0.
+            totalInVehicle = 0.
+            totalOutVehicle = 0.
             od = originDestination[demandIndex]
             demandClass = self.__population[demandIndex]
             for odi, portion in od.items():
                 ms = self[(demandIndex, odi)]
                 mcc = collectedChoiceCharacteristics[odi]
-                cost = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour
-                costDefault = demandClass.getCostPerCapita(mcc, ms) * ms.demandForTripsPerHour  # TODO: Add default
-                totalCost -= cost
-                totalCostDefault -= costDefault
-            out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault)
+                cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms, modes)
+                # costDefault = demandClass.getCostPerCapita(mcc, ms, modes) * ms.demandForTripsPerHour  # TODO: Add default
+                totalCost -= cost * demandForTripsPerHour
+                totalInVehicle += inVehicle * demandForTripsPerHour
+                totalOutVehicle += outVehicle * demandForTripsPerHour
+                totalCostDefault -= 0.0
+                totalDemandForTripsPerHour += demandForTripsPerHour
+                totalDemandForPMTPerHour += distance * demandForTripsPerHour
+            out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault, totalInVehicle, totalOutVehicle,
+                                              totalDemandForTripsPerHour, totalDemandForPMTPerHour)
         return out
 
     def __str__(self):

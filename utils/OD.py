@@ -3,7 +3,6 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-from random import uniform
 
 from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
@@ -69,14 +68,14 @@ class ModeSplit:
 
     def __mul__(self, other):
         out = self.copy()
-        portion = 1. / self.__counter# uniform(0.5 / self.__counter, 1. / self.__counter)
+        portion = 1. / self.__counter  # uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in out._mapping.keys():
             out[key] = out[key] * portion + other[key] * (1.0 - portion)
         self.__counter += 0.2
         return out
 
     def __imul__(self, other):
-        portion = 1. / self.__counter# uniform(0.5 / self.__counter, 1. / self.__counter)
+        portion = 1. / self.__counter  # uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in self._mapping.keys():
             self[key] = self[key] * portion + other[key] * (1.0 - portion)
         self.__counter += 0.2
@@ -85,7 +84,8 @@ class ModeSplit:
     def __add__(self, other):
         out = self.copy()
         for key in self._mapping.keys():
-            out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (self.demandForTripsPerHour + other.demandForTripsPerHour)
+            out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
+                        self.demandForTripsPerHour + other.demandForTripsPerHour)
         out.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
         out.demandForPmtPerHour = (self.demandForPmtPerHour + other.demandForPmtPerHour)
         return out
@@ -93,7 +93,8 @@ class ModeSplit:
     def __iadd__(self, other):
         if self._mapping:
             for key in self._mapping.keys():
-                self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (self.demandForTripsPerHour + other.demandForTripsPerHour)
+                self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
+                            self.demandForTripsPerHour + other.demandForTripsPerHour)
         else:
             self._mapping = other._mapping.copy()
         self.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
@@ -106,6 +107,8 @@ class ModeSplit:
         out["Trips"] = self.__demandForTripsPerHour
         return out
 
+    def keys(self):
+        return list(self._mapping.keys())
 
     @property
     def demandForPmtPerHour(self):
@@ -226,6 +229,10 @@ class DemandIndex:
 
     def __str__(self):
         return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
+
+    def toIndex(self):
+        return pd.MultiIndex.from_tuples([(self.homeMicrotype, self.populationGroupType, self.tripPurpose)],
+                                         names=('homeMicrotype', 'populationGroupType', 'tripPurpose'))
 
 
 class ODindex:
