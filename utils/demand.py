@@ -36,8 +36,8 @@ class TotalUserCosts:
     def __imul__(self, other):
         self.total *= other
         self.totalEqualVOT *= other
-        self.totalIVT *= totalIVT
-        self.totalOVT *= totalOVT
+        self.totalIVT *= other
+        self.totalOVT *= other
         self.demandForTripsPerHour *= other
         self.demandForPMTPerHour *= other
         return self
