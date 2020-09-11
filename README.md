@@ -7,8 +7,6 @@ This is a python implementation of the supply/demand equilibrium model, as well 
 The transportation system model is wrapped in a framework that allows it to be used as the objective function for an arbitrary optimization model. Current variables that can be optimized over include
 
 * Length of different subnetworks, specifically the amount of ROW dedicated to individual modes (e.g. bus lanes).
-* Transit headways
-* (This will be updated)
 
 The overall optimization framework consists of several main objects:
 
@@ -16,7 +14,7 @@ The overall optimization framework consists of several main objects:
 * **Model container**: This translates the control variable returned by the optimizer into specific inputs and modifications to the transportation system model. It then tells the system model to run, gathers the outputs, and then combines them into an objective function result for the optimizer.
 * **Model**: This, based on modifications from the model container, finds transportation system equilibrium and returns results to the model container.
 
-![optimization](/images/Optimization.vpd.png)
+![optimization](/images/Optimization.png)
 
 ## Model implementation
 
@@ -26,7 +24,7 @@ The model itself consists of three primary components that come into equilibrium
 * **Choice characteristics**: This is where the information that informs mode choice decisions lives. This includes data such as the total travel time and waiting time for each mode over each possible trip that can be taken in the system. It gets updated based on the state of each subnetwork in each microtype.
 * **Mode choice**: This is where the mode choices travelers make live, which depends on the utility functions associated with their user type and trip type. It gets updated based on the collected choice characteristics of the different modal options.
 
-![model](/images/FHWA-sequence.vpd.png)
+![model](/images/FHWA-sequence.png)
 
 ## Supply model
 

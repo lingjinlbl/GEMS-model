@@ -276,8 +276,14 @@ class Model:
                 ms += self.__demand[tp].getTotalModeSplit(userClass, microtypeID, distanceBin)
         return ms
 
-    def getUserCosts(self):
-        return self.demand.getUserCosts(self.choice, self.__originDestination)
+    def getUserCosts(self, mode=None):
+        return self.demand.getUserCosts(self.choice, self.__originDestination, mode)
+
+    def getModeUserCosts(self):
+        out = dict()
+        for mode in self.scenarioData['modeData'].keys():
+            out[mode] = self.getUserCosts([mode]).toDataFrame()
+        return pd.concat(out)
 
     def getOperatorCosts(self):
         return self.microtypes.getOperatorCosts()
@@ -317,10 +323,11 @@ class Model:
 
 
 if __name__ == "__main__":
-    # a = Model("input-data")
-    # a.initializeTimePeriod("AM-Peak")
+    a = Model("input-data")
+    a.initializeTimePeriod("AM-Peak")
     # a.modifyNetworks(NetworkModification([2000,1000,1000,1000],list(zip([2, 4, 6, 8], [13, 14, 15, 16]))))
-    # a.findEquilibrium()
+    a.findEquilibrium()
+    uc = a.getUserCosts()
     # ms = a.getModeSplit()
     # a = Model("input-data")
     # a.initializeTimePeriod("AM-Peak")
@@ -332,17 +339,17 @@ if __name__ == "__main__":
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
     #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),
     #               method="shgo")
-    o = Optimizer("input-data-production",
-                  fromToSubNetworkIDs=list(zip([1, 7, 43, 49, 85, 91, 121, 127], [3, 9, 45, 51, 87, 93, 123, 129])),
-                  method="noisy")
+    # o = Optimizer("input-data-production",
+    #               fromToSubNetworkIDs=list(zip([1, 7, 43, 49, 85, 91, 121, 127], [3, 9, 45, 51, 87, 93, 123, 129])),
+    #               method="noisy")
     # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
     # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
     # # o.evaluate(np.array([300., 200., 200., 200.]))
-    output = o.minimize()
-    print("DONE")
-    print(output.x)
-    print(output.fun)
-    print(output.message)
+    # output = o.minimize()
+    # print("DONE")
+    # print(output.x)
+    # print(output.fun)
+    # print(output.message)
     #
     # print("DONE")
     # cost2 = o.evaluate(np.array([10., 1.]))
