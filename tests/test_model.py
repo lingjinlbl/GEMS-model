@@ -11,7 +11,7 @@ def test_find_equilibrium():
     a = Model(ROOT_DIR + "/../input-data")
     a.initializeTimePeriod("PM-Peak")
     a.findEquilibrium()
-    busLaneDistance = np.arange(25, 1975, 50)
+    busLaneDistance = np.arange(50, 3950, 100)
     busSpeed = []
     carSpeedA = []
     carSpeedB = []
@@ -23,9 +23,10 @@ def test_find_equilibrium():
     operatorCosts = []
     ldCosts = []
     allCosts = []
+    initialDistance = a.scenarioData['subNetworkData'].at[2, "Length"]
     for dist in busLaneDistance:
-        a.scenarioData['subNetworkData'].at[14, "Length"] = dist
-        a.scenarioData['subNetworkData'].at[4, "Length"] = 2000 - dist
+        a.scenarioData['subNetworkData'].at[10, "Length"] = dist
+        a.scenarioData['subNetworkData'].at[2, "Length"] = initialDistance - dist
         a.findEquilibrium()
         ms = a.getModeSplit()
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
@@ -37,10 +38,10 @@ def test_find_equilibrium():
         busModeShare.append(ms["bus"])
         carModeShare.append(ms["auto"])
         uc = a.getUserCosts()
-        userCosts.append(a.getUserCosts().totalEqualVOT)
+        userCosts.append(a.getUserCosts().total)
         operatorCosts.append(a.getOperatorCosts().total)
         ldCosts.append(0.014*dist)
-        allCosts.append(a.getUserCosts().totalEqualVOT + a.getOperatorCosts().total + 0.014*dist)
+        allCosts.append(a.getUserCosts().totalEqualVOT + a.getOperatorCosts().total + 0.0*dist)
 
     plt.scatter(busLaneDistance, busSpeed, marker='<', label="Bus")
     plt.xlabel("Bus Lane Distance In Microtype B")
@@ -84,7 +85,7 @@ def test_find_equilibrium():
     a = Model(ROOT_DIR + "/../input-data")
     a.initializeTimePeriod("AM-Peak")
     a.findEquilibrium()
-    headways = np.arange(60, 900, 120)
+    headways = np.arange(60, 900, 60)
     busSpeed = []
     carSpeedA = []
     carSpeedB = []
@@ -108,7 +109,7 @@ def test_find_equilibrium():
         carModeShare.append(ms["auto"])
         uc = a.getUserCosts()
         oc = a.getOperatorCosts()
-        userCosts.append(a.getUserCosts().totalEqualVOT + oc.total)
+        userCosts.append(a.getUserCosts().total + oc.total)
         operatorCosts.append(a.getOperatorCosts().total)
 
     plt.clf()
@@ -145,3 +146,5 @@ def test_find_equilibrium():
     if not os.path.exists(ROOT_DIR + "/../plots"):
         os.mkdir(ROOT_DIR + "/../plots")
     plt.savefig(ROOT_DIR + "/../plots/headwayvscost.png")
+
+test_find_equilibrium()

@@ -5,7 +5,7 @@ import pandas as pd
 from scipy.optimize import shgo
 from scipy.optimize import minimize, Bounds
 from skopt import gp_minimize
-from noisyopt import minimizeCompass
+# from noisyopt import minimizeCompass
 from copy import deepcopy
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit
@@ -328,13 +328,13 @@ if __name__ == "__main__":
     # a.modifyNetworks(NetworkModification([2000,1000,1000,1000],list(zip([2, 4, 6, 8], [13, 14, 15, 16]))))
     a.findEquilibrium()
     uc = a.getUserCosts()
-    # ms = a.getModeSplit()
+    ms = a.getModeSplit()
     # a = Model("input-data")
     # a.initializeTimePeriod("AM-Peak")
     # a.findEquilibrium()
     # ms = a.getModeSplit()
     # print(a.getModeSpeeds())
-    # print(ms)
+    print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
     #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),
