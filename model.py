@@ -5,7 +5,7 @@ import pandas as pd
 from scipy.optimize import shgo
 from scipy.optimize import minimize, Bounds
 from skopt import gp_minimize
-# from noisyopt import minimizeCompass
+from noisyopt import minimizeCompass
 from copy import deepcopy
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit
