@@ -467,7 +467,11 @@ class BusMode(Mode):
         return self.params.at[self._idx, "VehicleOperatingCostPerHour"]
 
     @property
-    def portionAreaCovered(self):
+    def routeDistanceToNetworkDistance(self) -> float:
+        """
+        Changed January 2021: Removed need for car-only subnnetworks.
+        Now buses only run on a fixed portion of the bus/car subnetwork
+        """
         return self.params.at[self._idx, "CoveragePortion"]
 
     def updateDemand(self, travelDemand=None):
@@ -476,35 +480,48 @@ class BusMode(Mode):
         self._VMT_tot = self.getDemandForVmtPerHour()
 
     def getAccessDistance(self) -> float:
-        return self.stopSpacingInMeters / 4.0 / self.portionAreaCovered ** 2.0
+        """Order of magnitude estimate for average walking distance to nearest stop"""
+        return self.stopSpacingInMeters / 4.0 / self.routeDistanceToNetworkDistance
 
     def getDemandForVmtPerHour(self):
         return self.getRouteLength() / self.headwayInSec * 3600. / 1609.34
 
-    def getN(self, network):
-        return network.L / self.routeAveragedSpeed / self.headwayInSec
+    def getOperatingL(self, network) -> float:
+        """Changed January 2021: Buses only operate on a portion of subnetwork"""
+        if network.dedicated:
+            return network.L
+        else:
+            dedicatedDistance = sum([n.L for n in self.networks if n.dedicated])
+            totalDistance = sum([n.L for n in self.networks])
+            return self.routeDistanceToNetworkDistance * totalDistance * network.L / (totalDistance - dedicatedDistance)
+
+    def getN(self, network=None):
+        """Changed January 2021: Buses only operate on a portion of subnetwork"""
+        if network:
+            return self.getOperatingL(network) / self.routeAveragedSpeed / self.headwayInSec
+        else:
+            return self.getRouteLength() / self.routeAveragedSpeed / self.headwayInSec
 
     def getRouteLength(self):
-        return sum([n.L for n in self.networks])
+        return sum([n.L for n in self.networks]) * self.routeDistanceToNetworkDistance
 
     def getSubNetworkSpeed(self, network):
         # averageStopDuration = self.min_stop_time + self.passenger_wait * (
         #         self.travelDemand.tripStartRate + self.travelDemand.tripEndRate) / (
         #                               self.routeAveragedSpeed / self.stop_spacing * self.N_tot)
         # return base_speed / (1 + averageStopDuration * base_speed / self.stop_spacing)
-        bs = network.base_speed
         if network.dedicated:
             perPassenger = self.passengerWaitInSecDedicated
         else:
             perPassenger = self.passengerWaitInSec
-        numberOfStopsInSubnetwork = network.L / self.stopSpacingInMeters
+        numberOfStopsInSubnetwork = self.getOperatingL(network) / self.stopSpacingInMeters
         numberOfStopsInRoute = self.getRouteLength() / self.stopSpacingInMeters
         pass_per_stop = (self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour
                          ) / numberOfStopsInRoute * self.headwayInSec / 3600.
         stopping_time = numberOfStopsInSubnetwork * self.minStopTimeInSec
         stopped_time = perPassenger * pass_per_stop * numberOfStopsInSubnetwork + stopping_time
-        driving_time = network.L / network.base_speed
-        spd = network.L / (stopped_time + driving_time)
+        driving_time = self.getOperatingL(network) / network.base_speed
+        spd = self.getOperatingL(network) / (stopped_time + driving_time)
         if np.isnan(spd):
             spd = 0.1
             self.__bad = True
@@ -525,16 +542,12 @@ class BusMode(Mode):
     def getSpeed(self):
         meters = np.zeros(len(self.networks), dtype=float)
         seconds = np.zeros(len(self.networks), dtype=float)
-        # meters = []
-        # seconds = []
         for idx, n in enumerate(self.networks):
             if n.L > 0:
                 # n_bus = self.getN(n)
                 bus_speed = self.getSubNetworkSpeed(n)
-                # seconds[idx] = n_bus
-                # meters[idx] = n_bus * bus_speed
-                meters[idx] = n.L
-                seconds[idx] = n.L / bus_speed
+                meters[idx] = self.getOperatingL(n)
+                seconds[idx] = self.getOperatingL(n) / bus_speed
         if np.sum(seconds) > 0:
             spd = np.sum(meters) / np.sum(seconds)
             return spd
@@ -546,17 +559,17 @@ class BusMode(Mode):
             perPassenger = self.passengerWaitInSecDedicated
         else:
             perPassenger = self.passengerWaitInSec
-        bs = network.base_speed
+        # bs = network.base_speed
         if network.base_speed > 0:
             numberOfStops = self.routeLength / self.stopSpacingInMeters
+            # numberOfBuses = self.getN(network)
             meanTimePerStop = (self.minStopTimeInSec + self.headwayInSec * perPassenger * (
                     self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) / (
                                        numberOfStops * 3600.0))
             portionOfTimeStopped = min([meanTimePerStop * meanTimePerStop / self.headwayInSec, 1.0])
-            out = network.avgLinkLength * portionOfTimeStopped
-            portionOfRouteBlocked = out / self.routeLength
-            # busSpeed = self.getSubNetworkSpeed(network.base_speed)
-            # out = busSpeed / self.stop_spacing * self.N_tot * self.min_stop_time * network.l
+            # TODO: Think through this more fully. Is this the right way to scale up this time to distance?
+            out = portionOfTimeStopped * network.avgLinkLength * self.getN(network)
+            # portionOfRouteBlocked = out / self.routeLength
         else:
             out = 0
         return out
@@ -573,9 +586,8 @@ class BusMode(Mode):
         lengths = []
         for ind, n in enumerate(self.networks):
             spd = speeds[ind]
-            times.append(n.L / spd)
-            lengths.append(n.L)
-        # T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
+            times.append(self.getOperatingL(n) / spd)
+            lengths.append(self.getOperatingL(n))
         for ind, n in enumerate(self.networks):
             assert isinstance(n, Network)
             if speeds[ind] > 0:
@@ -589,31 +601,8 @@ class BusMode(Mode):
         self.updateCommercialSpeed()
 
     def updateCommercialSpeed(self):
-        self.routeAveragedSpeed = self.getRouteLength() / sum([n.L / spd for n, spd in self._speed.items()])
-
-    # def allocateVehicles(self):
-    #     "Poisson likelihood"
-    #     speeds = self.getSpeeds()
-    #     times = []
-    #     lengths = []
-    #     for ind, n in enumerate(self.networks):
-    #         spd = speeds[ind]
-    #         times.append(n.L / spd)
-    #         lengths.append(n.L)
-    #     T_tot = sum([lengths[i] / speeds[i] for i in range(len(speeds))])
-    #     for ind, n in enumerate(self.networks):
-    #         if speeds[ind] > 0:
-    #             n_new = self._N_tot * lengths[ind] / speeds[ind] / T_tot
-    #             n.N_eq[self.name] = n_new * self.relativeLength
-    #             self._N[n] = n_new
-    #         else:
-    #             n_new = self._N_tot / lengths[ind]
-    #             n.N_eq[self.name] = n_new * self.relativeLength
-    #             self._N[n] = n_new
-    #     self.routeAveragedSpeed = self.getSpeed()
-    #     self.occupancy = self.getOccupancy()
-    #     # if np.isnan(self.occupancy):
-    #     #     print("AAAH")
+        self.routeAveragedSpeed = self.getRouteLength() / sum(
+            [self.getOperatingL(n) / spd for n, spd in self._speed.items()])
 
     def getOccupancy(self) -> float:
         return self.travelDemand.averageDistanceInSystemInMiles / (
