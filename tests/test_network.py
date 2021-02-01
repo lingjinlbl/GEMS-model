@@ -30,7 +30,7 @@ def test_mfd(net):
     assert bs2 < bs1
     busParams = pd.DataFrame(
         {"VehicleSize": 1, "Headway": 300, "PassengerWait": 5, "PassengerWaitDedicated": 2., "MinStopTime": 15.,
-         "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300}, index=["A"])
+         "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300, "CoveragePortion": 0.5}, index=["A"])
     bus = BusMode([net], busParams, "A")
     net.addMode(bus)
     bus.assignVmtToNetworks()

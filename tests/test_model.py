@@ -44,14 +44,15 @@ def test_find_equilibrium():
         allCosts.append(a.getUserCosts().totalEqualVOT + a.getOperatorCosts().total + 0.0*dist)
 
     plt.scatter(busLaneDistance, busSpeed, marker='<', label="Bus")
-    plt.xlabel("Bus Lane Distance In Microtype B")
-    plt.ylabel("Bus Speed In Microtype B")
+
 
 
     plt.scatter(busLaneDistance, carSpeedA, label="A")
     plt.scatter(busLaneDistance, carSpeedB, label="B")
     plt.scatter(busLaneDistance, carSpeedC, label="C")
     plt.scatter(busLaneDistance, carSpeedD, label="D")
+    plt.xlabel("Bus Lane Distance In Microtype B")
+    plt.ylabel("Bus Speed In Microtype B")
     plt.legend()
     # plt.xlabel("Bus Lane Distance In Microtype A")
     # plt.ylabel("Bus Speed In Microtype A")
@@ -146,5 +147,3 @@ def test_find_equilibrium():
     if not os.path.exists(ROOT_DIR + "/../plots"):
         os.mkdir(ROOT_DIR + "/../plots")
     plt.savefig(ROOT_DIR + "/../plots/headwayvscost.png")
-
-test_find_equilibrium()
