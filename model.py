@@ -254,20 +254,7 @@ class Model:
             self.demand.updateMFD(self.microtypes, 5)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
-            # c = self.getOperatorCosts().total
-            # if np.isnan(c):
-            #     print("----")
-            #
-            # c2 = self.getUserCosts().total
-            # if np.isnan(c2):
-            #     print("----")
             i += 1
-            # print(ms)
-            # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
-            # print(self.getModeSpeeds().loc['auto', ['A', 'B', 'C', 'D']])
-            # print(diff)
-        ms = self.getModeSplit(self.__currentTimePeriod)
-        # print(ms)
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
         if timePeriod is None:
@@ -312,9 +299,14 @@ class Model:
         self.scenarioData = self.__initialScenarioData.copy()
 
     def setTimePeriod(self, timePeriod: str):
+        """Note: Are we always going to go through them in order? Should maybe just store time periods
+        as a dataframe and go by index. But, we're not keeping track of all accumulations so in that sense
+        we always need to go in order."""
+        networkStateData = self.microtypes.getStateData()
         self.__currentTimePeriod = timePeriod
         self.__originDestination.setTimePeriod(timePeriod)
         self.__tripGeneration.setTimePeriod(timePeriod)
+        self.microtypes.importStateData(networkStateData)
 
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()

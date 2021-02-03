@@ -633,6 +633,8 @@ class Network:
         self.dedicated = data.loc[idx, "Dedicated"]
         self.isJammed = False
         self._VMT = dict()
+        self._N_init = 0.0
+        self._N_final = 0.0
 
     @property
     def type(self):
@@ -655,7 +657,7 @@ class Network:
         return self.data.at[self._idx, "Length"]
 
     def __str__(self):
-        return str(list(self._VMT.keys()))
+        return str(tuple(self._VMT.keys()))
 
     def resetAll(self):
         self.L_blocked = dict()
@@ -689,8 +691,10 @@ class Network:
         q = Qtot / (self.L - self.getBlockedDistance())
         qMax = self.freeFlowSpeed * self.jamDensity / 2.0
         if q <= qMax:
+            self._N_final = self.jamDensity * self.L * q / qMax
             return 0.5 * self.freeFlowSpeed * (sqrt(1 - q / qMax) + 1)
         else:
+            self._N_final = self.jamDensity * self.L
             return max([0.5 * self.freeFlowSpeed * (1 - sqrt(1 + q / qMax)), 0.1])
 
     def getBaseSpeed(self):
@@ -704,47 +708,14 @@ class Network:
             # assert(isinstance(mode, Mode) | issubclass(mode, Mode))
             mode.updateModeBlockedDistance()
 
-    # def MFD(self):
-    #     if self.L <= 0:
-    #         self.base_speed = 1.0
-    #         return
-    #     L_eq = self.L - self.getBlockedDistance()
-    #     N_eq = self.getN_eq()
-    #     maxDensity = 0.25
-    #     if (N_eq / L_eq < maxDensity) & (N_eq / L_eq >= 0.0):
-    #         noCongestionN = (self.kappa * L_eq * self.w - L_eq * self.Q) / (self.u_f + self.w)
-    #         if N_eq <= noCongestionN:
-    #             peakFlowSpeed = - L_eq * self.lam / noCongestionN * np.log(
-    #                 np.exp(- self.u_f * noCongestionN / (L_eq * self.lam)) +
-    #                 np.exp(- self.Q / self.lam) +
-    #                 np.exp(-(self.kappa - noCongestionN / L_eq) * self.w / self.lam))
-    #             v = self.u_f - N_eq / noCongestionN * (self.u_f - peakFlowSpeed)
-    #         else:
-    #             v = - L_eq * self.lam / N_eq * np.log(
-    #                 np.exp(- self.u_f * N_eq / (L_eq * self.lam)) +
-    #                 np.exp(- self.Q / self.lam) +
-    #                 np.exp(-(self.kappa - N_eq / L_eq) * self.w / self.lam))
-    #         self.base_speed = np.maximum(v, 0.25)
-    #     else:
-    #         self.base_speed = np.nan
-
     def containsMode(self, mode: str) -> bool:
         return mode in self._modes.keys()
-
-    # def addDensity(self, mode, N_eq):
-    #     self._modes[mode].addVehicles(N_eq)
 
     def getBlockedDistance(self) -> float:
         if self.L_blocked:
             return sum(list(self.L_blocked.values()))
         else:
             return 0.0
-
-    # def getN_eq(self) -> float:
-    #     if self.N_eq:
-    #         return sum(list(self.N_eq.values()))
-    #     else:
-    #         return 0.0
 
     def addMode(self, mode: Mode):
         self._modes[mode.name] = mode
@@ -758,10 +729,16 @@ class Network:
     def getModeValues(self) -> list:
         return list(self._modes.values())
 
+    def getFinalStateData(self):
+        return self._N_final
+
+    def setInitialStateData(self, data):
+        self._N_init = data
+
 
 class NetworkCollection:
     def __init__(self, networksAndModes=None, modeToModeData=None, microtypeID=None, verbose=False):
-        self._networks = list()
+        self._networks = dict()
         self.modeToNetwork = dict()
         if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
             self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)
@@ -776,7 +753,8 @@ class NetworkCollection:
         if isinstance(networksAndModes, Dict):
             for (network, modeNames) in networksAndModes.items():
                 assert (isinstance(network, Network))
-                self._networks.append(network)
+                sortedModeNames = tuple(sorted(modeNames))
+                self._networks[sortedModeNames] = network
                 for modeName in modeNames:
                     if modeName in self.modeToNetwork:
                         self.modeToNetwork[modeName].append(network)
@@ -807,9 +785,9 @@ class NetworkCollection:
         return np.any([n.isJammed for n in self._networks])
 
     def resetModes(self):
-        allModes = [n.getModeValues() for n in self._networks]
+        allModes = [n.getModeValues() for n in self._networks.values()]
         uniqueModes = set([item for sublist in allModes for item in sublist])
-        for n in self._networks:
+        for n in self._networks.values():
             n.isJammed = False
         self.modes = dict()
         for m in uniqueModes:
@@ -849,36 +827,17 @@ class NetworkCollection:
             n.resetModes()
 
     def append(self, network: Network):
-        self._networks.append(network)
+        self._networks.append(network)# TODO: assign dict value instead
         self.resetModes()
 
     def __getitem__(self, item):
         return [n for n in self._networks if item in n.getModeNames()]
 
-    # def addVehicles(self, mode: str, N: float, n=5):
-    #     self[mode].addVehicles(N)
-    #     self.updateMFD(n)
-
-    # def updateMFD(self, iters=1):
-    #     for i in range(iters):
-    #         for n in self._networks:
-    #             n.updateBlockedDistance()
-    #             n.MFD()
-    #             if np.isnan(n.base_speed):
-    #                 n.isJammed = True
-    #         # for m in self.modes.values():
-    #         #     m.updateN(self.demands[m.name])
-
     def __str__(self):
         return str([n.base_speed for n in self._networks])
 
-    # def addMode(self, networks: list, mode: Mode):
-    #     for network in networks:
-    #         assert (isinstance(network, Network))
-    #         if network not in self._networks:
-    #             self.append(network)
-    #         self.modes[mode.name] = mode
-    #     return self
+    def __iter__(self):
+        return iter(self._networks.items())
 
     def getModeNames(self) -> list:
         return list(self.modeToNetwork.keys())
@@ -891,3 +850,22 @@ class NetworkCollection:
         for name, mode in self.modes.items():
             out[name] = (mode.getOperatorCosts(), mode.getOperatorRevenues())
         return out
+
+
+class NetworkStateData:
+    def __init__(self):
+        self.__data = dict()
+
+    def __setitem__(self, key, value):
+        self.__data[key] = value
+
+    def __getitem__(self, item):
+        return self.__data[item]
+
+    def addMicrotype(self, microtype):
+        for modes, network in microtype.networks:
+            self[(microtype.microtypeID, modes)] = network.getFinalStateData()
+
+    def applyMicrotype(self, microtype):
+        for modes, network in microtype.networks:
+            network.setInitialStateData(self[(microtype.microtypeID, modes)])
