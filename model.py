@@ -200,6 +200,7 @@ class Model:
         self.__tripGeneration = TripGeneration()
         self.__originDestination = OriginDestination()
         self.readFiles()
+        self.initializeAllTimePeriods()
 
     @property
     def microtypes(self):
@@ -240,6 +241,11 @@ class Model:
                                      self.microtypes, self.__distanceBins, 1.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
+    def initializeAllTimePeriods(self):
+        for timePeriod, durationInHours in self.__timePeriods:
+            self.initializeTimePeriod(timePeriod)
+            print('Done Initializing')
+
     def findEquilibrium(self):
         diff = 1000.
         i = 0
@@ -255,7 +261,7 @@ class Model:
             # c2 = self.getUserCosts().total
             # if np.isnan(c2):
             #     print("----")
-            # i += 1
+            i += 1
             # print(ms)
             # print(self.getModeSpeeds().loc['auto', ['A_1', 'A_2', 'A_4', 'B_1', 'B_2', 'B_4']])
             # print(self.getModeSpeeds().loc['auto', ['A', 'B', 'C', 'D']])
@@ -305,11 +311,16 @@ class Model:
     def resetNetworks(self):
         self.scenarioData = self.__initialScenarioData.copy()
 
+    def setTimePeriod(self, timePeriod: str):
+        self.__currentTimePeriod = timePeriod
+        self.__originDestination.setTimePeriod(timePeriod)
+        self.__tripGeneration.setTimePeriod(timePeriod)
+
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
         operatorCosts = CollectedTotalOperatorCosts()
         for timePeriod, durationInHours in self.__timePeriods:
-            self.initializeTimePeriod(timePeriod)
+            self.setTimePeriod(timePeriod)
             self.findEquilibrium()
             userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
@@ -324,16 +335,8 @@ class Model:
 
 if __name__ == "__main__":
     a = Model("input-data")
-    a.initializeTimePeriod("AM-Peak")
-    # a.modifyNetworks(NetworkModification([2000,1000,1000,1000],list(zip([2, 4, 6, 8], [13, 14, 15, 16]))))
-    a.findEquilibrium()
-    uc = a.getUserCosts()
+    a.collectAllCosts()
     ms = a.getModeSplit()
-    # a = Model("input-data")
-    # a.initializeTimePeriod("AM-Peak")
-    # a.findEquilibrium()
-    # ms = a.getModeSplit()
-    # print(a.getModeSpeeds())
     print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
@@ -342,9 +345,9 @@ if __name__ == "__main__":
     # o = Optimizer("input-data-production",
     #               fromToSubNetworkIDs=list(zip([1, 7, 43, 49, 85, 91, 121, 127], [3, 9, 45, 51, 87, 93, 123, 129])),
     #               method="noisy")
-    # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
-    # # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
-    # # o.evaluate(np.array([300., 200., 200., 200.]))
+    # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
+    # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
+    # o.evaluate(np.array([300., 200., 200., 200.]))
     # output = o.minimize()
     # print("DONE")
     # print(output.x)

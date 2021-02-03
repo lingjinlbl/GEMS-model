@@ -320,6 +320,9 @@ class TripGeneration:
             self.__tripClasses[self.__currentTimePeriod] = dict()
         return self.__tripClasses[self.__currentTimePeriod]
 
+    def setTimePeriod(self, timePeriod: str):
+        self.__currentTimePeriod = timePeriod
+
     def __setitem__(self, key: (str, str), value: float):
         self.tripClasses[key] = value
 
@@ -353,6 +356,9 @@ class OriginDestination:
         self.__distances = pd.DataFrame()
         self.__originDestination = dict()
         self.__currentTimePeriod = "BAD"
+
+    def setTimePeriod(self, timePeriod: str):
+        self.__currentTimePeriod = timePeriod
 
     @property
     def originDestination(self):

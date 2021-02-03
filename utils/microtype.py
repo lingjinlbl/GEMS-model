@@ -216,3 +216,5 @@ class MicrotypeCollection:
             assert isinstance(m, Microtype)
             operatorCosts[mID] = m.networks.getModeOperatingCosts()
         return operatorCosts
+
+    # def initNextTimePeriod

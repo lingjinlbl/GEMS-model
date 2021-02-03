@@ -133,7 +133,18 @@ class Demand:
         self.__modeSplit[key] = value
 
     def __getitem__(self, item: (DemandIndex, ODindex)) -> ModeSplit:
-        return self.__modeSplit[item]
+        if item in self:
+            return self.__modeSplit[item]
+        else:# else return empty mode split
+            (demandIndex, odi) = item
+            print("WTF")
+
+    def __contains__(self, item):
+        """ Return true if the correct value"""
+        if item in self.__modeSplit:
+            return True
+        else:
+            return False
 
     def initializeDemand(self, population: Population, originDestination: OriginDestination,
                          tripGeneration: TripGeneration, trips: TripCollection, microtypes: MicrotypeCollection,
