@@ -1,9 +1,10 @@
 import pandas as pd
+from collections import OrderedDict
 
 
 class TimePeriods:
     def __init__(self):
-        self.__timePeriods = dict()
+        self.__timePeriods = OrderedDict()
 
     def __setitem__(self, key: str, value: float):
         self.__timePeriods[key] = value
@@ -18,6 +19,12 @@ class TimePeriods:
         for row in df.itertuples():
             self[row.TimePeriodID] = row.DurationInHours
         print("|  Loaded ", len(df), " time periods")
+
+    def __contains__(self, item):
+        if item in self.__timePeriods:
+            return True
+        else:
+            return False
 
 
 class DistanceBins:
