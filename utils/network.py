@@ -1,4 +1,4 @@
-from math import sqrt
+from math import sqrt, cosh, sinh, cos, sin
 from typing import List, Dict
 
 import numpy as np
@@ -680,22 +680,60 @@ class Network:
     def updateBaseSpeed(self):
         self.base_speed = self.NEF()
 
+    def getSpeedFromMFD(self, N):
+        L_tot = self.L - self.getBlockedDistance()
+        N_0 = self.jamDensity * L_tot
+        return self.freeFlowSpeed * (1. - N / N_0)
+
     def NEF(self, Q=None, modeIgnored=None) -> float:
-        if Q is None:
-            Qtot = sum([VMT for VMT in self._VMT.values()]) * mph2mps
+        if self.type == 'Road':
+            if Q is None:
+                Qtot = sum([VMT for VMT in self._VMT.values()]) * mph2mps
+            else:
+                Qtot = Q
+                for mode, Qmode in self._VMT.items():
+                    if mode != modeIgnored:
+                        Qtot += Qmode * mph2mps
+            if Qtot == 0:
+                return self.freeFlowSpeed
+            L_tot = self.L - self.getBlockedDistance()
+            L_0 = 5 * 1609.34  # TODO: Get average distance, don't hardcode
+            t = 3  # TODO: Add timestep duration in hours
+            tripStartRate = Qtot / L_tot
+            N_0 = self.jamDensity * L_tot
+            V_0 = self.freeFlowSpeed
+            N_t = self._N_init
+            if N_0 ** 2. / 4. >= N_0 * L_0 * tripStartRate / V_0:
+                # Stable state
+                A = sqrt(N_0 ** 2. / 4. - N_0 * L_0 * tripStartRate / V_0)
+                var = A * V_0 * t / (N_0 * L_0)
+                N_final = N_0 / 2 - A * ((N_0 / 2 - N_t) * cosh(var) + A * sinh(var)) / (
+                            (N_0 / 2 - N_t) * sinh(var) + A * cosh(var))
+                V_init = self.getSpeedFromMFD(N_t)
+                V_final = self.getSpeedFromMFD(N_final)
+                V_steadystate = self.getSpeedFromMFD(N_0 / 2 - A)
+                print(V_init, V_final, V_steadystate)
+                self._N_final = N_final
+            else:
+                A = sqrt(N_0 * L_0 * tripStartRate / V_0 - N_0 ** 2. / 4.)
+                var = A * V_0 * t / (N_0 * L_0)
+                N_final = N_0 / 2 - A * ((N_0 / 2 - N_t) * cos(var) + A * sin(var)) / (
+                        (N_0 / 2 - N_t) * sin(var) + A * cos(var))
+                V_init = self.getSpeedFromMFD(N_t)
+                V_final = self.getSpeedFromMFD(N_final)
+                V_steadystate = 0
+                print(V_init, V_final, V_steadystate)
+                self._N_final = N_final
+            q = Qtot / (self.L - self.getBlockedDistance())
+            qMax = self.freeFlowSpeed * self.jamDensity / 2.0 * (L_tot / self.L)
+            if q <= qMax:
+                self._N_final = self.jamDensity * L_tot * q / qMax
+                return 0.5 * self.freeFlowSpeed * (sqrt(1 - q / qMax) + 1)
+            else:
+                self._N_final = self.jamDensity * L_tot
+                return max([0.5 * self.freeFlowSpeed * (1 - sqrt(1 + q / qMax)), 0.1])
         else:
-            Qtot = Q
-            for mode, Qmode in self._VMT.items():
-                if mode != modeIgnored:
-                    Qtot += Qmode * mph2mps
-        q = Qtot / (self.L - self.getBlockedDistance())
-        qMax = self.freeFlowSpeed * self.jamDensity / 2.0
-        if q <= qMax:
-            self._N_final = self.jamDensity * self.L * q / qMax
-            return 0.5 * self.freeFlowSpeed * (sqrt(1 - q / qMax) + 1)
-        else:
-            self._N_final = self.jamDensity * self.L
-            return max([0.5 * self.freeFlowSpeed * (1 - sqrt(1 + q / qMax)), 0.1])
+            return self.freeFlowSpeed
 
     def getBaseSpeed(self):
         if self.base_speed > 0.01:
@@ -827,7 +865,7 @@ class NetworkCollection:
             n.resetModes()
 
     def append(self, network: Network):
-        self._networks.append(network)# TODO: assign dict value instead
+        self._networks.append(network)  # TODO: assign dict value instead
         self.resetModes()
 
     def __getitem__(self, item):
