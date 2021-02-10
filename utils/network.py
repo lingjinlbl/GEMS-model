@@ -883,10 +883,6 @@ class NetworkCollection:
         for n in self._networks:
             n.resetModes()
 
-    def append(self, network: Network):
-        self._networks.append(network)  # TODO: assign dict value instead
-        self.resetModes()
-
     def __getitem__(self, item):
         return [n for n in self._networks if item in n.getModeNames()]
 
