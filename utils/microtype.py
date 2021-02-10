@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .choiceCharacteristics import ChoiceCharacteristics
-from .network import Network, NetworkCollection, Costs, TotalOperatorCosts
+from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, NetworkStateData
 
 
 class CollectedTotalOperatorCosts:
@@ -212,7 +212,19 @@ class MicrotypeCollection:
 
     def getOperatorCosts(self) -> CollectedTotalOperatorCosts:
         operatorCosts = CollectedTotalOperatorCosts()
-        for mID, m in self:
-            assert isinstance(m, Microtype)
-            operatorCosts[mID] = m.networks.getModeOperatingCosts()
+        for mID, microtype in self:
+            assert isinstance(microtype, Microtype)
+            operatorCosts[mID] = microtype.networks.getModeOperatingCosts()
         return operatorCosts
+
+    def getStateData(self) -> NetworkStateData:
+        data = NetworkStateData()
+        for mID, microtype in self:
+            data.addMicrotype(microtype)
+        return data
+
+    def importStateData(self, networkStateData: NetworkStateData):
+        for mID, microtype in self:
+            networkStateData.applyMicrotype(microtype)
+
+
