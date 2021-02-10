@@ -377,11 +377,19 @@ class AutoMode(Mode):
         return [(0.0, 1.0)] * len(self.networks)
 
     def assignVmtToNetworks(self):
-        res = minimize(self.getSpeedDifference, self.x0(), constraints=self.constraints(), bounds=self.bounds())
-        for n, a in zip(self.networks, res.x):
-            self._VMT[n] = a * self._VMT_tot
-            self._speed[n] = n.NEF(a * self._VMT_tot * mph2mps, self.name)
+        if len(self.networks) == 1:
+            n = self.networks[0]
+            self._VMT[n] = self._VMT_tot
+            self._speed[n] = n.NEF(self._VMT_tot * mph2mps, self.name)
             n.setVMT(self.name, self._VMT[n])
+        elif len(self.networks) > 1:
+            res = minimize(self.getSpeedDifference, self.x0(), constraints=self.constraints(), bounds=self.bounds())
+            for n, a in zip(self.networks, res.x):
+                self._VMT[n] = a * self._VMT_tot
+                self._speed[n] = n.NEF(a * self._VMT_tot * mph2mps, self.name)
+                n.setVMT(self.name, self._VMT[n])
+        else:
+            print("OH NO!")
 
     # def allocateVehicles(self):
     #     """for constant car speed"""
@@ -635,6 +643,12 @@ class Network:
         self._VMT = dict()
         self._N_init = 0.0
         self._N_final = 0.0
+        # These are for debugging and can likely be removed
+        self._Q_prev = 0.0
+        self._Q_curr = 0.0
+        self._V_init = 0.0
+        self._V_final = 0.0
+        self._V_steadyState = 0.0
 
     @property
     def type(self):
@@ -696,42 +710,43 @@ class Network:
                         Qtot += Qmode * mph2mps
             if Qtot == 0:
                 return self.freeFlowSpeed
+            self._Q_curr = Qtot
             L_tot = self.L - self.getBlockedDistance()
-            L_0 = 5 * 1609.34  # TODO: Get average distance, don't hardcode
-            t = 3  # TODO: Add timestep duration in hours
-            tripStartRate = Qtot / L_tot
+            L_0 = 10 * 1609.34  # TODO: Get average distance, don't hardcode
+            t = 3 * 3600.  # TODO: Add timestep duration in seconds
             N_0 = self.jamDensity * L_tot
             V_0 = self.freeFlowSpeed
-            N_t = self._N_init
-            if N_0 ** 2. / 4. >= N_0 * L_0 * tripStartRate / V_0:
+            N_init = self._N_init
+            if N_0 ** 2. / 4. >= N_0 * Qtot / V_0:
                 # Stable state
-                A = sqrt(N_0 ** 2. / 4. - N_0 * L_0 * tripStartRate / V_0)
+                A = sqrt(N_0 ** 2. / 4. - N_0 * Qtot / V_0)
                 var = A * V_0 * t / (N_0 * L_0)
-                N_final = N_0 / 2 - A * ((N_0 / 2 - N_t) * cosh(var) + A * sinh(var)) / (
-                            (N_0 / 2 - N_t) * sinh(var) + A * cosh(var))
-                V_init = self.getSpeedFromMFD(N_t)
+                N_final = N_0 / 2 - A * ((N_0 / 2 - N_init) * cosh(var) + A * sinh(var)) / (
+                        (N_0 / 2 - N_init) * sinh(var) + A * cosh(var))
+                V_init = self.getSpeedFromMFD(N_init)
                 V_final = self.getSpeedFromMFD(N_final)
-                V_steadystate = self.getSpeedFromMFD(N_0 / 2 - A)
-                print(V_init, V_final, V_steadystate)
-                self._N_final = N_final
+                V_steadyState = self.getSpeedFromMFD(N_0 / 2 - A)
             else:
-                A = sqrt(N_0 * L_0 * tripStartRate / V_0 - N_0 ** 2. / 4.)
-                var = A * V_0 * t / (N_0 * L_0)
-                N_final = N_0 / 2 - A * ((N_0 / 2 - N_t) * cos(var) + A * sin(var)) / (
-                        (N_0 / 2 - N_t) * sin(var) + A * cos(var))
-                V_init = self.getSpeedFromMFD(N_t)
+                Aprime = sqrt(N_0 * Qtot / V_0 - N_0 ** 2. / 4.)
+                var = Aprime * V_0 * t / (N_0 * L_0)
+                N_final = N_0 / 2 - Aprime * ((N_0 / 2 - N_init) * cos(var) + Aprime * sin(var)) / (
+                        (N_0 / 2 - N_init) * sin(var) + Aprime * cos(var))
+                V_init = self.getSpeedFromMFD(N_init)
                 V_final = self.getSpeedFromMFD(N_final)
-                V_steadystate = 0
-                print(V_init, V_final, V_steadystate)
-                self._N_final = N_final
-            q = Qtot / (self.L - self.getBlockedDistance())
-            qMax = self.freeFlowSpeed * self.jamDensity / 2.0 * (L_tot / self.L)
-            if q <= qMax:
-                self._N_final = self.jamDensity * L_tot * q / qMax
-                return 0.5 * self.freeFlowSpeed * (sqrt(1 - q / qMax) + 1)
-            else:
-                self._N_final = self.jamDensity * L_tot
-                return max([0.5 * self.freeFlowSpeed * (1 - sqrt(1 + q / qMax)), 0.1])
+                V_steadyState = 0
+            self._N_final = N_final
+            self._V_init = V_init
+            self._V_final = V_final
+            self._V_steadyState = V_steadyState
+            return max([0.1, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
+            # q = Qtot / (self.L - self.getBlockedDistance())
+            # qMax = self.freeFlowSpeed * self.jamDensity / 2.0 * (L_tot / self.L)
+            # if q <= qMax:
+            #     self._N_final = self.jamDensity * L_tot * q / qMax
+            #     return 0.5 * self.freeFlowSpeed * (sqrt(1 - q / qMax) + 1)
+            # else:
+            #     self._N_final = self.jamDensity * L_tot
+            #     return max([0.5 * self.freeFlowSpeed * (1 - sqrt(1 + q / qMax)), 0.1])
         else:
             return self.freeFlowSpeed
 
@@ -768,10 +783,14 @@ class Network:
         return list(self._modes.values())
 
     def getFinalStateData(self):
-        return self._N_final
+        return {'finalAccumulation': self._N_final, 'finalProduction': self._Q_curr, 'initialSpeed': self._V_init,
+                'finalSpeed': self._V_final, 'steadyStateSpeed': self._V_steadyState,
+                'initialAccumulation': self._N_init}
 
     def setInitialStateData(self, data):
-        self._N_init = data
+        self._N_init = data['finalAccumulation']
+        self._Q_prev = data['finalProduction']
+        self._V_init = data['finalSpeed']
 
 
 class NetworkCollection:
@@ -894,10 +913,10 @@ class NetworkStateData:
     def __init__(self):
         self.__data = dict()
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value: dict):
         self.__data[key] = value
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> dict:
         return self.__data[item]
 
     def addMicrotype(self, microtype):
