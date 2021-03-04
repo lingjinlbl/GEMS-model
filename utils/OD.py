@@ -10,6 +10,19 @@ from .choiceCharacteristics import ChoiceCharacteristics
 warnings.filterwarnings("ignore")
 
 
+class TransitionMatrix:
+    def __init__(self, microtypes: list):
+        self.__names = {val: idx for idx, val in enumerate(microtypes)}
+        self.__matrix = np.zeros((len(microtypes), len(microtypes)))
+
+    @property
+    def matrix(self):
+        return self.__matrix
+
+    def __getitem__(self, item):
+        return dict(zip(self.__names.keys(), self.__matrix[self.__names[item], :]))
+
+
 class Allocation:
     def __init__(self, mapping=None):
         if mapping is None:
