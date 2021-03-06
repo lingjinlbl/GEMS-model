@@ -8,7 +8,7 @@ from scipy.optimize import minimize, Bounds
 from scipy.optimize import shgo
 from skopt import gp_minimize
 
-from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit
+from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit, TransitionMatrices
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand, CollectedTotalUserCosts
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
@@ -199,6 +199,7 @@ class Model:
         self.__timePeriods = TimePeriods()
         self.__tripGeneration = TripGeneration()
         self.__originDestination = OriginDestination()
+        self.__transitionMatrices = TransitionMatrices()
         self.readFiles()
         self.initializeAllTimePeriods()
 
@@ -228,6 +229,7 @@ class Model:
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
                                                          self.scenarioData["distanceDistribution"])
         self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
+        self.__transitionMatrices.importTransitionMatrices(self.scenarioData["tripGeneration"])  # FIX LINK
 
     def initializeTimePeriod(self, timePeriod: str):
         self.__currentTimePeriod = timePeriod
@@ -238,7 +240,8 @@ class Model:
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
-                                     self.microtypes, self.__distanceBins, 1.0)
+                                     self.microtypes, self.__distanceBins, self.__transitionMatrices,
+                                     self.__timePeriods[self.__currentTimePeriod], 1.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self):

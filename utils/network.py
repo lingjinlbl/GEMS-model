@@ -356,6 +356,7 @@ class AutoMode(Mode):
         self.params = modeParams
         self._idx = idx
         self.networks = networks
+        self.MFDmode = "single"
         for n in networks:
             n.addMode(self)
             # self._N[n] = 0.0
@@ -376,12 +377,25 @@ class AutoMode(Mode):
     def bounds(self):
         return [(0.0, 1.0)] * len(self.networks)
 
+    def updateDemand(self, travelDemand=None):  # TODO: Why did I add this?
+        if travelDemand is None:
+            travelDemand = self.travelDemand
+        else:
+            self.travelDemand = travelDemand
+        self._VMT_tot = travelDemand.rateOfPmtPerHour * self.relativeLength
+
     def assignVmtToNetworks(self):
         if len(self.networks) == 1:
-            n = self.networks[0]
-            self._VMT[n] = self._VMT_tot
-            self._speed[n] = n.NEF(self._VMT_tot * mph2mps, self.name)
-            n.setVMT(self.name, self._VMT[n])
+            if self.MFDmode == "single":
+                n = self.networks[0]
+                self._VMT[n] = self._VMT_tot
+                self._speed[n] = n.NEF(self._VMT_tot * mph2mps, self.name)
+                n.setVMT(self.name, self._VMT[n])
+            else:
+                n = self.networks[0]
+                self._speed[n] = n.getTransitionMatrixMeanSpeed()  # TODO: Check Units
+                self._VMT[n] = self._VMT_tot
+                n.setVMT(self.name, self._VMT[n])
         elif len(self.networks) > 1:
             res = minimize(self.getSpeedDifference, self.x0(), constraints=self.constraints(), bounds=self.bounds())
             for n, a in zip(self.networks, res.x):
@@ -643,6 +657,7 @@ class Network:
         self._VMT = dict()
         self._N_init = 0.0
         self._N_final = 0.0
+        self._V_mean = 0.0
         # These are for debugging and can likely be removed
         self._Q_prev = 0.0
         self._Q_curr = 0.0
@@ -669,6 +684,10 @@ class Network:
     @property
     def L(self):
         return self.data.at[self._idx, "Length"]
+
+    @property
+    def diameter(self):
+        return self.data.at[self._idx, "Length"]# TODO: CHANGE
 
     def __str__(self):
         return str(tuple(self._VMT.keys()))
@@ -739,14 +758,6 @@ class Network:
             self._V_final = V_final
             self._V_steadyState = V_steadyState
             return max([0.1, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
-            # q = Qtot / (self.L - self.getBlockedDistance())
-            # qMax = self.freeFlowSpeed * self.jamDensity / 2.0 * (L_tot / self.L)
-            # if q <= qMax:
-            #     self._N_final = self.jamDensity * L_tot * q / qMax
-            #     return 0.5 * self.freeFlowSpeed * (sqrt(1 - q / qMax) + 1)
-            # else:
-            #     self._N_final = self.jamDensity * L_tot
-            #     return max([0.5 * self.freeFlowSpeed * (1 - sqrt(1 + q / qMax)), 0.1])
         else:
             return self.freeFlowSpeed
 
@@ -758,7 +769,6 @@ class Network:
 
     def updateBlockedDistance(self):
         for mode in self._modes.values():
-            # assert(isinstance(mode, Mode) | issubclass(mode, Mode))
             mode.updateModeBlockedDistance()
 
     def containsMode(self, mode: str) -> bool:
@@ -781,6 +791,14 @@ class Network:
 
     def getModeValues(self) -> list:
         return list(self._modes.values())
+
+    def updateFromMFD(self, V_final, N_final, V_mean):
+        self._V_final = V_final
+        self._N_final = N_final
+        self._V_mean = V_mean
+
+    def getTransitionMatrixMeanSpeed(self):
+        return self._V_mean
 
     def getFinalStateData(self):
         return {'finalAccumulation': self._N_final, 'finalProduction': self._Q_curr, 'initialSpeed': self._V_init,

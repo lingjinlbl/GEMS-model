@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 
+from .OD import TransitionMatrix
 from .choiceCharacteristics import ChoiceCharacteristics
 from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, NetworkStateData
 
@@ -97,8 +98,11 @@ class Microtype:
         self.networks.resetModes()
         self.networks.demands.resetDemand()
 
-    def getStartAndEndRate(self, mode: str) -> (float, float):
+    def getModeStartAndEndRate(self, mode: str) -> (float, float):
         return self.networks.demands.getStartRate(mode), self.networks.demands.getStartRate(mode)
+
+    def getModeStartRate(self, mode: str) -> float:
+        return self.networks.demands.getStartRate(mode)
 
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
@@ -171,6 +175,7 @@ class MicrotypeCollection:
     def __init__(self, modeData: dict):
         self.__microtypes = dict()
         self.modeData = modeData
+        self.transitionMatrix = None
 
     def __setitem__(self, key: str, value: Microtype):
         self.__microtypes[key] = value
@@ -181,8 +186,12 @@ class MicrotypeCollection:
     def __contains__(self, item):
         return item in self.__microtypes
 
+    def __len__(self):
+        return len(self.__microtypes)
+
     def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame):
         uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
+        self.transitionMatrix = TransitionMatrix(uniqueMicrotypes)
         for microtypeID in uniqueMicrotypes:
             if microtypeID in self:
                 self[microtypeID].resetDemand()
@@ -203,6 +212,61 @@ class MicrotypeCollection:
                 self[microtypeID] = Microtype(microtypeID, networkCollection)
                 print("|  Loaded ", len(subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index),
                       " subNetworks in microtype ", microtypeID)
+
+    def transitionMatrixMFD(self, durationInHours):
+        def v(n, v_0, n_0):
+            v = v_0 * (1. - n / n_0)
+            v[v < 0] = 0.
+            v[v > v_0] = v_0[v > v_0]
+            return v
+
+        def outflow(n, L, v_0, n_0):
+            return v(n, v_0, n_0) * n / L
+
+        def inflow(n, X, L, v_0, n_0):
+            os = np.transpose(X) @ (v(n, v_0, n_0) * n / L)
+            return os
+
+        def dn_dt(n, demand, L, X, v_0, n_0):
+            return demand + inflow(n, X, L, v_0, n_0) - outflow(n, L, v_0, n_0)
+
+        L = np.zeros((len(self), 1))
+        V_0 = np.zeros((len(self), 1))
+        N_0 = np.zeros((len(self), 1))
+        tripStartRate = np.zeros((len(self), 1))
+        n_init = np.zeros((len(self), 1))
+        for microtypeID, microtype in self:
+            idx = self.transitionMatrix.idx(microtypeID)
+            assert (isinstance(microtype, Microtype))
+            for autoNetwork in microtype.networks["auto"]:
+                assert (isinstance(autoNetwork, Network))
+                L_eff = autoNetwork.L - autoNetwork.getBlockedDistance()
+                L[idx] += autoNetwork.diameter
+                V_0[idx] = autoNetwork.freeFlowSpeed
+                N_0[idx] = L_eff * autoNetwork.jamDensity
+                n_init[idx] = autoNetwork.getFinalStateData()['initialAccumulation']
+            tripStartRate[idx] = microtype.getModeStartRate("auto")
+
+        X = self.transitionMatrix.matrix
+
+        dt = 0.02
+        ts = np.arange(0, durationInHours, dt)
+        ns = np.zeros((len(self), np.size(ts)))
+        vs = np.zeros((len(self), np.size(ts)))
+        n_t = n_init.copy()
+
+        for i, ti in enumerate(ts):
+            dn = dn_dt(n_n, demand, L, X, V_0, N_0) * dt
+            n_t += dn
+            ns[:, i] = np.squeeze(n_t)
+            vs[:, i] = np.squeeze(v(n_t, V_0, N_0))
+
+        self.transitionMatrix.averageSpeeds = np.mean(vs, axis=0)
+
+        for microtypeID, microtype in self:
+            idx = self.transitionMatrix.idx(microtypeID)
+            network = microtype.networks["auto"][0]  # TODO: Generalize to multiple car subnetworks
+            network.updateFromMFD(vs[idx, -1], ns[idx, -1], self.transitionMatrix.averageSpeeds[idx])
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
@@ -227,4 +291,11 @@ class MicrotypeCollection:
         for mID, microtype in self:
             networkStateData.applyMicrotype(microtype)
 
+    def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
+        if self.transitionMatrix.names == transitionMatrix.names:
+            self.transitionMatrix = transitionMatrix
+        else:
+            print("MICROTYPE NAMES IN TRANSITION MATRIX DON'T MATCH")
 
+    def emptyTransitionMatrix(self):
+        return TransitionMatrix(self.transitionMatrix.names)
