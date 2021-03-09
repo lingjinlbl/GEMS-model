@@ -28,6 +28,11 @@ def test_find_equilibrium():
         a.scenarioData['subNetworkData'].at[10, "Length"] = dist
         a.scenarioData['subNetworkData'].at[2, "Length"] = initialDistance - dist
         a.findEquilibrium()
+        ms = a.getModeSplit()
+        """
+        We'll finish this in another branch
+        
+        
         ms = a.getModeSplit()._mapping
         fig1, ax1 = plt.subplots()
         explode = (0.1, 0.1, 0.1, 0.1, 0.1)
@@ -38,6 +43,7 @@ def test_find_equilibrium():
         # Not sure where to save for now, will figure that out sooner or later
         plt.savefig("graphs/.....????")
         plt.show()
+        """
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
         busSpeed.append(speeds.loc["bus", "B"])
         carSpeedA.append(speeds.loc["auto", "A"])
