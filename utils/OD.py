@@ -35,6 +35,9 @@ class Allocation:
 
 
 class ModeSplit:
+    """
+    Class for storing mode splits and respective properties
+    """
     def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0):
         self.demandForTripsPerHour = demandForTrips
         self.demandForPmtPerHour = demandForPMT
@@ -271,6 +274,9 @@ class Trip:
 
 
 class TripCollection:
+    """
+    Class to store trips, their microtypes, and the distance it belongs to as well as other aspects.
+    """
     def __init__(self):
         self.__trips = dict()
 
@@ -305,6 +311,9 @@ class TripCollection:
 
 
 class TripGeneration:
+    """
+    Class to import and initialize trips from data.
+    """
     def __init__(self):
         self.__data = pd.DataFrame()
         self.__tripClasses = dict()
@@ -347,6 +356,9 @@ class TripGeneration:
 
 
 class OriginDestination:
+    """
+    A class to import and store the origin and destination of trips.
+    """
     def __init__(self):
         self.__ods = pd.DataFrame()
         self.__distances = pd.DataFrame()
