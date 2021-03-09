@@ -174,7 +174,8 @@ class ScenarioData:
         self["originDestinations"] = pd.read_csv(os.path.join(self.__path, "OriginDestination.csv"))
         self["distanceDistribution"] = pd.read_csv(os.path.join(self.__path, "DistanceDistribution.csv"))
         self["tripGeneration"] = pd.read_csv(os.path.join(self.__path, "TripGeneration.csv"))
-        self["transitionMatrices"] = pd.read_csv(os.path.join(self.__path, "TransitionMatrices.csv"))
+        self["transitionMatrices"] = pd.read_csv(os.path.join(self.__path, "TransitionMatrices.csv"),
+                                                 index_col=["Destination", "Distance", "From"])
         self["laneDedicationCost"] = pd.read_csv(os.path.join(self.__path, "LaneDedicationCost.csv"),
                                                  index_col=["MicrotypeID", "ModeTypeID"])
         self["modeData"] = self.loadModeData()
@@ -230,7 +231,7 @@ class Model:
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
                                                          self.scenarioData["distanceDistribution"])
         self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
-        self.__transitionMatrices.importTransitionMatrices(self.scenarioData["transitionMatrices"])  # FIX LINK
+        self.__transitionMatrices.importTransitionMatrices(self.scenarioData["transitionMatrices"])
 
     def initializeTimePeriod(self, timePeriod: str):
         self.__currentTimePeriod = timePeriod

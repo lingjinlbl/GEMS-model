@@ -474,10 +474,7 @@ class TransitionMatrices:
         self.__data = pd.DataFrame()
 
     def __getitem__(self, item: ODindex):
-        mask = (self.__data['Destination'] == item.d) & (self.__data['Distance'] == item.distBin)
-        #print(self.__data.loc[mask, :])
-        #print('AAAA')
-        return TransitionMatrix(self.__data.loc[mask, :])
+        return TransitionMatrix(self.__names, self.__data.loc[item.d, item.distBin].values)
 
     def importTransitionMatrices(self, df: pd.DataFrame):
         self.__data = df
