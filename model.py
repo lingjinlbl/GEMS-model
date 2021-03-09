@@ -129,9 +129,9 @@ class Optimizer:
     def minimize(self):
         if self.__method == "shgo":
             return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
-        elif self.__method == "sklearn":
-            b = self.getBounds()
-            return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
+        #elif self.__method == "sklearn":
+        #    b = self.getBounds()
+        #    return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
         # elif self.__method == "noisy":
         #     return minimizeCompass(self.evaluate, self.x0(), bounds=self.getBounds(), paired=False, deltainit=500000.0,
         #                            errorcontrol=False)
