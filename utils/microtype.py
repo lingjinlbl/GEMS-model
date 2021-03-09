@@ -256,12 +256,12 @@ class MicrotypeCollection:
         n_t = n_init.copy()
 
         for i, ti in enumerate(ts):
-            dn = dn_dt(n_n, demand, L, X, V_0, N_0) * dt
+            dn = dn_dt(n_t, tripStartRate, L, X, V_0, N_0) * dt
             n_t += dn
             ns[:, i] = np.squeeze(n_t)
             vs[:, i] = np.squeeze(v(n_t, V_0, N_0))
 
-        self.transitionMatrix.averageSpeeds = np.mean(vs, axis=0)
+        self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=0))
 
         for microtypeID, microtype in self:
             idx = self.transitionMatrix.idx(microtypeID)

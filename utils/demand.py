@@ -129,6 +129,7 @@ class Demand:
         self.__population = Population()
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
+        self.__transitionMatrices = TransitionMatrices()
 
     def __setitem__(self, key: (DemandIndex, ODindex), value: ModeSplit):
         self.__modeSplit[key] = value
@@ -154,6 +155,7 @@ class Demand:
         self.__population = population
         self.__trips = trips
         self.__distanceBins = distanceBins
+        self.__transitionMatrices = transitionMatrices
         self.timePeriodDuration = timePeriodDuration
         newTransitionMatrix = microtypes.emptyTransitionMatrix()
         for demandIndex, utilityParams in population:
@@ -195,7 +197,7 @@ class Demand:
             # assert (isinstance(di, DemandIndex))
             for mode, split in ms:
                 if mode == "auto":
-                    newTransitionMatrix += transitionMatrices[odi] * ms.demandForTripsPerHour * split
+                    newTransitionMatrix += self.__transitionMatrices[odi] * ms.demandForTripsPerHour * split
                     totalAutoTrips += ms.demandForTripsPerHour * split
                 microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
                 microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)

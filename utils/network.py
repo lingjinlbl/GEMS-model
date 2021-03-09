@@ -902,7 +902,7 @@ class NetworkCollection:
             n.resetModes()
 
     def __getitem__(self, item):
-        return [n for n in self._networks if item in n.getModeNames()]
+        return [n for idx, n in self._networks.items() if item in idx]
 
     def __str__(self):
         return str([n.base_speed for n in self._networks])

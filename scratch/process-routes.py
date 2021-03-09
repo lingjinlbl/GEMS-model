@@ -25,7 +25,7 @@ for destinationMicrotype in microtypes.MicrotypeID:
 collected = pd.DataFrame(collected)
 collected.index.set_names(['To'], inplace=True)
 collected.columns.set_names(['Destination', 'Distance', 'From'], inplace=True)
-collected = collected.stack(level=1).stack()
+collected = collected.transpose()
 
 
 path = os.path.join(ROOT_DIR, "..", "input-data", "TransitionMatrices.csv")

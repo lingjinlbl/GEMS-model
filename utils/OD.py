@@ -4,77 +4,10 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from utils.microtype import Microtype
+#from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
 
 warnings.filterwarnings("ignore")
-
-
-class TransitionMatrix:
-    def __init__(self, microtypes: list, matrix=None):
-        self.__names = microtypes
-        self.__nameToIdx = {val: idx for idx, val in enumerate(microtypes)}
-        self.__averageSpeeds = np.zeros((len(microtypes), 1))
-        if isinstance(matrix, np.ndarray):
-            self.__matrix = matrix
-        elif matrix is None:
-            self.__matrix = np.zeros((len(microtypes), len(microtypes)))
-        else:
-            print("ERROR INITIALIZING TRANSITION MATRIX")
-
-    @property
-    def averageSpeeds(self) -> np.ndarray:
-        return self.__averageSpeeds
-
-    @property
-    def names(self) -> list:
-        return self.__names
-
-    @property
-    def matrix(self) -> np.ndarray:
-        return self.__matrix
-
-    def __getitem__(self, item):
-        return dict(zip(self.__names, self.__matrix[self.__nameToIdx[item], :]))
-
-    def __add__(self, other):
-        if isinstance(other, TransitionMatrix):
-            return TransitionMatrix(self.__names, self.matrix + other.matrix)
-        else:
-            print("ERROR ADDING TRANSITION MATRIX")
-            return self
-
-    def __radd__(self, other):
-        if isinstance(other, TransitionMatrix):
-            return TransitionMatrix(self.__names, self.matrix + other.matrix)
-        else:
-            print("ERROR ADDING TRANSITION MATRIX")
-            return self
-
-    def __mul__(self, other):
-        try:
-            return TransitionMatrix(self.__names, self.matrix * other)
-        except Exception as err:
-            print("ERROR multiplying TRANSITION MATRIX")
-            print(err)
-            return self
-
-    def idx(self, idx):
-        return self.__nameToIdx[idx]
-
-
-class TransitionMatrices:
-    def __init__(self, microtypes: list):
-        self.__names = microtypes
-        self.__data = pd.DataFrame()
-
-    def __getitem__(self, item: ODindex):
-        return TransitionMatrix(self.__names)
-
-    def importTransitionMatrices(self, df: pd.DataFrame):
-        self.__data = df
-        print("|  Loaded ", len(df), " transition probabilities")
-        print("-------------------------------")
 
 
 class Allocation:
@@ -255,10 +188,10 @@ class DemandUnit:
         self.allocation = allocation
         self.mode_split = mode_split
 
-    def __setitem__(self, key: Microtype, value: Dict[str, float]):
+    def __setitem__(self, key, value: Dict[str, float]):
         self.allocation[key] = value
 
-    def __getitem__(self, item: Microtype):
+    def __getitem__(self, item):
         return self.allocation[item]
 
     def getChoiceCharacteristics(self) -> ModeCharacteristics:
@@ -304,18 +237,14 @@ class DemandIndex:
 
 class ODindex:
     def __init__(self, o, d, distBin: int):
-        if isinstance(o, Microtype):
-            self.o = o.microtypeID
-        elif isinstance(o, str):
+        if isinstance(o, str):
             self.o = o
         else:
-            print("AAAH Bad ODindex")
-        if isinstance(d, Microtype):
-            self.d = d.microtypeID
-        elif isinstance(d, str):
+            self.o = o.microtypeID
+        if isinstance(d, str):
             self.d = d
         else:
-            print("AAAAH BAD ODindex")
+            self.d = d.microtypeID
         self.distBin = distBin
         self.__hash = hash((self.o, self.d, self.distBin))
 
@@ -479,3 +408,78 @@ class OriginDestination:
                 self[DemandIndex(*tripClass)] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
+
+
+class TransitionMatrix:
+    def __init__(self, microtypes: list, matrix=None):
+        self.__names = microtypes
+        self.__nameToIdx = {val: idx for idx, val in enumerate(microtypes)}
+        self.__averageSpeeds = np.zeros((len(microtypes), 1))
+        if isinstance(matrix, np.ndarray):
+            self.__matrix = matrix
+        elif matrix is None:
+            self.__matrix = np.zeros((len(microtypes), len(microtypes)))
+        else:
+            print("ERROR INITIALIZING TRANSITION MATRIX")
+
+    @property
+    def averageSpeeds(self) -> np.ndarray:
+        return self.__averageSpeeds
+
+    def setAverageSpeeds(self, averageSpeeds: np.ndarray):
+        self.__averageSpeeds = averageSpeeds
+
+    @property
+    def names(self) -> list:
+        return self.__names
+
+    @property
+    def matrix(self) -> np.ndarray:
+        return self.__matrix
+
+    def __getitem__(self, item):
+        return dict(zip(self.__names, self.__matrix[self.__nameToIdx[item], :]))
+
+    def __add__(self, other):
+        if isinstance(other, TransitionMatrix):
+            return TransitionMatrix(self.__names, self.matrix + other.matrix)
+        else:
+            print("ERROR ADDING TRANSITION MATRIX")
+            return self
+
+    def __radd__(self, other):
+        if isinstance(other, TransitionMatrix):
+            return TransitionMatrix(self.__names, self.matrix + other.matrix)
+        else:
+            print("ERROR ADDING TRANSITION MATRIX")
+            return self
+
+    def __mul__(self, other):
+        try:
+            return TransitionMatrix(self.__names, self.matrix * other)
+        except Exception as err:
+            print("ERROR multiplying TRANSITION MATRIX")
+            print(err)
+            return self
+
+    def idx(self, idx):
+        return self.__nameToIdx[idx]
+
+
+class TransitionMatrices:
+    def __init__(self, microtypes=None):
+        if microtypes is None:
+            microtypes = []
+        self.__names = microtypes
+        self.__data = pd.DataFrame()
+
+    def __getitem__(self, item: ODindex):
+        mask = (self.__data['Destination'] == item.d) & (self.__data['Distance'] == item.distBin)
+        #print(self.__data.loc[mask, :])
+        #print('AAAA')
+        return TransitionMatrix(self.__data.loc[mask, :])
+
+    def importTransitionMatrices(self, df: pd.DataFrame):
+        self.__data = df
+        print("|  Loaded ", len(df), " transition probabilities")
+        print("-------------------------------")
