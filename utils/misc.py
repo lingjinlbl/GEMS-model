@@ -3,6 +3,9 @@ from collections import OrderedDict
 
 
 class TimePeriods:
+    """
+    Collection of time period of day and length of said periods.
+    """
     def __init__(self):
         self.__timePeriods = OrderedDict()
 
@@ -28,6 +31,9 @@ class TimePeriods:
 
 
 class DistanceBins:
+    """
+    Collection of distances of trips.
+    """
     def __init__(self):
         self.__distanceBins = dict()
 

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, Bounds
 from scipy.optimize import shgo
-from skopt import gp_minimize
+#from skopt import gp_minimize
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -17,6 +17,10 @@ from utils.population import Population
 
 
 class Optimizer:
+    """
+    Originally used to find the optimal equilibrium of the modes, but now findEquilibrium does the same?
+    """
+
     def __init__(self, path: str, fromToSubNetworkIDs=None, modesAndMicrotypes=None, method="shgo"):
         self.__path = path
         self.__fromToSubNetworkIDs = fromToSubNetworkIDs
@@ -140,7 +144,39 @@ class NetworkModification:
 
 
 class ScenarioData:
+    """
+    Class to fetch and store data in a dictionary for specified scenario.
+
+    ...
+
+    Attributes
+    ----------
+    path : str
+        File path to input data
+    data : dict
+        Dictionary containing input data from respective inputs
+
+    Methods
+    -------
+    loadMoreData():
+        Loads more modes of transportation.
+    loadData():
+        Read in data corresponding to various inputs.
+    copy():
+        Return a new ScenarioData copy containing data.
+    """
+
     def __init__(self, path: str, data=None):
+        """
+        Constructs and loads all relevant data of the scenario into the instance.
+
+        Parameters
+        ----------
+            path : str
+                File path to input data
+            data : dict
+                Dictionary containing input data from respective inputs
+        """
         self.__path = path
         if data is None:
             self.data = dict()
@@ -155,6 +191,13 @@ class ScenarioData:
         return self.data[item]
 
     def loadModeData(self):
+        """
+        Follows filepath to modes and microtpe ID listed in the data files section under __path/modes.
+
+        Returns
+        -------
+        A dict() with mode type as key and dataframe as value.
+        """
         collected = dict()
         (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "modes")))
         for file in fileNames:
@@ -163,6 +206,10 @@ class ScenarioData:
         return collected
 
     def loadData(self):
+        """
+        Fills the data dict() with values, the dict() contains data pertaining to various data labels and given csv
+        data.
+        """
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                              index_col="SubnetworkID")
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
@@ -179,12 +226,85 @@ class ScenarioData:
         self["modeData"] = self.loadModeData()
 
     def copy(self):
+        """
+        Creates a deep copy of the data contained in this ScenarioData instance
+
+        Returns
+        -------
+        A complete copy of the self.data dict()
+        """
         return ScenarioData(self.__path, deepcopy(self.data))
 
     # def reallocate(self, fromSubNetwork, toSubNetwork, dist):
 
 
 class Model:
+    """
+    A class representing the GEMS Model.
+
+    ...
+
+    Attributes
+    ----------
+    path : str
+        File path to input data
+    scenarioData : ScenarioData
+        Class object to fetch and store mode and parameter data
+    initialScenarioData : ScenarioData
+        Initial state of the scenario
+    currentTimePeriod : str
+        Description of the current time period (e.g. 'AM-Peak')
+    microtypes : dict(str, MicrotypeCollection)
+        Stores currentTimePeriod to MicrotypeCollection object
+    demand : dict(str, Demand)
+        Stores currentTimePeriod to Demand object
+    choice : dict(str, CollectedChoiceCharacteristics)
+        Stores currentTimePeriod to CollectedChoiceCharacteristics object
+    population : Population
+        Stores demandClasses, populationGroups, and totalCosts
+    trips : TripCollection
+        Stores a collection of trips through microtypes
+    distanceBins : DistanceBins
+        Set of distance bins for different distances of trips
+    timePeriods  : TimePeriods
+        Contains amount of time in each time period
+    tripGeneration : TripGeneration
+        Contains initialized trips with all the sets and classes
+    originDestination : OriginDestination
+        Stores origin/destination form of trips
+
+    Methods
+    -------
+    microtypes:
+        Returns the microtypes loaded into the model
+    demand:
+        Returns demand of the trips
+    choice:
+        Returns a choiceCharacteristic object
+    readFiles():
+        Initializes the model with file data
+    initializeTimePeriod:
+        Initializes the model with time periods
+    findEquilibrium():
+        Finds the ideal mode splits for the model
+    getModeSplit(timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
+        Returns the optimal mode splits
+    getUserCosts(mode=None):
+        Returns total user costs
+    getModeUserCosts():
+        Returns costs per mode found by the model
+    getOperatorCosts():
+        Returns total costs to the operator
+    modifyNetworks(networkModification=None, scheduleModification=None):
+        Used in the optimizer class to edit network after initialization
+    resetNetworks():
+        Reset network to original initialization
+    setTimePeriod(timePeriod: str):
+
+    getModeSpeeds(timePeriod=None):
+        Returns speeds for each mode in each microtype
+    """
+
     def __init__(self, path: str):
         self.__path = path
         self.scenarioData = ScenarioData(path)
