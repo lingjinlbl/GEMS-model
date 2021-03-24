@@ -646,7 +646,7 @@ class BusMode(Mode):
 
 
 class Network:
-    def __init__(self, data, idx):
+    def __init__(self, data, idx, diameter=None):
         self.data = data
         self._idx = idx
         self.L_blocked = dict()
@@ -664,6 +664,10 @@ class Network:
         self._V_init = 0.0
         self._V_final = 0.0
         self._V_steadyState = 0.0
+        if diameter is None:
+            self.__diameter = 1.0
+        else:
+            self.__diameter = diameter
 
     @property
     def type(self):
@@ -687,7 +691,7 @@ class Network:
 
     @property
     def diameter(self):
-        return self.data.at[self._idx, "Length"] / 10.0# TODO: CHANGE
+        return self.__diameter
 
     def __str__(self):
         return str(tuple(self._VMT.keys()))
@@ -818,7 +822,6 @@ class NetworkCollection:
         if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
             self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)
         self.modes = dict()
-
         self.demands = TravelDemands([])
         self.verbose = verbose
         # self.resetModes()

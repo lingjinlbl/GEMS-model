@@ -189,10 +189,10 @@ class MicrotypeCollection:
     def __len__(self):
         return len(self.__microtypes)
 
-    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame):
-        uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
-        self.transitionMatrix = TransitionMatrix(uniqueMicrotypes)
-        for microtypeID in uniqueMicrotypes:
+    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame, microtypeData: pd.DataFrame):
+        #uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
+        self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list())
+        for microtypeID, diameter in microtypeData.itertuples(index=False):
             if microtypeID in self:
                 self[microtypeID].resetDemand()
             else:
@@ -202,7 +202,7 @@ class MicrotypeCollection:
                 for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
                         modeToSubNetworkData['SubnetworkID'] == idx]
-                    subNetwork = Network(subNetworkData, idx)
+                    subNetwork = Network(subNetworkData, idx, diameter)
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())
@@ -231,6 +231,8 @@ class MicrotypeCollection:
             return os
 
         def dn_dt(n, demand, L, X, v_0, n_0):
+            inflowval = inflow(n, X, L, v_0, n_0)
+            outflowval = outflow(n, L, v_0, n_0)
             return demand + inflow(n, X, L, v_0, n_0) - outflow(n, L, v_0, n_0)
 
         L = np.zeros((len(self), 1))
@@ -244,7 +246,7 @@ class MicrotypeCollection:
             for autoNetwork in microtype.networks["auto"]:
                 assert (isinstance(autoNetwork, Network))
                 L_eff = autoNetwork.L - autoNetwork.getBlockedDistance()
-                L[idx] += autoNetwork.diameter
+                L[idx] += autoNetwork.diameter / 1609.34
                 V_0[idx] = autoNetwork.freeFlowSpeed
                 N_0[idx] = L_eff * autoNetwork.jamDensity
                 n_init[idx] = autoNetwork.getFinalStateData()['initialAccumulation']

@@ -492,13 +492,13 @@ class TransitionMatrices:
         if microtypes is None:
             microtypes = []
         self.__names = microtypes
-        self.__data = pd.DataFrame()
+        self.__data = dict()
 
     def __getitem__(self, item: ODindex):
-        try:
-            return TransitionMatrix(self.__names, self.__data.loc[item.o, item.d, item.distBin])
-        except Exception as err:
-            print(f"No transition matrix found for {err}")
+        if (item.o, item.d, item.distBin) in self.__data:
+            return TransitionMatrix(self.__names, self.__data[(item.o, item.d, item.distBin)])
+        else:
+            print(f"No transition matrix found for {(item.o, item.d, item.distBin)}")
             out = TransitionMatrix(self.__names).fillZeros()
             return out
 
@@ -506,6 +506,7 @@ class TransitionMatrices:
         self.__names = names
 
     def importTransitionMatrices(self, df: pd.DataFrame):
-        self.__data = df
+        for key, val in df.groupby(level=[0, 1, 2]):
+            self.__data[key] = val.set_index(val.index.droplevel([0, 1, 2]))
         print("|  Loaded ", len(df), " transition probabilities")
         print("-------------------------------")

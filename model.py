@@ -393,7 +393,7 @@ class Model:
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
             print("|  Loading time period ", timePeriod)
-        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"])
+        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"], self.scenarioData["microtypeIDs"])
         self.__originDestination.initializeTimePeriod(timePeriod)
         self.__tripGeneration.initializeTimePeriod(timePeriod)
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
@@ -487,7 +487,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data")
+    a = Model("input-data-geotype-A")
     a.collectAllCosts()
     ms = a.getModeSplit()
     print(ms)
