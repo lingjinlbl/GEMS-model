@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, Bounds
 from scipy.optimize import shgo
-#from skopt import gp_minimize
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit, TransitionMatrices
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -14,6 +13,9 @@ from utils.demand import Demand, CollectedTotalUserCosts
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
 from utils.population import Population
+
+
+# from skopt import gp_minimize
 
 
 class Optimizer:
@@ -129,7 +131,7 @@ class Optimizer:
     def minimize(self):
         if self.__method == "shgo":
             return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
-        #elif self.__method == "sklearn":
+        # elif self.__method == "sklearn":
         #    b = self.getBounds()
         #    return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
         # elif self.__method == "noisy":
@@ -221,7 +223,7 @@ class ScenarioData:
         (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "modes")))
         for file in fileNames:
             collected[file.split(".")[0]] = pd.read_csv(os.path.join(self.__path, "modes", file),
-                                                        index_col="MicrotypeID")
+                                                        dtype={"MicrotypeID": str}).set_index("MicrotypeID")
         return collected
 
     def loadData(self):
@@ -230,21 +232,28 @@ class ScenarioData:
         data.
         """
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                             index_col="SubnetworkID")
+                                             index_col="SubnetworkID", dtype={"MicrotypeID": str})
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
         self["microtypeAssignment"] = pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv"))
-        self["populations"] = pd.read_csv(os.path.join(self.__path, "Population.csv"))
+        self["populations"] = pd.read_csv(os.path.join(self.__path, "Population.csv"), dtype={"MicrotypeID": str})
         self["populationGroups"] = pd.read_csv(os.path.join(self.__path, "PopulationGroups.csv"))
         self["timePeriods"] = pd.read_csv(os.path.join(self.__path, "TimePeriods.csv"))
         self["distanceBins"] = pd.read_csv(os.path.join(self.__path, "DistanceBins.csv"))
-        self["originDestinations"] = pd.read_csv(os.path.join(self.__path, "OriginDestination.csv"))
-        self["distanceDistribution"] = pd.read_csv(os.path.join(self.__path, "DistanceDistribution.csv"))
+        self["originDestinations"] = pd.read_csv(os.path.join(self.__path, "OriginDestination.csv"),
+                                                 dtype={"HomeMicrotypeID": str, "OriginMicrotypeID": str,
+                                                        "DestinationMicrotypeID": str})
+        self["distanceDistribution"] = pd.read_csv(os.path.join(self.__path, "DistanceDistribution.csv"),
+                                                   dtype={"OriginMicrotypeID": str, "DestinationMicrotypeID": str})
         self["tripGeneration"] = pd.read_csv(os.path.join(self.__path, "TripGeneration.csv"))
         self["transitionMatrices"] = pd.read_csv(os.path.join(self.__path, "TransitionMatrices.csv"),
-                                                 index_col=["Destination", "Distance", "From"])
+                                                 dtype={"OriginMicrotypeID": str, "DestinationMicrotypeID": str,
+                                                        "From": str}).set_index(
+            ["OriginMicrotypeID", "DestinationMicrotypeID", "DistanceBinID", "From"])
         self["laneDedicationCost"] = pd.read_csv(os.path.join(self.__path, "LaneDedicationCost.csv"),
-                                                 index_col=["MicrotypeID", "ModeTypeID"])
+                                                 dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
         self["modeData"] = self.loadModeData()
+        self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
+                                                 dtype={"MicrotypeID": str})
 
     def copy(self):
         """
@@ -345,6 +354,10 @@ class Model:
         self.initializeAllTimePeriods()
 
     @property
+    def currentTimePeriod(self):
+        return self.__currentTimePeriod
+
+    @property
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
             self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData["modeData"])
@@ -361,6 +374,9 @@ class Model:
         if self.__currentTimePeriod not in self.__choice:
             self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics()
         return self.__choice[self.__currentTimePeriod]
+
+    def getCurrentTimePeriodDuration(self):
+        return self.__timePeriods[self.currentTimePeriod]
 
     def readFiles(self):
         self.__trips.importTrips(self.scenarioData["microtypeAssignment"])
@@ -386,6 +402,7 @@ class Model:
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self):
+        self.__transitionMatrices.setNames(self.scenarioData["microtypeIDs"]["MicrotypeID"].tolist())
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod)
             print('Done Initializing')
@@ -395,7 +412,7 @@ class Model:
         i = 0
         while (diff > 0.0001) & (i < 20):
             ms = self.getModeSplit(self.__currentTimePeriod)
-            self.demand.updateMFD(self.microtypes, 5)
+            self.demand.updateMFD(self.microtypes, self.getCurrentTimePeriodDuration())
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
             i += 1

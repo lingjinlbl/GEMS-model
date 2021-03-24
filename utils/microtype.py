@@ -215,9 +215,12 @@ class MicrotypeCollection:
 
     def transitionMatrixMFD(self, durationInHours):
         def v(n, v_0, n_0):
-            v = v_0 * (1. - n / n_0)
-            v[v < 0] = 0.
-            v[v > v_0] = v_0[v > v_0]
+            try:
+                v = v_0 * (1. - n / n_0)
+                v[v < 0] = 0.
+                v[v > v_0] = v_0[v > v_0]
+            except Exception as err:
+                print(err)
             return v
 
         def outflow(n, L, v_0, n_0):
@@ -245,12 +248,12 @@ class MicrotypeCollection:
                 V_0[idx] = autoNetwork.freeFlowSpeed
                 N_0[idx] = L_eff * autoNetwork.jamDensity
                 n_init[idx] = autoNetwork.getFinalStateData()['initialAccumulation']
-            tripStartRate[idx] = microtype.getModeStartRate("auto")
+            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
-        X = self.transitionMatrix.matrix
+        X = self.transitionMatrix.matrix.values
 
-        dt = 0.02
-        ts = np.arange(0, durationInHours, dt)
+        dt = 0.02 * 3600.
+        ts = np.arange(0, durationInHours * 3600., dt)
         ns = np.zeros((len(self), np.size(ts)))
         vs = np.zeros((len(self), np.size(ts)))
         n_t = n_init.copy()

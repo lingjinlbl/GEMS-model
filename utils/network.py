@@ -687,7 +687,7 @@ class Network:
 
     @property
     def diameter(self):
-        return self.data.at[self._idx, "Length"]# TODO: CHANGE
+        return self.data.at[self._idx, "Length"] / 10.0# TODO: CHANGE
 
     def __str__(self):
         return str(tuple(self._VMT.keys()))

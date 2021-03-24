@@ -4,7 +4,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-#from utils.microtype import Microtype
+# from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
 
 warnings.filterwarnings("ignore")
@@ -38,6 +38,7 @@ class ModeSplit:
     """
     Class for storing mode splits and respective properties
     """
+
     def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0):
         self.demandForTripsPerHour = demandForTrips
         self.demandForPmtPerHour = demandForPMT
@@ -277,6 +278,7 @@ class TripCollection:
     """
     Class to store trips, their microtypes, and the distance it belongs to as well as other aspects.
     """
+
     def __init__(self):
         self.__trips = dict()
 
@@ -314,6 +316,7 @@ class TripGeneration:
     """
     Class to import and initialize trips from data.
     """
+
     def __init__(self):
         self.__data = pd.DataFrame()
         self.__tripClasses = dict()
@@ -359,6 +362,7 @@ class OriginDestination:
     """
     A class to import and store the origin and destination of trips.
     """
+
     def __init__(self):
         self.__ods = pd.DataFrame()
         self.__distances = pd.DataFrame()
@@ -412,7 +416,8 @@ class OriginDestination:
                 grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
                 tot = np.sum(grouped["tot"])
                 grouped["tot"] = grouped["tot"] / tot
-                assert abs(tot - 1) < 0.0001  # TODO: FIX
+                if abs(tot - 1) > 0.0001:  # TODO: FIX
+                    print(f"Oops, totals for {tripClass} add up to {tot}")
                 distribution = dict()
                 for row in grouped.itertuples():
                     distribution[
@@ -427,10 +432,10 @@ class TransitionMatrix:
         self.__names = microtypes
         self.__nameToIdx = {val: idx for idx, val in enumerate(microtypes)}
         self.__averageSpeeds = np.zeros((len(microtypes), 1))
-        if isinstance(matrix, np.ndarray):
-            self.__matrix = matrix
+        if isinstance(matrix, pd.DataFrame):
+            self.__matrix = pd.DataFrame(0.0, index=microtypes, columns=microtypes).add(matrix, fill_value=0.0)
         elif matrix is None:
-            self.__matrix = np.zeros((len(microtypes), len(microtypes)))
+            self.__matrix = pd.DataFrame(0.0, index=microtypes, columns=microtypes)
         else:
             print("ERROR INITIALIZING TRANSITION MATRIX")
 
@@ -446,11 +451,11 @@ class TransitionMatrix:
         return self.__names
 
     @property
-    def matrix(self) -> np.ndarray:
+    def matrix(self) -> pd.DataFrame:
         return self.__matrix
 
     def __getitem__(self, item):
-        return dict(zip(self.__names, self.__matrix[self.__nameToIdx[item], :]))
+        return dict(zip(self.__names, self.__matrix[self.__nameToIdx[item], :].values))
 
     def __add__(self, other):
         if isinstance(other, TransitionMatrix):
@@ -477,6 +482,10 @@ class TransitionMatrix:
     def idx(self, idx):
         return self.__nameToIdx[idx]
 
+    def fillZeros(self):
+        self.__matrix += 1. / (len(self.__names)**2)
+        return self
+
 
 class TransitionMatrices:
     def __init__(self, microtypes=None):
@@ -486,7 +495,15 @@ class TransitionMatrices:
         self.__data = pd.DataFrame()
 
     def __getitem__(self, item: ODindex):
-        return TransitionMatrix(self.__names, self.__data.loc[item.d, item.distBin].values)
+        try:
+            return TransitionMatrix(self.__names, self.__data.loc[item.o, item.d, item.distBin])
+        except Exception as err:
+            print(f"No transition matrix found for {err}")
+            out = TransitionMatrix(self.__names).fillZeros()
+            return out
+
+    def setNames(self, names: list):
+        self.__names = names
 
     def importTransitionMatrices(self, df: pd.DataFrame):
         self.__data = df

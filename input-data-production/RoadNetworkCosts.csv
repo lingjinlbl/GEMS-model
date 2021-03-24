@@ -377,4 +377,3 @@ cost_group,f_sys,MicrotypeID,fsys_weight,microtype,Location,Functional Class,Cat
 1,5,I_7,,7,RURAL,Major Collector,Flat,240000,1228000,3382000,rural_flat,240000,3382000,1228000,,,0
 1,6,I_7,,7,RURAL,Minor Collector,Flat,212000,1117000,3046000,rural_flat,212000,3046000,1117000,,,0
 1,7,I_7,,7,RURAL,Local,Flat,192000,1043000,2808000,rural_flat,192000,2808000,1043000,,,0
-,,,,,,,,,,,,,,,,,
