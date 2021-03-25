@@ -345,11 +345,11 @@ class TripGeneration:
         print("|  Loaded ", len(df), " trip generation rates")
         print("-------------------------------")
 
-    def initializeTimePeriod(self, timePeriod: str):
+    def initializeTimePeriod(self, timePeriod, timePeriodID):
         # self.__tripClasses = dict()
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self:
-            relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriod]
+            relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriodID]
             for row in relevantDemand.itertuples():
                 self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
             print("|  Loaded ", len(relevantDemand), " demand classes")
@@ -403,11 +403,11 @@ class OriginDestination:
     def __contains__(self, item):
         return item in self.originDestination
 
-    def initializeTimePeriod(self, timePeriod: str):
+    def initializeTimePeriod(self, timePeriod, timePeriodID):
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self.__originDestination:
-            print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]), " distance bins")
-            relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]
+            print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]), " distance bins")
+            relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]
             merged = relevantODs.merge(self.__distances,
                                        on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
                                        suffixes=("_OD", "_Dist"),
@@ -459,21 +459,24 @@ class TransitionMatrix:
 
     def __add__(self, other):
         if isinstance(other, TransitionMatrix):
-            return TransitionMatrix(self.__names, self.matrix + other.matrix)
+            self.__matrix += other.__matrix
+            return self # TransitionMatrix(self.__names, self.matrix + other.matrix)
         else:
             print("ERROR ADDING TRANSITION MATRIX")
             return self
 
     def __radd__(self, other):
         if isinstance(other, TransitionMatrix):
-            return TransitionMatrix(self.__names, self.matrix + other.matrix)
+            self.__matrix += other.__matrix
+            return self #TransitionMatrix(self.__names, self.matrix + other.matrix)
         else:
             print("ERROR ADDING TRANSITION MATRIX")
             return self
 
     def __mul__(self, other):
         try:
-            return TransitionMatrix(self.__names, self.matrix * other)
+            self.__matrix *= other
+            return self # TransitionMatrix(self.__names, self.matrix * other)
         except Exception as err:
             print("ERROR multiplying TRANSITION MATRIX")
             print(err)

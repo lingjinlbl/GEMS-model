@@ -196,15 +196,16 @@ class Demand:
             # assert (isinstance(odi, ODindex))
             # assert (isinstance(di, DemandIndex))
             for mode, split in ms:
+                microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
+                microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
                 if mode == "auto":
                     newTransitionMatrix += self.__transitionMatrices[odi] * ms.demandForTripsPerHour * split
                     totalAutoTrips += ms.demandForTripsPerHour * split
-                microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
-                microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
-                newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
-                for k, portion in newAllocation.items():
-                    microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
-                                                      self.__distanceBins[odi.distBin])
+                else:
+                    newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
+                    for k, portion in newAllocation.items():
+                        microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
+                                                          self.__distanceBins[odi.distBin])
         microtypes.transitionMatrix = newTransitionMatrix * (1.0 / totalAutoTrips)
         microtypes.transitionMatrixMFD(self.timePeriodDuration)
 

@@ -368,6 +368,9 @@ class AutoMode(Mode):
     def relativeLength(self):
         return self.params.at[self._idx, "VehicleSize"]
 
+    def getSpeed(self):
+        return self.networks[0].getBaseSpeed()
+
     def x0(self):
         return np.array([1. / len(self.networks)] * len(self.networks))
 
@@ -657,13 +660,13 @@ class Network:
         self._VMT = dict()
         self._N_init = 0.0
         self._N_final = 0.0
-        self._V_mean = 0.0
+        self._V_mean = self.freeFlowSpeed
         # These are for debugging and can likely be removed
         self._Q_prev = 0.0
         self._Q_curr = 0.0
         self._V_init = 0.0
-        self._V_final = 0.0
-        self._V_steadyState = 0.0
+        self._V_final = self.freeFlowSpeed
+        self._V_steadyState = self.freeFlowSpeed
         if diameter is None:
             self.__diameter = 1.0
         else:

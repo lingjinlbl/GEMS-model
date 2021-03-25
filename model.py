@@ -392,10 +392,10 @@ class Model:
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
-            print("|  Loading time period ", timePeriod)
+            print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
         self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"], self.scenarioData["microtypeIDs"])
-        self.__originDestination.initializeTimePeriod(timePeriod)
-        self.__tripGeneration.initializeTimePeriod(timePeriod)
+        self.__originDestination.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
+        self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins, self.__transitionMatrices,
                                      self.__timePeriods[self.__currentTimePeriod], 1.0)
@@ -477,7 +477,8 @@ class Model:
             self.findEquilibrium()
             userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
-            print(self.getModeSplit())
+            print(self.getModeSplit(self.__currentTimePeriod))
+            print(self.getModeSpeeds())
         return userCosts, operatorCosts
 
     def getModeSpeeds(self, timePeriod=None):

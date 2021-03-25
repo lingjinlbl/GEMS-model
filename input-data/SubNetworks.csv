@@ -2,7 +2,7 @@
 1,A,Auto-Bus-Bike,15000,16,0.145,Road,False,50
 2,B,Auto-Bus-Bike,12000,14,0.145,Road,False,50
 3,C,Auto-Bus-Bike,14000,20,0.145,Road,False,50
-4,D,Auto-Bus-Bike,14000,22,0.145,Road,False,50
+4,D,Auto-Bus-Bike,240000,22,0.145,Road,False,50
 5,A,Walk,10000,1.35,,Sidewalk,True,
 6,B,Walk,10000,1.35,,Sidewalk,True,
 7,C,Walk,10000,1.35,,Sidewalk,True,
