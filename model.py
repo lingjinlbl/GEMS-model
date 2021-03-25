@@ -487,7 +487,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data-geotype-A")
+    a = Model("input-data")
     a.collectAllCosts()
     ms = a.getModeSplit()
     print(ms)

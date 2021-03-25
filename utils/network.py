@@ -150,7 +150,7 @@ class Mode:
             VMT = self._VMT_tot * n.L / Ltot
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
-            self._speed[n] = n.NEF(VMT * mph2mps, self.name)
+            self._speed[n] = n.NEF2()# n.NEF(VMT * mph2mps, self.name)
 
     # def allocateVehicles(self):
     #     """even"""
@@ -715,12 +715,18 @@ class Network:
         self._VMT[mode] = VMT
 
     def updateBaseSpeed(self):
-        self.base_speed = self.NEF()
+        self.base_speed = self.NEF2()
 
     def getSpeedFromMFD(self, N):
         L_tot = self.L - self.getBlockedDistance()
         N_0 = self.jamDensity * L_tot
         return self.freeFlowSpeed * (1. - N / N_0)
+
+    def NEF2(self) -> float:
+        if self.type == "Road":
+            return self._V_mean
+        else:
+            return self.freeFlowSpeed
 
     def NEF(self, Q=None, modeIgnored=None) -> float:
         if self.type == 'Road':

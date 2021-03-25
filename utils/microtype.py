@@ -246,7 +246,7 @@ class MicrotypeCollection:
             for autoNetwork in microtype.networks["auto"]:
                 assert (isinstance(autoNetwork, Network))
                 L_eff = autoNetwork.L - autoNetwork.getBlockedDistance()
-                L[idx] += autoNetwork.diameter / 1609.34
+                L[idx] += autoNetwork.diameter * 1609.34
                 V_0[idx] = autoNetwork.freeFlowSpeed
                 N_0[idx] = L_eff * autoNetwork.jamDensity
                 n_init[idx] = autoNetwork.getFinalStateData()['initialAccumulation']
@@ -263,10 +263,12 @@ class MicrotypeCollection:
         for i, ti in enumerate(ts):
             dn = dn_dt(n_t, tripStartRate, L, X, V_0, N_0) * dt
             n_t += dn
+            n_t[n_t > N_0] = N_0[n_t > N_0]
+            pct = n_t / N_0
             ns[:, i] = np.squeeze(n_t)
             vs[:, i] = np.squeeze(v(n_t, V_0, N_0))
 
-        self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=0))
+        self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
 
         for microtypeID, microtype in self:
             idx = self.transitionMatrix.idx(microtypeID)
