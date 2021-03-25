@@ -189,8 +189,9 @@ class MicrotypeCollection:
     def __len__(self):
         return len(self.__microtypes)
 
-    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame, microtypeData: pd.DataFrame):
-        #uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
+    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame,
+                         microtypeData: pd.DataFrame):
+        # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
         self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list())
         for microtypeID, diameter in microtypeData.itertuples(index=False):
             if microtypeID in self:

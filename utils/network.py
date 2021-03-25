@@ -150,7 +150,7 @@ class Mode:
             VMT = self._VMT_tot * n.L / Ltot
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
-            self._speed[n] = n.NEF2()# n.NEF(VMT * mph2mps, self.name)
+            self._speed[n] = n.NEF()# n.NEF(VMT * mph2mps, self.name)
 
     # def allocateVehicles(self):
     #     """even"""
@@ -718,7 +718,7 @@ class Network:
         self._VMT[mode] = VMT
 
     def updateBaseSpeed(self):
-        self.base_speed = self.NEF2()
+        self.base_speed = self.NEF()
 
     def getSpeedFromMFD(self, N):
         L_tot = self.L - self.getBlockedDistance()
@@ -733,44 +733,47 @@ class Network:
 
     def NEF(self, Q=None, modeIgnored=None) -> float:
         if self.type == 'Road':
-            if Q is None:
-                Qtot = sum([VMT for VMT in self._VMT.values()]) * mph2mps
+            if 'auto' in self.getModeNames():
+                return self._V_mean
             else:
-                Qtot = Q
-                for mode, Qmode in self._VMT.items():
-                    if mode != modeIgnored:
-                        Qtot += Qmode * mph2mps
-            if Qtot == 0:
-                return self.freeFlowSpeed
-            self._Q_curr = Qtot
-            L_tot = self.L - self.getBlockedDistance()
-            L_0 = 10 * 1609.34  # TODO: Get average distance, don't hardcode
-            t = 3 * 3600.  # TODO: Add timestep duration in seconds
-            N_0 = self.jamDensity * L_tot
-            V_0 = self.freeFlowSpeed
-            N_init = self._N_init
-            if N_0 ** 2. / 4. >= N_0 * Qtot / V_0:
-                # Stable state
-                A = sqrt(N_0 ** 2. / 4. - N_0 * Qtot / V_0)
-                var = A * V_0 * t / (N_0 * L_0)
-                N_final = N_0 / 2 - A * ((N_0 / 2 - N_init) * cosh(var) + A * sinh(var)) / (
-                        (N_0 / 2 - N_init) * sinh(var) + A * cosh(var))
-                V_init = self.getSpeedFromMFD(N_init)
-                V_final = self.getSpeedFromMFD(N_final)
-                V_steadyState = self.getSpeedFromMFD(N_0 / 2 - A)
-            else:
-                Aprime = sqrt(N_0 * Qtot / V_0 - N_0 ** 2. / 4.)
-                var = Aprime * V_0 * t / (N_0 * L_0)
-                N_final = N_0 / 2 - Aprime * ((N_0 / 2 - N_init) * cos(var) + Aprime * sin(var)) / (
-                        (N_0 / 2 - N_init) * sin(var) + Aprime * cos(var))
-                V_init = self.getSpeedFromMFD(N_init)
-                V_final = self.getSpeedFromMFD(N_final)
-                V_steadyState = 0
-            self._N_final = N_final
-            self._V_init = V_init
-            self._V_final = V_final
-            self._V_steadyState = V_steadyState
-            return max([0.1, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
+                if Q is None:
+                    Qtot = sum([VMT for VMT in self._VMT.values()]) * mph2mps
+                else:
+                    Qtot = Q
+                    for mode, Qmode in self._VMT.items():
+                        if mode != modeIgnored:
+                            Qtot += Qmode * mph2mps
+                if Qtot == 0:
+                    return self.freeFlowSpeed
+                self._Q_curr = Qtot
+                L_tot = self.L - self.getBlockedDistance()
+                L_0 = 10 * 1609.34  # TODO: Get average distance, don't hardcode
+                t = 3 * 3600.  # TODO: Add timestep duration in seconds
+                N_0 = self.jamDensity * L_tot
+                V_0 = self.freeFlowSpeed
+                N_init = self._N_init
+                if N_0 ** 2. / 4. >= N_0 * Qtot / V_0:
+                    # Stable state
+                    A = sqrt(N_0 ** 2. / 4. - N_0 * Qtot / V_0)
+                    var = A * V_0 * t / (N_0 * L_0)
+                    N_final = N_0 / 2 - A * ((N_0 / 2 - N_init) * cosh(var) + A * sinh(var)) / (
+                            (N_0 / 2 - N_init) * sinh(var) + A * cosh(var))
+                    V_init = self.getSpeedFromMFD(N_init)
+                    V_final = self.getSpeedFromMFD(N_final)
+                    V_steadyState = self.getSpeedFromMFD(N_0 / 2 - A)
+                else:
+                    Aprime = sqrt(N_0 * Qtot / V_0 - N_0 ** 2. / 4.)
+                    var = Aprime * V_0 * t / (N_0 * L_0)
+                    N_final = N_0 / 2 - Aprime * ((N_0 / 2 - N_init) * cos(var) + Aprime * sin(var)) / (
+                            (N_0 / 2 - N_init) * sin(var) + Aprime * cos(var))
+                    V_init = self.getSpeedFromMFD(N_init)
+                    V_final = self.getSpeedFromMFD(N_final)
+                    V_steadyState = 0
+                self._N_final = N_final
+                self._V_init = V_init
+                self._V_final = V_final
+                self._V_steadyState = V_steadyState
+                return max([0.1, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
         else:
             return self.freeFlowSpeed
 
@@ -895,7 +898,8 @@ class NetworkCollection:
                 for n in m.networks:
                     n.updateBaseSpeed()
                 m.updateModeBlockedDistance()
-                self.getModeSpeeds()
+                # m.updateCommercialSpeed()
+                # self.getModeSpeeds()
                 # m.updateN(self.demands[m.name])
             # self.updateNetworks()
             # self.updateMFD()

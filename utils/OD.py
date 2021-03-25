@@ -388,7 +388,7 @@ class OriginDestination:
 
     def __getitem__(self, item: DemandIndex):
         if item not in self.originDestination:
-            print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
+            # print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
             subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
                     self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
                                                    self.__distances["TripPurposeID"] == item.tripPurpose)]
@@ -460,7 +460,7 @@ class TransitionMatrix:
     def __add__(self, other):
         if isinstance(other, TransitionMatrix):
             self.__matrix += other.__matrix
-            return self # TransitionMatrix(self.__names, self.matrix + other.matrix)
+            return self  # TransitionMatrix(self.__names, self.matrix + other.matrix)
         else:
             print("ERROR ADDING TRANSITION MATRIX")
             return self
@@ -468,25 +468,24 @@ class TransitionMatrix:
     def __radd__(self, other):
         if isinstance(other, TransitionMatrix):
             self.__matrix += other.__matrix
-            return self #TransitionMatrix(self.__names, self.matrix + other.matrix)
+            return self  # TransitionMatrix(self.__names, self.matrix + other.matrix)
         else:
             print("ERROR ADDING TRANSITION MATRIX")
             return self
 
+    def addAndMultiply(self, other, multiplier):
+        self.__matrix += other.__matrix * multiplier
+        return self
+
     def __mul__(self, other):
-        try:
-            self.__matrix *= other
-            return self # TransitionMatrix(self.__names, self.matrix * other)
-        except Exception as err:
-            print("ERROR multiplying TRANSITION MATRIX")
-            print(err)
-            return self
+        #self.__matrix *= other
+        return TransitionMatrix(self.__names, self.matrix * other)
 
     def idx(self, idx):
         return self.__nameToIdx[idx]
 
     def fillZeros(self):
-        self.__matrix += 1. / (len(self.__names)**2)
+        self.__matrix += 1. / (len(self.__names) ** 2)
         return self
 
 
@@ -496,14 +495,20 @@ class TransitionMatrices:
             microtypes = []
         self.__names = microtypes
         self.__data = dict()
+        self.__transitionMatrices = dict()
 
     def __getitem__(self, item: ODindex):
-        if (item.o, item.d, item.distBin) in self.__data:
-            return TransitionMatrix(self.__names, self.__data[(item.o, item.d, item.distBin)])
+        if (item.o, item.d, item.distBin) in self.__transitionMatrices:
+            return self.__transitionMatrices[(item.o, item.d, item.distBin)]
         else:
-            print(f"No transition matrix found for {(item.o, item.d, item.distBin)}")
-            out = TransitionMatrix(self.__names).fillZeros()
-            return out
+            if (item.o, item.d, item.distBin) in self.__data:
+                out = TransitionMatrix(self.__names, self.__data[(item.o, item.d, item.distBin)])
+                self.__transitionMatrices[(item.o, item.d, item.distBin)] = out
+                return out
+            else:
+                # print(f"No transition matrix found for {(item.o, item.d, item.distBin)}")
+                out = TransitionMatrix(self.__names).fillZeros()
+                return out
 
     def setNames(self, names: list):
         self.__names = names
