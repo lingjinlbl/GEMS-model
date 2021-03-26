@@ -77,7 +77,7 @@ class Mode:
         # self._inds = self.initInds(idx)
         self.networks = networks
         # self._N_tot = 0.0
-        # self._N = dict()
+        self._N_eff = dict()
         self._L_blocked = dict()
         self._averagePassengerDistanceInSystem = 0.0
         self._VMT_tot = 0.0
@@ -87,7 +87,7 @@ class Mode:
         if networks is not None:
             for n in networks:
                 n.addMode(self)
-                # self._N[n] = 0.0
+                self._N_eff[n] = 0.0
                 self._L_blocked[n] = 0.0
                 self._VMT[n] = 0.0
                 self._speed[n] = n.base_speed
@@ -151,6 +151,8 @@ class Mode:
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
             self._speed[n] = n.NEF()# n.NEF(VMT * mph2mps, self.name)
+            self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
+            n.setN(self.name, self._N_eff[n])
 
     # def allocateVehicles(self):
     #     """even"""
@@ -217,6 +219,7 @@ class WalkMode(Mode):
             # self._N[n] = 0.0
             self._L_blocked[n] = 0.0
             self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
 
     @property
@@ -241,6 +244,7 @@ class BikeMode(Mode):
             # self._N[n] = 0.0
             self._L_blocked[n] = 0.0
             self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
         self.bikeLanePreference = 2.0
 
@@ -286,6 +290,7 @@ class RailMode(Mode):
             # self._N[n] = 0.0
             self._L_blocked[n] = 0.0
             self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
 
     @property
@@ -347,6 +352,8 @@ class RailMode(Mode):
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
             self._speed[n] = self.routeAveragedSpeed
+            self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
+            n.setN(self.name, self._N_eff[n])
 
 
 class AutoMode(Mode):
@@ -362,6 +369,7 @@ class AutoMode(Mode):
             # self._N[n] = 0.0
             self._L_blocked[n] = 0.0
             self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
 
     @property
@@ -394,17 +402,23 @@ class AutoMode(Mode):
                 self._VMT[n] = self._VMT_tot
                 self._speed[n] = n.NEF(self._VMT_tot * mph2mps, self.name)
                 n.setVMT(self.name, self._VMT[n])
+                self._N_eff[n] = self._VMT_tot / self._speed[n] * self.relativeLength
+                n.setN(self.name, self._N_eff[n])
             else:
                 n = self.networks[0]
                 self._speed[n] = n.getTransitionMatrixMeanSpeed()  # TODO: Check Units
                 self._VMT[n] = self._VMT_tot
                 n.setVMT(self.name, self._VMT[n])
+                self._N_eff[n] = n._N_final * self.relativeLength
+                n.setN(self.name, self._N_eff[n])
         elif len(self.networks) > 1:
             res = minimize(self.getSpeedDifference, self.x0(), constraints=self.constraints(), bounds=self.bounds())
             for n, a in zip(self.networks, res.x):
                 self._VMT[n] = a * self._VMT_tot
                 self._speed[n] = n.NEF(a * self._VMT_tot * mph2mps, self.name)
                 n.setVMT(self.name, self._VMT[n])
+                self._N_eff[n] = VMT / self._speed[n]
+                n.setN(self.name, self._N_eff[n])
         else:
             print("OH NO!")
 
@@ -455,6 +469,7 @@ class BusMode(Mode):
             n.addMode(self)
             self._L_blocked[n] = 0.0
             self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
         self.routeAveragedSpeed = super().getSpeed()
         self.routeLength = self.getRouteLength()
@@ -621,6 +636,8 @@ class BusMode(Mode):
                 n.setVMT(self.name, self._VMT[n])
                 n.updateBaseSpeed()
                 self._speed[n] = self.getSubNetworkSpeed(n)
+                self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
+                n.setN(self.name, self._N_eff[n])
             else:
                 print("BAD WHY IS THIS SPEED NEGATIVE")
         self.updateCommercialSpeed()
@@ -658,6 +675,7 @@ class Network:
         self.dedicated = data.loc[idx, "Dedicated"]
         self.isJammed = False
         self._VMT = dict()
+        self._N_eff = dict()
         self._N_init = 0.0
         self._N_final = 0.0
         self._V_mean = self.freeFlowSpeed
@@ -699,6 +717,9 @@ class Network:
     def __str__(self):
         return str(tuple(self._VMT.keys()))
 
+    def getAccumulationExcluding(self, mode: str):
+        return np.sum(acc for m, acc in self._N_eff.items() if m != mode)
+
     def resetAll(self):
         self.L_blocked = dict()
         self._modes = dict()
@@ -709,6 +730,7 @@ class Network:
         for mode in self._modes.values():
             # self.N_eq[mode.name] = mode.getN(self) * mode.params.relativeLength
             self._VMT[mode] = mode._VMT[self]
+            self._N_eff[mode] = mode._N_eff[self]
             self.L_blocked[mode.name] = mode.getBlockedDistance(self)
         self.isJammed = False
         self.base_speed = self.freeFlowSpeed
@@ -716,6 +738,9 @@ class Network:
 
     def setVMT(self, mode: str, VMT: float):
         self._VMT[mode] = VMT
+
+    def setN(self, mode: str, N: float):
+        self._N_eff[mode] = N
 
     def updateBaseSpeed(self):
         self.base_speed = self.NEF()
@@ -800,6 +825,7 @@ class Network:
         self._modes[mode.name] = mode
         self.L_blocked[mode.name] = 0.0
         self._VMT[mode.name] = 0.0
+        self._N_eff[mode.name] = 0.0
         return self
 
     def getModeNames(self) -> list:

@@ -215,30 +215,29 @@ class MicrotypeCollection:
                       " subNetworks in microtype ", microtypeID)
 
     def transitionMatrixMFD(self, durationInHours):
-        def v(n, v_0, n_0):
-            try:
-                v = v_0 * (1. - n / n_0)
-                v[v < 0] = 0.
-                v[v > v_0] = v_0[v > v_0]
-            except Exception as err:
-                print(err)
+        def v(n, v_0, n_0, n_other=0.0):
+            n_eff = n + n_other
+            v = v_0 * (1. - n_eff / n_0)
+            v[v < 0] = 0.
+            v[v > v_0] = v_0[v > v_0]
             return v
 
-        def outflow(n, L, v_0, n_0):
-            return v(n, v_0, n_0) * n / L
+        def outflow(n, L, v_0, n_0, n_other=0.0):
+            return v(n, v_0, n_0, n_other) * n / L
 
-        def inflow(n, X, L, v_0, n_0):
-            os = np.transpose(X) @ (v(n, v_0, n_0) * n / L)
+        def inflow(n, X, L, v_0, n_0, n_other=0.0):
+            os = np.transpose(X) @ (v(n, v_0, n_0, n_other) * n / L)
             return os
 
-        def dn_dt(n, demand, L, X, v_0, n_0):
+        def dn_dt(n, demand, L, X, v_0, n_0, n_other=0.0):
             inflowval = inflow(n, X, L, v_0, n_0)
             outflowval = outflow(n, L, v_0, n_0)
-            return demand + inflow(n, X, L, v_0, n_0) - outflow(n, L, v_0, n_0)
+            return demand + inflow(n, X, L, v_0, n_0, n_other) - outflow(n, L, v_0, n_0, n_other)
 
         L = np.zeros((len(self), 1))
         V_0 = np.zeros((len(self), 1))
         N_0 = np.zeros((len(self), 1))
+        N_other = np.zeros((len(self), 1))
         tripStartRate = np.zeros((len(self), 1))
         n_init = np.zeros((len(self), 1))
         for microtypeID, microtype in self:
@@ -250,6 +249,7 @@ class MicrotypeCollection:
                 L[idx] += autoNetwork.diameter * 1609.34
                 V_0[idx] = autoNetwork.freeFlowSpeed
                 N_0[idx] = L_eff * autoNetwork.jamDensity
+                N_other[idx] = autoNetwork.getAccumulationExcluding("auto")
                 n_init[idx] = autoNetwork.getFinalStateData()['initialAccumulation']
             tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
