@@ -94,6 +94,7 @@ class Population:
     """
     Class for storing and representing population of microtypes.
     """
+
     def __init__(self):
         self.__populationGroups = dict()
         self.__demandClasses = dict()
@@ -130,4 +131,3 @@ class Population:
 
     def __iter__(self):
         return iter(self.__demandClasses.items())
-

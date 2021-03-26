@@ -478,7 +478,7 @@ class TransitionMatrix:
         return self
 
     def __mul__(self, other):
-        #self.__matrix *= other
+        # self.__matrix *= other
         return TransitionMatrix(self.__names, self.matrix * other)
 
     def idx(self, idx):

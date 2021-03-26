@@ -150,7 +150,7 @@ class Mode:
             VMT = self._VMT_tot * n.L / Ltot
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
-            self._speed[n] = n.NEF()# n.NEF(VMT * mph2mps, self.name)
+            self._speed[n] = n.NEF()  # n.NEF(VMT * mph2mps, self.name)
             self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
             n.setN(self.name, self._N_eff[n])
 

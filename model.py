@@ -253,7 +253,7 @@ class ScenarioData:
                                                  dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
         self["modeData"] = self.loadModeData()
         self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
-                                                 dtype={"MicrotypeID": str})
+                                           dtype={"MicrotypeID": str})
 
     def copy(self):
         """
@@ -393,7 +393,8 @@ class Model:
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
             print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
-        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"], self.scenarioData["microtypeIDs"])
+        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"],
+                                         self.scenarioData["microtypeIDs"])
         self.__originDestination.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,

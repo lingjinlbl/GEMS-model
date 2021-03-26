@@ -1,11 +1,13 @@
-import pandas as pd
 from collections import OrderedDict
+
+import pandas as pd
 
 
 class TimePeriods:
     """
     Collection of time period of day and length of said periods.
     """
+
     def __init__(self):
         self.__timePeriods = OrderedDict()
         self.__ids = OrderedDict()
@@ -39,6 +41,7 @@ class DistanceBins:
     """
     Collection of distances of trips.
     """
+
     def __init__(self):
         self.__distanceBins = dict()
 

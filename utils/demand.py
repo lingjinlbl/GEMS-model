@@ -175,7 +175,8 @@ class Demand:
                 tripRatePerHour = ratePerHourPerCapita * pop * portion
                 self.tripRate += tripRatePerHour
                 totalAutoTrips += tripRatePerHour
-                newTransitionMatrix.addAndMultiply(transitionMatrices[odi], tripRatePerHour) # += transitionMatrices[odi] * tripRatePerHour
+                newTransitionMatrix.addAndMultiply(transitionMatrices[odi],
+                                                   tripRatePerHour)  # += transitionMatrices[odi] * tripRatePerHour
                 demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
                 self.demandForPMT += demandForPMT
                 self.pop += pop
