@@ -409,7 +409,7 @@ class AutoMode(Mode):
                 self._speed[n] = n.getTransitionMatrixMeanSpeed()  # TODO: Check Units
                 self._VMT[n] = self._VMT_tot
                 n.setVMT(self.name, self._VMT[n])
-                self._N_eff[n] = n.getNetworkStateData().finalAccumulation * self.relativeLength # TODO: take avg
+                self._N_eff[n] = n.getNetworkStateData().finalAccumulation * self.relativeLength  # TODO: take avg
                 n.setN(self.name, self._N_eff[n])
         elif len(self.networks) > 1:
             res = minimize(self.getSpeedDifference, self.x0(), constraints=self.constraints(), bounds=self.bounds())
