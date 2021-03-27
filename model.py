@@ -13,6 +13,7 @@ from utils.demand import Demand, CollectedTotalUserCosts
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
 from utils.population import Population
+from utils.network import CollectedNetworkStateData
 
 
 # from skopt import gp_minimize
@@ -350,6 +351,7 @@ class Model:
         self.__tripGeneration = TripGeneration()
         self.__originDestination = OriginDestination()
         self.__transitionMatrices = TransitionMatrices()
+        self.__networkStateData = dict()
         self.readFiles()
         self.initializeAllTimePeriods()
 
@@ -374,6 +376,12 @@ class Model:
         if self.__currentTimePeriod not in self.__choice:
             self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics()
         return self.__choice[self.__currentTimePeriod]
+
+    @property
+    def NetworkStateData(self):
+        if self.__currentTimePeriod not in self.__networkStateData:
+            self.__networkStateData[self.__currentTimePeriod] = CollectedNetworkStateData()
+        return self.__networkStateData[self.__currentTimePeriod]
 
     def getCurrentTimePeriodDuration(self):
         return self.__timePeriods[self.currentTimePeriod]
@@ -478,6 +486,7 @@ class Model:
             self.findEquilibrium()
             userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
+            self.__networkStateData[timePeriod] = self.microtypes.getStateData()
             print(self.getModeSplit(self.__currentTimePeriod))
             print(self.getModeSpeeds())
         return userCosts, operatorCosts

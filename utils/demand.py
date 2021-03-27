@@ -214,7 +214,7 @@ class Demand:
         for it in range(nIters):
             microtypes.transitionMatrixMFD(self.timePeriodDuration)
             for microtypeID, microtype in microtypes:
-                microtype.updateNetworkSpeeds(nIters)
+                microtype.updateNetworkSpeeds(1)
 
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):
