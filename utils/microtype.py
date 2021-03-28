@@ -190,6 +190,9 @@ class MicrotypeCollection:
     def __len__(self):
         return len(self.__microtypes)
 
+    def microtypeNames(self):
+        return list(self.__microtypes.keys())
+
     def getModeStartRatePerSecond(self, mode):
         return np.array([microtype.getModeStartRate(mode) / 3600. for mID, microtype in self])
 
