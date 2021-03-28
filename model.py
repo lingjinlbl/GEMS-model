@@ -1,4 +1,5 @@
 import os
+import matplotlib.pyplot as plt
 # from noisyopt import minimizeCompass
 from copy import deepcopy
 
@@ -12,8 +13,8 @@ from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand, CollectedTotalUserCosts
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
-from utils.population import Population
 from utils.network import CollectedNetworkStateData
+from utils.population import Population
 
 
 # from skopt import gp_minimize
@@ -365,6 +366,9 @@ class Model:
             self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData["modeData"])
         return self.__microtypes[self.__currentTimePeriod]
 
+    def getMicrotypeCollection(self, timePeriod):
+        return self.__microtypes[timePeriod]
+
     @property
     def demand(self):
         if self.__currentTimePeriod not in self.__demand:
@@ -378,10 +382,13 @@ class Model:
         return self.__choice[self.__currentTimePeriod]
 
     @property
-    def NetworkStateData(self):
+    def networkStateData(self):
         if self.__currentTimePeriod not in self.__networkStateData:
             self.__networkStateData[self.__currentTimePeriod] = CollectedNetworkStateData()
         return self.__networkStateData[self.__currentTimePeriod]
+
+    def getNetworkStateData(self, timePeriod):
+        return self.__networkStateData[timePeriod]
 
     def getCurrentTimePeriodDuration(self):
         return self.__timePeriods[self.currentTimePeriod]
@@ -407,7 +414,7 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins, self.__transitionMatrices,
-                                     self.__timePeriods[self.__currentTimePeriod], 1.0)
+                                     self.__timePeriods[self.__currentTimePeriod], 2.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self):
@@ -472,11 +479,12 @@ class Model:
         """Note: Are we always going to go through them in order? Should maybe just store time periods
         as a dataframe and go by index. But, we're not keeping track of all accumulations so in that sense
         we always need to go in order."""
-        networkStateData = self.microtypes.getStateData()
+        networkStateData = self.networkStateData
         self.__currentTimePeriod = timePeriod
         self.__originDestination.setTimePeriod(timePeriod)
         self.__tripGeneration.setTimePeriod(timePeriod)
-        self.microtypes.importStateData(networkStateData)
+        if networkStateData:
+            self.microtypes.importPreviousStateData(networkStateData)
 
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
@@ -496,11 +504,39 @@ class Model:
             timePeriod = self.__currentTimePeriod
         return pd.DataFrame(self.__microtypes[timePeriod].getModeSpeeds())
 
+    def plotAllDynamicStats(self, type):
+        ts = []
+        vs = []
+        ns = []
+        runningTotal = 0.0
+        for id, dur in self.__timePeriods:
+            t, n, v = a.microtypes.transitionMatrixMFD(dur, a.getNetworkStateData(id),
+                                                       a.getMicrotypeCollection(id).getModeStartRatePerSecond("auto"))
+            ts.append(t / 3600. + runningTotal)
+            vs.append(n)
+            ns.append(v)
+            runningTotal += dur
+        if type.lower() == "n":
+            x = np.concatenate(ts)
+            y = np.concatenate(ns)
+            #plt.plot(x, y)
+            return x, y
+        elif type.lower() == "v":
+            x = np.concatenate(ts)
+            y = np.concatenate(vs)
+            #plt.plot(x, y)
+            return x, y
+        else:
+            print('WTF')
+        print('AA')
+
 
 if __name__ == "__main__":
     a = Model("input-data")
     a.collectAllCosts()
     ms = a.getModeSplit()
+    a.plotAllDynamicStats("N")
+    x, y = a.plotAllDynamicStats("v")
     print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),

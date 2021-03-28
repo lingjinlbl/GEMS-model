@@ -627,11 +627,14 @@ class BusMode(Mode):
         lengths = []
         for ind, n in enumerate(self.networks):
             spd = speeds[ind]
+            if spd < 0.1:
+                #print("Speed to small: ", spd)
+                spd = 0.1
             times.append(self.getOperatingL(n) / spd)
             lengths.append(self.getOperatingL(n))
         for ind, n in enumerate(self.networks):
             assert isinstance(n, Network)
-            if speeds[ind] > 0:
+            if speeds[ind] >= 0:
                 VMT = self._VMT_tot * lengths[ind] / self.getRouteLength()
                 self._VMT[n] = VMT
                 n.setVMT(self.name, self._VMT[n])
@@ -721,6 +724,9 @@ class Network:
     def __str__(self):
         return str(tuple(self._VMT.keys()))
 
+    def __contains__(self, mode):
+        return mode in self._modes
+
     def getAccumulationExcluding(self, mode: str):
         return np.sum(acc for m, acc in self._N_eff.items() if m != mode)
 
@@ -763,7 +769,7 @@ class Network:
     def NEF(self, Q=None, modeIgnored=None) -> float:
         if self.type == 'Road':
             if 'auto' in self.getModeNames():
-                return self._V_mean
+                return self._networkStateData.averageSpeed
             else:
                 if Q is None:
                     Qtot = sum([VMT for VMT in self._VMT.values()]) * mph2mps
@@ -840,7 +846,7 @@ class Network:
 
     def updateFromMFD(self, V_final, N_final, V_mean):
         self._networkStateData.finalSpeed = V_final
-        self._networkStateData.initialAccumulation = N_final
+        self._networkStateData.finalAccumulation = N_final
         self._networkStateData.averageSpeed = V_mean
 
     def getTransitionMatrixMeanSpeed(self):
@@ -849,8 +855,9 @@ class Network:
     def getNetworkStateData(self):
         return self._networkStateData
 
-    def setInitialStateData(self, data):
-        self._networkStateData = data
+    def setInitialStateData(self, oldNetworkStateData):
+        self._networkStateData.initialAccumulation = oldNetworkStateData.finalAccumulation
+        self._networkStateData.initialSpeed = oldNetworkStateData.finalSpeed
 
 
 class NetworkCollection:
@@ -955,6 +962,9 @@ class NetworkCollection:
     def __iter__(self):
         return iter(self._networks.items())
 
+    def __contains__(self, mode):
+        return mode in self.modeToNetwork
+
     def getModeNames(self) -> list:
         return list(self.modeToNetwork.keys())
 
@@ -1023,3 +1033,6 @@ class CollectedNetworkStateData:
     def applyMicrotype(self, microtype):
         for modes, network in microtype.networks:
             network.setInitialStateData(self[(microtype.microtypeID, modes)])
+
+    def __bool__(self):
+        return len(self.__data) > 0
