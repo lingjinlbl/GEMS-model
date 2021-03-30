@@ -202,6 +202,7 @@ class DemandUnit:
 
     def __getitem__(self, item):
         return self.allocation[item]
+
     #
     # def getChoiceCharacteristics(self) -> ModeCharacteristics:
     #     mode_characteristics = ModeCharacteristics(list(self.mode_split.keys()))

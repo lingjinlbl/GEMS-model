@@ -417,7 +417,7 @@ class AutoMode(Mode):
                 self._VMT[n] = a * self._VMT_tot
                 self._speed[n] = n.NEF(a * self._VMT_tot * mph2mps, self.name)
                 n.setVMT(self.name, self._VMT[n])
-                self._N_eff[n] = VMT / self._speed[n]
+                self._N_eff[n] = self._VMT[n] / self._speed[n]
                 n.setN(self.name, self._N_eff[n])
         else:
             print("OH NO!")
@@ -628,7 +628,7 @@ class BusMode(Mode):
         for ind, n in enumerate(self.networks):
             spd = speeds[ind]
             if spd < 0.1:
-                #print("Speed to small: ", spd)
+                # print("Speed to small: ", spd)
                 spd = 0.1
             times.append(self.getOperatingL(n) / spd)
             lengths.append(self.getOperatingL(n))
@@ -858,8 +858,8 @@ class Network:
     def setInitialStateData(self, oldNetworkStateData):
         self._networkStateData.initialAccumulation = oldNetworkStateData.finalAccumulation
         self._networkStateData.initialSpeed = oldNetworkStateData.finalSpeed
-        #self._networkStateData.nonAutoAccumulation = oldNetworkStateData.nonAutoAccumulation
-        #self._networkStateData.blockedDistance = oldNetworkStateData.blockedDistance
+        # self._networkStateData.nonAutoAccumulation = oldNetworkStateData.nonAutoAccumulation
+        # self._networkStateData.blockedDistance = oldNetworkStateData.blockedDistance
 
 
 class NetworkCollection:

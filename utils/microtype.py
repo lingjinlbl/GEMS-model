@@ -276,7 +276,7 @@ class MicrotypeCollection:
 
         X = np.transpose(self.transitionMatrix.matrix.values)
         val, vec = sp.sparse.linalg.eigs(X, k=1, which='LM')
-        #print(X)
+        # print(X)
         print(np.real_if_close(np.transpose(vec)[0] / np.sum(vec)))
 
         dt = 0.02 * 3600.
