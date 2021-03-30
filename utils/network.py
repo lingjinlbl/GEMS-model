@@ -858,6 +858,8 @@ class Network:
     def setInitialStateData(self, oldNetworkStateData):
         self._networkStateData.initialAccumulation = oldNetworkStateData.finalAccumulation
         self._networkStateData.initialSpeed = oldNetworkStateData.finalSpeed
+        #self._networkStateData.nonAutoAccumulation = oldNetworkStateData.nonAutoAccumulation
+        #self._networkStateData.blockedDistance = oldNetworkStateData.blockedDistance
 
 
 class NetworkCollection:
@@ -1030,7 +1032,7 @@ class CollectedNetworkStateData:
         for modes, network in microtype.networks:
             self[(microtype.microtypeID, modes)] = network.getNetworkStateData()
 
-    def applyMicrotype(self, microtype):
+    def adoptPreviousMicrotypeState(self, microtype):
         for modes, network in microtype.networks:
             network.setInitialStateData(self[(microtype.microtypeID, modes)])
 

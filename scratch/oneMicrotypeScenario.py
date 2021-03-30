@@ -14,7 +14,7 @@ if os.path.exists(newDir):
 os.makedirs(newDir)
 
 for copiedFile in ["DistanceBins", "ObjectiveFunctionUserCosts", "PopulationGroups", "TimePeriods", "TripGeneration",
-                   "TripPurposes", "MicrotypeAssignment", "TransitionMatrices"]:
+                   "TripPurposes"]:
     oldPath = os.path.join(ROOT_DIR, "..", inFolder, copiedFile + ".csv")
     newPath = os.path.join(ROOT_DIR, "..", outFolder, copiedFile + ".csv")
     shutil.copyfile(oldPath, newPath)
@@ -41,6 +41,17 @@ newdf.loc[:, "OriginMicrotypeID"] = newdf.loc[:, "OriginMicrotypeID"].str.split(
 newdf.loc[:, "DestinationMicrotypeID"] = newdf.loc[:, "DestinationMicrotypeID"].str.split('_').str[1].values
 newdf.to_csv(newPath, index=False)
 
+# %% MicrotypeAssignment
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "MicrotypeAssignment.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "MicrotypeAssignment.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df.FromMicrotypeID.str.startswith(geotype) & df.ToMicrotypeID.str.startswith(
+    geotype) & df.ThroughMicrotypeID.str.startswith(geotype), :]
+newdf.loc[:, "FromMicrotypeID"] = newdf.loc[:, "FromMicrotypeID"].str.split('_').str[1].values
+newdf.loc[:, "ToMicrotypeID"] = newdf.loc[:, "ToMicrotypeID"].str.split('_').str[1].values
+newdf.loc[:, "ThroughMicrotypeID"] = newdf.loc[:, "ThroughMicrotypeID"].str.split('_').str[1].values
+newdf.to_csv(newPath, index=False)
+
 # %% LaneDedicationCost
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "LaneDedicationCost.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "LaneDedicationCost.csv")
@@ -61,7 +72,8 @@ newdf.to_csv(newPath, index=False)
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "OriginDestination.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "OriginDestination.csv")
 df = pd.read_csv(oldPath)
-newdf = df.loc[df.HomeMicrotypeID.str.startswith(geotype) & df.OriginMicrotypeID.str.startswith(geotype) & df.DestinationMicrotypeID.str.startswith(geotype), :]
+newdf = df.loc[df.HomeMicrotypeID.str.startswith(geotype) & df.OriginMicrotypeID.str.startswith(
+    geotype) & df.DestinationMicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "HomeMicrotypeID"] = newdf.loc[:, "HomeMicrotypeID"].str.split('_').str[1].values
 newdf.loc[:, "OriginMicrotypeID"] = newdf.loc[:, "OriginMicrotypeID"].str.split('_').str[1].values
 newdf.loc[:, "DestinationMicrotypeID"] = newdf.loc[:, "DestinationMicrotypeID"].str.split('_').str[1].values
@@ -97,6 +109,20 @@ oldPath = os.path.join(ROOT_DIR, "..", inFolder, "ModeToSubNetwork.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "ModeToSubNetwork.csv")
 df = pd.read_csv(oldPath)
 newdf = df.loc[df.SubnetworkID.isin(newSubNetworks), :]
+newdf.to_csv(newPath, index=False)
+
+# %% RoadNetworkCosts
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "TransitionMatrices.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "TransitionMatrices.csv")
+df = pd.read_csv(oldPath).set_index(
+    ["OriginMicrotypeID", "DestinationMicrotypeID", "DistanceBinID", "From"])
+newdf = df.loc[df.index.get_level_values(0).str.startswith(geotype) & df.index.get_level_values(1).str.startswith(
+    geotype) & df.index.get_level_values(3).str.startswith(geotype), df.columns.str.startswith(geotype)]
+newdf.reset_index(inplace=True)
+newdf.loc[:, "OriginMicrotypeID"] = newdf.loc[:, "OriginMicrotypeID"].str.split('_').str[1].values
+newdf.loc[:, "DestinationMicrotypeID"] = newdf.loc[:, "DestinationMicrotypeID"].str.split('_').str[1].values
+newdf.loc[:, "From"] = newdf.loc[:, "From"].str.split('_').str[1].values
+newdf.columns = newdf.columns.str.split('_').str[-1].values
 newdf.to_csv(newPath, index=False)
 
 print("AA")

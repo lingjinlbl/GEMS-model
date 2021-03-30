@@ -236,7 +236,9 @@ class ScenarioData:
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                              index_col="SubnetworkID", dtype={"MicrotypeID": str})
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
-        self["microtypeAssignment"] = pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv"))
+        self["microtypeAssignment"] = pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv"),
+                                                 dtype={"FromMicrotypeID": str, "ToMicrotypeID": str,
+                                                        "ThroughMicrotypeID": str})
         self["populations"] = pd.read_csv(os.path.join(self.__path, "Population.csv"), dtype={"MicrotypeID": str})
         self["populationGroups"] = pd.read_csv(os.path.join(self.__path, "PopulationGroups.csv"))
         self["timePeriods"] = pd.read_csv(os.path.join(self.__path, "TimePeriods.csv"))
@@ -428,9 +430,11 @@ class Model:
         i = 0
         while (diff > 0.0001) & (i < 20):
             ms = self.getModeSplit(self.__currentTimePeriod)
-            self.demand.updateMFD(self.microtypes, self.getCurrentTimePeriodDuration())
+            print(ms)
+            self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
+            #print(diff)
             i += 1
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
@@ -510,7 +514,7 @@ class Model:
         ns = []
         runningTotal = 0.0
         for id, dur in self.__timePeriods:
-            t, n, v = a.microtypes.transitionMatrixMFD(dur, a.getNetworkStateData(id),
+            t, n, v = a.getMicrotypeCollection(id).transitionMatrixMFD(dur, a.getNetworkStateData(id),
                                                        a.getMicrotypeCollection(id).getModeStartRatePerSecond("auto"))
             ts.append(t / 3600. + runningTotal)
             vs.append(n)
@@ -532,11 +536,11 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data")
+    a = Model("input-data-geotype-A")
     a.collectAllCosts()
     ms = a.getModeSplit()
-    a.plotAllDynamicStats("N")
-    x, y = a.plotAllDynamicStats("v")
+    #a.plotAllDynamicStats("N")
+    x, y = a.plotAllDynamicStats("n")
     print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),

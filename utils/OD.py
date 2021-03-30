@@ -75,14 +75,19 @@ class ModeSplit:
         portion = 1. / self.__counter  # uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in out._mapping.keys():
             out[key] = out[key] * portion + other[key] * (1.0 - portion)
-        self.__counter += 0.2
+        self.__counter += 1.0
         return out
 
     def __imul__(self, other):
+        """
+        Blends the mode split from previous and current iteration to discourage oscillation
+        :param other: other mode split
+        :return: updated mode split
+        """
         portion = 1. / self.__counter  # uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in self._mapping.keys():
             self[key] = self[key] * portion + other[key] * (1.0 - portion)
-        self.__counter += 0.2
+        self.__counter += 1.0
         return self
 
     def __add__(self, other):
@@ -197,18 +202,18 @@ class DemandUnit:
 
     def __getitem__(self, item):
         return self.allocation[item]
-
-    def getChoiceCharacteristics(self) -> ModeCharacteristics:
-        mode_characteristics = ModeCharacteristics(list(self.mode_split.keys()))
-        for mode in self.mode_split.keys():
-            choice_characteristics = ChoiceCharacteristics()
-            for microtype in self.allocation.keys():
-                choice_characteristics += microtype.getThroughTimeCostWait(mode,
-                                                                           self.distance * self.allocation[microtype])
-                choice_characteristics += microtype.getStartTimeCostWait(mode)
-                choice_characteristics += microtype.getEndTimeCostWait(mode)
-            mode_characteristics[mode] = choice_characteristics
-        return mode_characteristics
+    #
+    # def getChoiceCharacteristics(self) -> ModeCharacteristics:
+    #     mode_characteristics = ModeCharacteristics(list(self.mode_split.keys()))
+    #     for mode in self.mode_split.keys():
+    #         choice_characteristics = ChoiceCharacteristics()
+    #         for microtype in self.allocation.keys():
+    #             choice_characteristics += microtype.getThroughTimeCostWait(mode,
+    #                                                                        self.distance * self.allocation[microtype])
+    #             choice_characteristics += microtype.getStartTimeCostWait(mode)
+    #             choice_characteristics += microtype.getEndTimeCostWait(mode)
+    #         mode_characteristics[mode] = choice_characteristics
+    #     return mode_characteristics
 
     def updateModeSplit(self, mode_split: ModeSplit):
         for key in self.mode_split.keys():
@@ -436,6 +441,8 @@ class TransitionMatrix:
             self.__matrix = pd.DataFrame(0.0, index=microtypes, columns=microtypes).add(matrix, fill_value=0.0)
         elif matrix is None:
             self.__matrix = pd.DataFrame(0.0, index=microtypes, columns=microtypes)
+        elif isinstance(matrix, np.ndarray):
+            self.__matrix = pd.DataFrame(matrix, index=microtypes, columns=microtypes)
         else:
             print("ERROR INITIALIZING TRANSITION MATRIX")
 
@@ -474,7 +481,7 @@ class TransitionMatrix:
             return self
 
     def addAndMultiply(self, other, multiplier):
-        self.__matrix += other.__matrix * multiplier
+        self.__matrix += other.__matrix.to_numpy() * multiplier
         return self
 
     def __mul__(self, other):
