@@ -200,7 +200,8 @@ class MicrotypeCollection:
     def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame,
                          microtypeData: pd.DataFrame):
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
-        self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list())
+        self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list(),
+                                                 diameters=microtypeData.DiameterInMiles.to_list())
         for microtypeID, diameter in microtypeData.itertuples(index=False):
             if microtypeID in self:
                 self[microtypeID].resetDemand()
@@ -275,9 +276,6 @@ class MicrotypeCollection:
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
         X = np.transpose(self.transitionMatrix.matrix.values)
-        val, vec = sp.sparse.linalg.eigs(X, k=1, which='LM')
-        # print(X)
-        print(np.real_if_close(np.transpose(vec)[0] / np.sum(vec)))
 
         dt = 0.02 * 3600.
         ts = np.arange(0, durationInHours * 3600., dt)

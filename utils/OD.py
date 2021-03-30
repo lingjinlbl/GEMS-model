@@ -3,6 +3,7 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+from scipy.sparse.linalg import eigs
 
 # from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
@@ -25,13 +26,20 @@ class Allocation:
         return self._mapping[item]
 
     def keys(self):
-        return self._mapping.keys()
+        return list(self._mapping.keys())
 
     def __iter__(self):
         return iter(self._mapping.items())
 
     def pop(self, item):
         self._mapping.pop(item)
+
+    def values(self):
+        #return np.ndarray([self._mapping[it] for it in sorted(self._mapping)])
+        return list(self._mapping.values())
+
+    def sortedValueArray(self):
+        return np.asarray(self.values())[np.argsort(self.keys())]
 
 
 class ModeSplit:
@@ -306,11 +314,12 @@ class TripCollection:
 
     def importTrips(self, df: pd.DataFrame):
         for row in df.itertuples():
-            odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
-            if odi in self.__trips:
-                self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
-            else:
-                self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
+            if (not row.FromMicrotypeID == "None") & (not row.ToMicrotypeID == "None"):
+                odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
+                if odi in self.__trips:
+                    self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
+                else:
+                    self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
         print("-------------------------------")
         print("|  Loaded ", len(df), " trips")
 
@@ -434,10 +443,10 @@ class OriginDestination:
 
 
 class TransitionMatrix:
-    def __init__(self, microtypes: list, matrix=None):
+    def __init__(self, microtypes: list, matrix=None, diameters=None):
         self.__names = microtypes
         self.__nameToIdx = {val: idx for idx, val in enumerate(microtypes)}
-        self.__averageSpeeds = np.zeros((len(microtypes), 1))
+        self.__averageSpeeds = np.zeros(len(microtypes))
         if isinstance(matrix, pd.DataFrame):
             self.__matrix = pd.DataFrame(0.0, index=microtypes, columns=microtypes).add(matrix, fill_value=0.0)
         elif matrix is None:
@@ -446,10 +455,17 @@ class TransitionMatrix:
             self.__matrix = pd.DataFrame(matrix, index=microtypes, columns=microtypes)
         else:
             print("ERROR INITIALIZING TRANSITION MATRIX")
+        if diameters is None:
+            diameters = np.ones(len(microtypes))
+        self.__diameters = diameters
 
     @property
     def averageSpeeds(self) -> np.ndarray:
         return self.__averageSpeeds
+
+    @property
+    def diameters(self) -> np.ndarray:
+        return self.__diameters
 
     def setAverageSpeeds(self, averageSpeeds: np.ndarray):
         self.__averageSpeeds = averageSpeeds
@@ -496,12 +512,22 @@ class TransitionMatrix:
         self.__matrix += 1. / (len(self.__names) ** 2)
         return self
 
+    def updateMatrix(self, other):
+        self.__matrix = other.matrix
+
+    def getSteadyState(self) -> (float, np.ndarray):
+        X = np.transpose(self.matrix.to_numpy())
+        val, vec = np.real_if_close(eigs(X, k=1, which='LM'))
+        dists = self.diameters / (1 - np.real_if_close(val))
+        weights = np.real_if_close(vec / np.sum(vec))
+        dist = np.average(dists, weights=weights.reshape(len(dists),))
+        return dist, np.squeeze(weights)
+
 
 class TransitionMatrices:
-    def __init__(self, microtypes=None):
-        if microtypes is None:
-            microtypes = []
-        self.__names = microtypes
+    def __init__(self):
+        self.__names = []
+        self.__diameters = np.ndarray(0)
         self.__data = dict()
         self.__transitionMatrices = dict()
 
@@ -510,7 +536,8 @@ class TransitionMatrices:
             return self.__transitionMatrices[(item.o, item.d, item.distBin)]
         else:
             if (item.o, item.d, item.distBin) in self.__data:
-                out = TransitionMatrix(self.__names, self.__data[(item.o, item.d, item.distBin)])
+                out = TransitionMatrix(self.__names, self.__data[(item.o, item.d, item.distBin)],
+                                       diameters=self.__diameters)
                 self.__transitionMatrices[(item.o, item.d, item.distBin)] = out
                 return out
             else:
@@ -518,8 +545,9 @@ class TransitionMatrices:
                 out = TransitionMatrix(self.__names).fillZeros()
                 return out
 
-    def setNames(self, names: list):
-        self.__names = names
+    def adoptMicrotypes(self, microtypes: pd.DataFrame):
+        self.__names = microtypes["MicrotypeID"].to_list()
+        self.__diameters = microtypes["DiameterInMiles"].to_numpy()
 
     def importTransitionMatrices(self, df: pd.DataFrame):
         for key, val in df.groupby(level=[0, 1, 2]):

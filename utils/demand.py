@@ -185,7 +185,12 @@ class Demand:
                     else:
                         modeSplit[mode] = 0.0
                 self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT)
-        microtypes.transitionMatrix = newTransitionMatrix * (1.0 / self.tripRate)
+                #dist, alloc = transitionMatrices[odi].getSteadyState()
+                #distReal = self.__distanceBins[odi.distBin] * 1609.34
+                #allocReal = trip.allocation.sortedValueArray()
+                #diff = alloc - allocReal
+                #print("WHAT")
+        microtypes.transitionMatrix.updateMatrix(newTransitionMatrix * (1.0 / self.tripRate))
 
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=3):
         for microtypeID, microtype in microtypes:
