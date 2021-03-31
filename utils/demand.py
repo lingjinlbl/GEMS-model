@@ -4,7 +4,7 @@ from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, 
 from .choiceCharacteristics import CollectedChoiceCharacteristics, filterAllocation
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins
-from .population import Population
+from .population import Population, DemandClass
 
 
 class TotalUserCosts:
@@ -64,27 +64,45 @@ class TotalUserCosts:
 
 class CollectedTotalUserCosts:
     def __init__(self):
-        self.__costs = dict()
+        self.__costsByPopulation = dict()
+        self.__costsByMode = dict()
+        self.__costsByPopulationAndMode = dict()
         self.total = 0.
         self.totalEqualVOT = 0.
         self.demandForTripsPerHour = 0.
         self.demandForPMTPerHour = 0.
 
-    def __setitem__(self, key: DemandIndex, value: TotalUserCosts):
-        self.__costs[key] = value
+    def __setitem__(self, key: (DemandIndex, str), value: TotalUserCosts):
+        if key[0] in self.__costsByPopulation:
+            self.__costsByPopulation[key[0]] += value
+        else:
+            self.__costsByPopulation[key[0]] = value
+        if key[1] in self.__costsByMode:
+            self.__costsByMode[key[1]] += value
+        else:
+            self.__costsByMode[key[1]] = value
+        self.__costsByPopulationAndMode[key] = value
         self.updateTotals(value)
 
-    def __getitem__(self, item: DemandIndex) -> TotalUserCosts:
-        return self.__costs[item]
+    def __getitem__(self, item) -> TotalUserCosts:
+        if isinstance(item, DemandIndex):
+            return self.__costsByPopulation[item]
+        elif isinstance(item, str):
+            return self.__costsByMode[item]
+        elif isinstance(item, tuple):
+            return self.__costsByPopulationAndMode[item]
+        else:
+            print("BADDDDD")
+            return TotalUserCosts()
 
     def __iter__(self):
-        return iter(self.__costs.items())
+        return iter(self.__costsByPopulationAndMode.items())
 
     def updateTotals(self, value: TotalUserCosts):
-        self.total = sum([c.total for c in self.__costs.values()])
-        self.totalEqualVOT = sum([c.totalEqualVOT for c in self.__costs.values()])
-        self.demandForTripsPerHour = sum([c.demandForTripsPerHour for c in self.__costs.values()])
-        self.demandForPMTPerHour = sum([c.demandForPMTPerHour for c in self.__costs.values()])
+        self.total = sum([c.total for c in self.__costsByPopulation.values()])
+        self.totalEqualVOT = sum([c.totalEqualVOT for c in self.__costsByPopulation.values()])
+        self.demandForTripsPerHour = sum([c.demandForTripsPerHour for c in self.__costsByPopulation.values()])
+        self.demandForPMTPerHour = sum([c.demandForPMTPerHour for c in self.__costsByPopulation.values()])
 
     def copy(self):
         out = CollectedTotalUserCosts()
@@ -92,31 +110,49 @@ class CollectedTotalUserCosts:
         out.totalEqualVOT = self.totalEqualVOT
         out.demandForTripsPerHour = self.demandForTripsPerHour
         out.demandForPMTPerHour = self.demandForPMTPerHour
-        out.__costs = self.__costs.copy()
+        out.__costsByPopulation = self.__costsByPopulation.copy()
+        out.__costsByMode = self.__costsByMode.copy()
+        out.__costsByPopulationAndMode = self.__costsByPopulationAndMode.copy()
         return out
 
     def __imul__(self, other):
-        for di in self.__costs.keys():
-            self[di] = self[di] * other
+        for di in self.__costsByPopulation.keys():
+            self.__costsByPopulation[di] = self.__costsByPopulation[di] * other
+        for mode in self.__costsByMode.keys():
+            self.__costsByMode[mode] = self.__costsByMode[mode] * other
+        for item in self.__costsByPopulationAndMode.keys():
+            self.__costsByPopulationAndMode[item] = self.__costsByPopulationAndMode[item] * other
         return self
 
     def __mul__(self, other):
         out = self.copy()
-        for di in self.__costs.keys():
-            out[di] = out[di] * other
+        for di in out.__costsByPopulation.keys():
+            out.__costsByPopulation[di] = out.__costsByPopulation[di] * other
+        for mode in out.__costsByMode.keys():
+            out.__costsByMode[mode] = out.__costsByMode[mode] * other
+        for item in out.__costsByPopulationAndMode.keys():
+            out.__costsByPopulationAndMode[item] = out.__costsByPopulationAndMode[item] * other
         return out
 
     def __rmul__(self, other):
         return self * other
 
     def __iadd__(self, other):
-        for di, cost in other:
-            self[di] = self.__costs.setdefault(di, TotalUserCosts()) + cost
+        for item, cost in other:
+            self.__costsByPopulation[item[0]] = self.__costsByPopulation.setdefault(item[0], TotalUserCosts()) + cost
+            self.__costsByMode[item[1]] = self.__costsByMode.setdefault(item[1], TotalUserCosts()) + cost
+            self.__costsByPopulationAndMode[item] = self.__costsByPopulationAndMode.setdefault(item, TotalUserCosts()) + cost
         return self
 
-    def toDataFrame(self, index=None):
-        return pd.concat([val.toDataFrame(key.toIndex()) for key, val in self.__costs.items()])
+    def toDataFrame(self, index=None) -> pd.DataFrame:
+        muc = pd.concat([val.toDataFrame(pd.MultiIndex.from_tuples([key[0].toTupleWith(key[1])])) for key, val in self.__costsByPopulationAndMode.items()])
+        muc.index.set_names(['homeMicrotype', 'populationGroupType', 'tripPurpose','mode'],  inplace=True)
+        return muc.swaplevel(0,-1)
         # return pd.concat([val.toDataFrame([key.toIndex()]) for key, val in self.__costs.items()])
+
+    def groupBy(self, vals) -> pd.DataFrame:
+        df = self.toDataFrame()
+        return df.groupby(level=vals).agg(sum)
 
 
 class Demand:
@@ -185,11 +221,11 @@ class Demand:
                     else:
                         modeSplit[mode] = 0.0
                 self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT)
-                #dist, alloc = transitionMatrices[odi].getSteadyState()
-                #distReal = self.__distanceBins[odi.distBin] * 1609.34
-                #allocReal = trip.allocation.sortedValueArray()
-                #diff = alloc - allocReal
-                #print("WHAT")
+                # dist, alloc = transitionMatrices[odi].getSteadyState()
+                # distReal = self.__distanceBins[odi.distBin] * 1609.34
+                # allocReal = trip.allocation.sortedValueArray()
+                # diff = alloc - allocReal
+                # print("WHAT")
         microtypes.transitionMatrix.updateMatrix(newTransitionMatrix * (1.0 / self.tripRate))
 
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=3):
@@ -270,17 +306,25 @@ class Demand:
             for odi, portion in od.items():
                 ms = self[(demandIndex, odi)]
                 mcc = collectedChoiceCharacteristics[odi]
-                cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
-                                                                                                            modes)
-                # costDefault = demandClass.getCostPerCapita(mcc, ms, modes) * ms.demandForTripsPerHour  # TODO: Add default
-                totalCost -= cost * demandForTripsPerHour
-                totalInVehicle += inVehicle * demandForTripsPerHour
-                totalOutVehicle += outVehicle * demandForTripsPerHour
-                totalCostDefault -= 0.0
-                totalDemandForTripsPerHour += demandForTripsPerHour
-                totalDemandForPMTPerHour += distance * demandForTripsPerHour
-            out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault, totalInVehicle, totalOutVehicle,
-                                              totalDemandForTripsPerHour, totalDemandForPMTPerHour)
+                for mode in ms.keys():
+                    cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
+                                                                                                                [mode])
+                    if demandForTripsPerHour > 0:
+                        out[demandIndex, mode] = TotalUserCosts(cost * demandForTripsPerHour, 0.0,
+                                                      inVehicle * demandForTripsPerHour,
+                                                      outVehicle * demandForTripsPerHour, demandForTripsPerHour,
+                                                      demandForTripsPerHour * distance)
+                # cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
+                #                                                                                             modes)
+                # # costDefault = demandClass.getCostPerCapita(mcc, ms, modes) * ms.demandForTripsPerHour  # TODO: Add default
+                # totalCost -= cost * demandForTripsPerHour
+                # totalInVehicle += inVehicle * demandForTripsPerHour
+                # totalOutVehicle += outVehicle * demandForTripsPerHour
+                # totalCostDefault -= 0.0
+                # totalDemandForTripsPerHour += demandForTripsPerHour
+                # totalDemandForPMTPerHour += distance * demandForTripsPerHour
+            # out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault, totalInVehicle, totalOutVehicle,
+            # totalDemandForTripsPerHour, totalDemandForPMTPerHour)
         return out
 
     def __str__(self):

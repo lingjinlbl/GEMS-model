@@ -100,7 +100,7 @@ class ModeSplit:
 
     def __add__(self, other):
         out = self.copy()
-        for key in self._mapping.keys():
+        for key in set(other.keys() + self.keys()):
             out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
                     self.demandForTripsPerHour + other.demandForTripsPerHour)
         out.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
@@ -109,7 +109,7 @@ class ModeSplit:
 
     def __iadd__(self, other):
         if self._mapping:
-            for key in self._mapping.keys():
+            for key in set(other.keys() + self.keys()):
                 self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
                         self.demandForTripsPerHour + other.demandForTripsPerHour)
         else:
@@ -125,7 +125,10 @@ class ModeSplit:
         return out
 
     def keys(self):
-        return list(self._mapping.keys())
+        if self._mapping.keys():
+            return list(self._mapping.keys())
+        else:
+            return []
 
     @property
     def demandForPmtPerHour(self):
@@ -247,6 +250,9 @@ class DemandIndex:
 
     def __str__(self):
         return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
+
+    def toTupleWith(self, other):
+        return (self.homeMicrotype, self.populationGroupType, self.tripPurpose) + tuple([other])
 
     def toIndex(self):
         return pd.MultiIndex.from_tuples([(self.homeMicrotype, self.populationGroupType, self.tripPurpose)],

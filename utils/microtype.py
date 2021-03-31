@@ -3,7 +3,6 @@
 
 import numpy as np
 import pandas as pd
-import scipy as sp
 
 from .OD import TransitionMatrix
 from .choiceCharacteristics import ChoiceCharacteristics
@@ -234,18 +233,18 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other):
+        def v(n, v_0, n_0, n_other, minspeed=0.1):
             n_eff = n + n_other
             v = v_0 * (1. - n_eff / n_0)
-            v[v < 0] = 0.
+            v[v < minspeed] = minspeed
             v[v > v_0] = v_0[v > v_0]
             return v
 
         def outflow(n, L, v_0, n_0, n_other):
-            return v(n, v_0, n_0, n_other) * n / L
+            return v(n, v_0, n_0, n_other, 1.0) * n / L
 
         def inflow(n, X, L, v_0, n_0, n_other):
-            os = X @ (v(n, v_0, n_0, n_other) * n / L)
+            os = X @ (v(n, v_0, n_0, n_other, 1.0) * n / L)
             return os
 
         def dn_dt(n, demand, L, X, v_0, n_0, n_other):
@@ -253,7 +252,7 @@ class MicrotypeCollection:
             outflowval = outflow(n, L, v_0, n_0, n_other)
             return demand + inflow(n, X, L, v_0, n_0, n_other) - outflow(n, L, v_0, n_0, n_other)
 
-        print(tripStartRate)
+        # print(tripStartRate)
         characteristicL = np.zeros((len(self)))
         V_0 = np.zeros((len(self)))
         N_0 = np.zeros((len(self)))
@@ -303,7 +302,8 @@ class MicrotypeCollection:
                         networkStateData.finalAccumulation = ns[idx, -1]
                         networkStateData.finalSpeed = vs[idx, -1]
                         networkStateData.averageSpeed = averageSpeeds[idx]
-        return np.transpose(ts), np.transpose(vs), np.transpose(ns)
+        return {"t": np.transpose(ts), "v": np.transpose(vs), "n": np.transpose(ns), "v_av": averageSpeeds,
+                "max_accumulation": N_0}
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
