@@ -4,8 +4,9 @@
 import numpy as np
 import pandas as pd
 
+from .OD import TransitionMatrix
 from .choiceCharacteristics import ChoiceCharacteristics
-from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, NetworkStateData
+from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, CollectedNetworkStateData
 
 
 class CollectedTotalOperatorCosts:
@@ -97,8 +98,11 @@ class Microtype:
         self.networks.resetModes()
         self.networks.demands.resetDemand()
 
-    def getStartAndEndRate(self, mode: str) -> (float, float):
+    def getModeStartAndEndRate(self, mode: str) -> (float, float):
         return self.networks.demands.getStartRate(mode), self.networks.demands.getStartRate(mode)
+
+    def getModeStartRate(self, mode: str) -> float:
+        return self.networks.demands.getStartRate(mode)
 
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
@@ -171,6 +175,8 @@ class MicrotypeCollection:
     def __init__(self, modeData: dict):
         self.__microtypes = dict()
         self.modeData = modeData
+        self.transitionMatrix = None
+        self.collectedNetworkStateData = CollectedNetworkStateData()
 
     def __setitem__(self, key: str, value: Microtype):
         self.__microtypes[key] = value
@@ -181,9 +187,21 @@ class MicrotypeCollection:
     def __contains__(self, item):
         return item in self.__microtypes
 
-    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame):
-        uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
-        for microtypeID in uniqueMicrotypes:
+    def __len__(self):
+        return len(self.__microtypes)
+
+    def microtypeNames(self):
+        return list(self.__microtypes.keys())
+
+    def getModeStartRatePerSecond(self, mode):
+        return np.array([microtype.getModeStartRate(mode) / 3600. for mID, microtype in self])
+
+    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame,
+                         microtypeData: pd.DataFrame):
+        # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
+        self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list(),
+                                                 diameters=microtypeData.DiameterInMiles.to_list())
+        for microtypeID, diameter in microtypeData.itertuples(index=False):
             if microtypeID in self:
                 self[microtypeID].resetDemand()
             else:
@@ -193,7 +211,7 @@ class MicrotypeCollection:
                 for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
                         modeToSubNetworkData['SubnetworkID'] == idx]
-                    subNetwork = Network(subNetworkData, idx)
+                    subNetwork = Network(subNetworkData, idx, diameter, microtypeID)
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())
@@ -201,8 +219,91 @@ class MicrotypeCollection:
                     modeToModeData[mode] = self.modeData[mode]
                 networkCollection = NetworkCollection(subNetworkToModes, modeToModeData, microtypeID)
                 self[microtypeID] = Microtype(microtypeID, networkCollection)
+                self.collectedNetworkStateData.addMicrotype(self[microtypeID])
                 print("|  Loaded ", len(subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index),
                       " subNetworks in microtype ", microtypeID)
+
+    def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):
+        if collectedNetworkStateData is None:
+            collectedNetworkStateData = self.collectedNetworkStateData
+            writeData = True
+        else:
+            writeData = False
+
+        if tripStartRate is None:
+            tripStartRate = self.getModeStartRatePerSecond("auto")
+
+        def v(n, v_0, n_0, n_other, minspeed=0.1):
+            n_eff = n + n_other
+            v = v_0 * (1. - n_eff / n_0)
+            v[v < minspeed] = minspeed
+            v[v > v_0] = v_0[v > v_0]
+            return v
+
+        def outflow(n, L, v_0, n_0, n_other):
+            return v(n, v_0, n_0, n_other, 1.0) * n / L
+
+        def inflow(n, X, L, v_0, n_0, n_other):
+            os = X @ (v(n, v_0, n_0, n_other, 1.0) * n / L)
+            return os
+
+        def dn_dt(n, demand, L, X, v_0, n_0, n_other):
+            inflowval = inflow(n, X, L, v_0, n_0, n_other)
+            outflowval = outflow(n, L, v_0, n_0, n_other)
+            return demand + inflow(n, X, L, v_0, n_0, n_other) - outflow(n, L, v_0, n_0, n_other)
+
+        # print(tripStartRate)
+        characteristicL = np.zeros((len(self)))
+        V_0 = np.zeros((len(self)))
+        N_0 = np.zeros((len(self)))
+        n_other = np.zeros((len(self)))
+        n_init = np.zeros((len(self)))
+        for microtypeID, microtype in self:
+            idx = self.transitionMatrix.idx(microtypeID)
+            for modes, autoNetwork in microtype.networks:
+                if "auto" in autoNetwork:
+                    # for autoNetwork in microtype.networks["auto"]:
+                    networkStateData = collectedNetworkStateData[(microtypeID, modes)]
+                    # nsd2 = autoNetwork.getNetworkStateData()
+                    assert (isinstance(autoNetwork, Network))
+                    L_eff = autoNetwork.L - networkStateData.blockedDistance
+                    characteristicL[idx] += autoNetwork.diameter * 1609.34
+                    V_0[idx] = autoNetwork.freeFlowSpeed
+                    N_0[idx] = L_eff * autoNetwork.jamDensity
+                    n_other[idx] = networkStateData.nonAutoAccumulation
+                    n_init[idx] = networkStateData.initialAccumulation
+        #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
+
+        X = np.transpose(self.transitionMatrix.matrix.values)
+
+        dt = 0.02 * 3600.
+        ts = np.arange(0, durationInHours * 3600., dt)
+        ns = np.zeros((len(self), np.size(ts)))
+        vs = np.zeros((len(self), np.size(ts)))
+        n_t = n_init.copy()
+
+        for i, ti in enumerate(ts):
+            dn = dn_dt(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other) * dt
+            n_t += dn
+            n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
+            pct = n_t / N_0
+            ns[:, i] = np.squeeze(n_t)
+            vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
+
+        # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
+        averageSpeeds = np.mean(vs, axis=1)
+        print(averageSpeeds)
+        if writeData:
+            for microtypeID, microtype in self:
+                idx = self.transitionMatrix.idx(microtypeID)
+                for modes, autoNetwork in microtype.networks:
+                    if "auto" in autoNetwork:
+                        networkStateData = collectedNetworkStateData[(microtypeID, modes)]
+                        networkStateData.finalAccumulation = ns[idx, -1]
+                        networkStateData.finalSpeed = vs[idx, -1]
+                        networkStateData.averageSpeed = averageSpeeds[idx]
+        return {"t": np.transpose(ts), "v": np.transpose(vs), "n": np.transpose(ns), "v_av": averageSpeeds,
+                "max_accumulation": N_0}
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
@@ -217,14 +318,21 @@ class MicrotypeCollection:
             operatorCosts[mID] = microtype.networks.getModeOperatingCosts()
         return operatorCosts
 
-    def getStateData(self) -> NetworkStateData:
-        data = NetworkStateData()
+    def getStateData(self) -> CollectedNetworkStateData:
+        data = CollectedNetworkStateData()
         for mID, microtype in self:
             data.addMicrotype(microtype)
         return data
 
-    def importStateData(self, networkStateData: NetworkStateData):
+    def importPreviousStateData(self, networkStateData: CollectedNetworkStateData):
         for mID, microtype in self:
-            networkStateData.applyMicrotype(microtype)
+            networkStateData.adoptPreviousMicrotypeState(microtype)
 
+    def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
+        if self.transitionMatrix.names == transitionMatrix.names:
+            self.transitionMatrix = transitionMatrix
+        else:
+            print("MICROTYPE NAMES IN TRANSITION MATRIX DON'T MATCH")
 
+    def emptyTransitionMatrix(self):
+        return TransitionMatrix(self.transitionMatrix.names)

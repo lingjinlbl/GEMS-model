@@ -1,13 +1,16 @@
-import pandas as pd
 from collections import OrderedDict
+
+import pandas as pd
 
 
 class TimePeriods:
     """
     Collection of time period of day and length of said periods.
     """
+
     def __init__(self):
         self.__timePeriods = OrderedDict()
+        self.__ids = OrderedDict()
 
     def __setitem__(self, key: str, value: float):
         self.__timePeriods[key] = value
@@ -20,7 +23,8 @@ class TimePeriods:
 
     def importTimePeriods(self, df: pd.DataFrame):
         for row in df.itertuples():
-            self[row.TimePeriodID] = row.DurationInHours
+            self[row.Index] = row.DurationInHours
+            self.__ids[row.Index] = row.TimePeriodID
         print("|  Loaded ", len(df), " time periods")
 
     def __contains__(self, item):
@@ -29,11 +33,15 @@ class TimePeriods:
         else:
             return False
 
+    def getTimePeriodName(self, item):
+        return self.__ids[item]
+
 
 class DistanceBins:
     """
     Collection of distances of trips.
     """
+
     def __init__(self):
         self.__distanceBins = dict()
 

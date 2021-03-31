@@ -37,16 +37,32 @@ class TravelDemands:
         self._demands[mode].tripStartRatePerHour = rate
 
     def getEndRate(self, mode: str):
-        return self._demands[mode].tripEndRatePerHour
+        if mode in self._demands:
+            return self._demands[mode].tripEndRatePerHour
+        else:
+            print("Should this really be happening?")
+            return 0.0
 
     def getStartRate(self, mode: str):
-        return self._demands[mode].tripStartRatePerHour
+        if mode in self._demands:
+            return self._demands[mode].tripStartRatePerHour
+        else:
+            print("Should this really be happening?")
+            return 0.0
 
     def getRateOfPMT(self, mode: str):
-        return self._demands[mode].rateOfPmtPerHour
+        if mode in self._demands:
+            return self._demands[mode].rateOfPmtPerHour
+        else:
+            print("Should this really be happening?")
+            return 0.0
 
     def getAverageDistance(self, mode: str):
-        return self._demands[mode].averageDistanceInSystemInMiles
+        if mode in self._demands:
+            return self._demands[mode].averageDistanceInSystemInMiles
+        else:
+            print("Should this really be happening?")
+            return 0.0
 
     def resetDemand(self):
         for mode in self._modes:

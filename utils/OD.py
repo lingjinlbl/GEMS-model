@@ -3,8 +3,9 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+from scipy.sparse.linalg import eigs
 
-from utils.microtype import Microtype
+# from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
 
 warnings.filterwarnings("ignore")
@@ -25,7 +26,7 @@ class Allocation:
         return self._mapping[item]
 
     def keys(self):
-        return self._mapping.keys()
+        return list(self._mapping.keys())
 
     def __iter__(self):
         return iter(self._mapping.items())
@@ -33,11 +34,19 @@ class Allocation:
     def pop(self, item):
         self._mapping.pop(item)
 
+    def values(self):
+        # return np.ndarray([self._mapping[it] for it in sorted(self._mapping)])
+        return list(self._mapping.values())
+
+    def sortedValueArray(self):
+        return np.asarray(self.values())[np.argsort(self.keys())]
+
 
 class ModeSplit:
     """
     Class for storing mode splits and respective properties
     """
+
     def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0):
         self.demandForTripsPerHour = demandForTrips
         self.demandForPmtPerHour = demandForPMT
@@ -74,30 +83,35 @@ class ModeSplit:
         portion = 1. / self.__counter  # uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in out._mapping.keys():
             out[key] = out[key] * portion + other[key] * (1.0 - portion)
-        self.__counter += 0.2
+        self.__counter += 1.0
         return out
 
     def __imul__(self, other):
+        """
+        Blends the mode split from previous and current iteration to discourage oscillation
+        :param other: other mode split
+        :return: updated mode split
+        """
         portion = 1. / self.__counter  # uniform(0.5 / self.__counter, 1. / self.__counter)
         for key in self._mapping.keys():
             self[key] = self[key] * portion + other[key] * (1.0 - portion)
-        self.__counter += 0.2
+        self.__counter += 1.0
         return self
 
     def __add__(self, other):
         out = self.copy()
-        for key in self._mapping.keys():
+        for key in set(other.keys() + self.keys()):
             out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
-                        self.demandForTripsPerHour + other.demandForTripsPerHour)
+                    self.demandForTripsPerHour + other.demandForTripsPerHour)
         out.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
         out.demandForPmtPerHour = (self.demandForPmtPerHour + other.demandForPmtPerHour)
         return out
 
     def __iadd__(self, other):
         if self._mapping:
-            for key in self._mapping.keys():
+            for key in set(other.keys() + self.keys()):
                 self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
-                            self.demandForTripsPerHour + other.demandForTripsPerHour)
+                        self.demandForTripsPerHour + other.demandForTripsPerHour)
         else:
             self._mapping = other._mapping.copy()
         self.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
@@ -111,7 +125,10 @@ class ModeSplit:
         return out
 
     def keys(self):
-        return list(self._mapping.keys())
+        if self._mapping.keys():
+            return list(self._mapping.keys())
+        else:
+            return []
 
     @property
     def demandForPmtPerHour(self):
@@ -191,23 +208,24 @@ class DemandUnit:
         self.allocation = allocation
         self.mode_split = mode_split
 
-    def __setitem__(self, key: Microtype, value: Dict[str, float]):
+    def __setitem__(self, key, value: Dict[str, float]):
         self.allocation[key] = value
 
-    def __getitem__(self, item: Microtype):
+    def __getitem__(self, item):
         return self.allocation[item]
 
-    def getChoiceCharacteristics(self) -> ModeCharacteristics:
-        mode_characteristics = ModeCharacteristics(list(self.mode_split.keys()))
-        for mode in self.mode_split.keys():
-            choice_characteristics = ChoiceCharacteristics()
-            for microtype in self.allocation.keys():
-                choice_characteristics += microtype.getThroughTimeCostWait(mode,
-                                                                           self.distance * self.allocation[microtype])
-                choice_characteristics += microtype.getStartTimeCostWait(mode)
-                choice_characteristics += microtype.getEndTimeCostWait(mode)
-            mode_characteristics[mode] = choice_characteristics
-        return mode_characteristics
+    #
+    # def getChoiceCharacteristics(self) -> ModeCharacteristics:
+    #     mode_characteristics = ModeCharacteristics(list(self.mode_split.keys()))
+    #     for mode in self.mode_split.keys():
+    #         choice_characteristics = ChoiceCharacteristics()
+    #         for microtype in self.allocation.keys():
+    #             choice_characteristics += microtype.getThroughTimeCostWait(mode,
+    #                                                                        self.distance * self.allocation[microtype])
+    #             choice_characteristics += microtype.getStartTimeCostWait(mode)
+    #             choice_characteristics += microtype.getEndTimeCostWait(mode)
+    #         mode_characteristics[mode] = choice_characteristics
+    #     return mode_characteristics
 
     def updateModeSplit(self, mode_split: ModeSplit):
         for key in self.mode_split.keys():
@@ -233,6 +251,9 @@ class DemandIndex:
     def __str__(self):
         return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
 
+    def toTupleWith(self, other):
+        return (self.homeMicrotype, self.populationGroupType, self.tripPurpose) + tuple([other])
+
     def toIndex(self):
         return pd.MultiIndex.from_tuples([(self.homeMicrotype, self.populationGroupType, self.tripPurpose)],
                                          names=('homeMicrotype', 'populationGroupType', 'tripPurpose'))
@@ -240,18 +261,14 @@ class DemandIndex:
 
 class ODindex:
     def __init__(self, o, d, distBin: int):
-        if isinstance(o, Microtype):
-            self.o = o.microtypeID
-        elif isinstance(o, str):
+        if isinstance(o, str):
             self.o = o
         else:
-            print("AAAH Bad ODindex")
-        if isinstance(d, Microtype):
-            self.d = d.microtypeID
-        elif isinstance(d, str):
+            self.o = o.microtypeID
+        if isinstance(d, str):
             self.d = d
         else:
-            print("AAAAH BAD ODindex")
+            self.d = d.microtypeID
         self.distBin = distBin
         self.__hash = hash((self.o, self.d, self.distBin))
 
@@ -281,6 +298,7 @@ class TripCollection:
     """
     Class to store trips, their microtypes, and the distance it belongs to as well as other aspects.
     """
+
     def __init__(self):
         self.__trips = dict()
 
@@ -302,11 +320,12 @@ class TripCollection:
 
     def importTrips(self, df: pd.DataFrame):
         for row in df.itertuples():
-            odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
-            if odi in self.__trips:
-                self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
-            else:
-                self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
+            if (not row.FromMicrotypeID == "None") & (not row.ToMicrotypeID == "None"):
+                odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
+                if odi in self.__trips:
+                    self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
+                else:
+                    self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
         print("-------------------------------")
         print("|  Loaded ", len(df), " trips")
 
@@ -318,6 +337,7 @@ class TripGeneration:
     """
     Class to import and initialize trips from data.
     """
+
     def __init__(self):
         self.__data = pd.DataFrame()
         self.__tripClasses = dict()
@@ -346,11 +366,11 @@ class TripGeneration:
         print("|  Loaded ", len(df), " trip generation rates")
         print("-------------------------------")
 
-    def initializeTimePeriod(self, timePeriod: str):
+    def initializeTimePeriod(self, timePeriod, timePeriodID):
         # self.__tripClasses = dict()
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self:
-            relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriod]
+            relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriodID]
             for row in relevantDemand.itertuples():
                 self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
             print("|  Loaded ", len(relevantDemand), " demand classes")
@@ -363,6 +383,7 @@ class OriginDestination:
     """
     A class to import and store the origin and destination of trips.
     """
+
     def __init__(self):
         self.__ods = pd.DataFrame()
         self.__distances = pd.DataFrame()
@@ -388,7 +409,7 @@ class OriginDestination:
 
     def __getitem__(self, item: DemandIndex):
         if item not in self.originDestination:
-            print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
+            # print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
             subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
                     self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
                                                    self.__distances["TripPurposeID"] == item.tripPurpose)]
@@ -403,11 +424,11 @@ class OriginDestination:
     def __contains__(self, item):
         return item in self.originDestination
 
-    def initializeTimePeriod(self, timePeriod: str):
+    def initializeTimePeriod(self, timePeriod, timePeriodID):
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self.__originDestination:
-            print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]), " distance bins")
-            relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriod]
+            print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]), " distance bins")
+            relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]
             merged = relevantODs.merge(self.__distances,
                                        on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
                                        suffixes=("_OD", "_Dist"),
@@ -416,7 +437,8 @@ class OriginDestination:
                 grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
                 tot = np.sum(grouped["tot"])
                 grouped["tot"] = grouped["tot"] / tot
-                assert abs(tot - 1) < 0.0001  # TODO: FIX
+                if abs(tot - 1) > 0.0001:  # TODO: FIX
+                    print(f"Oops, totals for {tripClass} add up to {tot}")
                 distribution = dict()
                 for row in grouped.itertuples():
                     distribution[
@@ -424,3 +446,117 @@ class OriginDestination:
                 self[DemandIndex(*tripClass)] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
+
+
+class TransitionMatrix:
+    def __init__(self, microtypes: list, matrix=None, diameters=None):
+        self.__names = microtypes
+        self.__nameToIdx = {val: idx for idx, val in enumerate(microtypes)}
+        self.__averageSpeeds = np.zeros(len(microtypes))
+        if isinstance(matrix, pd.DataFrame):
+            self.__matrix = pd.DataFrame(0.0, index=microtypes, columns=microtypes).add(matrix, fill_value=0.0)
+        elif matrix is None:
+            self.__matrix = pd.DataFrame(0.0, index=microtypes, columns=microtypes)
+        elif isinstance(matrix, np.ndarray):
+            self.__matrix = pd.DataFrame(matrix, index=microtypes, columns=microtypes)
+        else:
+            print("ERROR INITIALIZING TRANSITION MATRIX")
+        if diameters is None:
+            diameters = np.ones(len(microtypes))
+        self.__diameters = diameters
+
+    @property
+    def averageSpeeds(self) -> np.ndarray:
+        return self.__averageSpeeds
+
+    @property
+    def diameters(self) -> np.ndarray:
+        return self.__diameters
+
+    def setAverageSpeeds(self, averageSpeeds: np.ndarray):
+        self.__averageSpeeds = averageSpeeds
+
+    @property
+    def names(self) -> list:
+        return self.__names
+
+    @property
+    def matrix(self) -> pd.DataFrame:
+        return self.__matrix
+
+    def __getitem__(self, item):
+        return dict(zip(self.__names, self.__matrix[self.__nameToIdx[item], :].values))
+
+    def __add__(self, other):
+        if isinstance(other, TransitionMatrix):
+            self.__matrix += other.__matrix
+            return self  # TransitionMatrix(self.__names, self.matrix + other.matrix)
+        else:
+            print("ERROR ADDING TRANSITION MATRIX")
+            return self
+
+    def __radd__(self, other):
+        if isinstance(other, TransitionMatrix):
+            self.__matrix += other.__matrix
+            return self  # TransitionMatrix(self.__names, self.matrix + other.matrix)
+        else:
+            print("ERROR ADDING TRANSITION MATRIX")
+            return self
+
+    def addAndMultiply(self, other, multiplier):
+        self.__matrix += other.__matrix.to_numpy() * multiplier
+        return self
+
+    def __mul__(self, other):
+        # self.__matrix *= other
+        return TransitionMatrix(self.__names, self.matrix * other)
+
+    def idx(self, idx):
+        return self.__nameToIdx[idx]
+
+    def fillZeros(self):
+        self.__matrix += 1. / (len(self.__names) ** 2)
+        return self
+
+    def updateMatrix(self, other):
+        self.__matrix = other.matrix
+
+    def getSteadyState(self) -> (float, np.ndarray):
+        X = np.transpose(self.matrix.to_numpy())
+        val, vec = np.real_if_close(eigs(X, k=1, which='LM'))
+        dists = self.diameters / (1 - np.real_if_close(val))
+        weights = np.real_if_close(vec / np.sum(vec))
+        dist = np.average(dists, weights=weights.reshape(len(dists), ))
+        return dist, np.squeeze(weights)
+
+
+class TransitionMatrices:
+    def __init__(self):
+        self.__names = []
+        self.__diameters = np.ndarray(0)
+        self.__data = dict()
+        self.__transitionMatrices = dict()
+
+    def __getitem__(self, item: ODindex):
+        if (item.o, item.d, item.distBin) in self.__transitionMatrices:
+            return self.__transitionMatrices[(item.o, item.d, item.distBin)]
+        else:
+            if (item.o, item.d, item.distBin) in self.__data:
+                out = TransitionMatrix(self.__names, self.__data[(item.o, item.d, item.distBin)],
+                                       diameters=self.__diameters)
+                self.__transitionMatrices[(item.o, item.d, item.distBin)] = out
+                return out
+            else:
+                # print(f"No transition matrix found for {(item.o, item.d, item.distBin)}")
+                out = TransitionMatrix(self.__names).fillZeros()
+                return out
+
+    def adoptMicrotypes(self, microtypes: pd.DataFrame):
+        self.__names = microtypes["MicrotypeID"].to_list()
+        self.__diameters = microtypes["DiameterInMiles"].to_numpy()
+
+    def importTransitionMatrices(self, df: pd.DataFrame):
+        for key, val in df.groupby(level=[0, 1, 2]):
+            self.__data[key] = val.set_index(val.index.droplevel([0, 1, 2]))
+        print("|  Loaded ", len(df), " transition probabilities")
+        print("-------------------------------")

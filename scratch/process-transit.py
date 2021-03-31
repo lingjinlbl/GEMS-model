@@ -46,8 +46,7 @@ Auto['Type'] = "Road"
 Auto['Dedicated'] = False
 
 AutoBus = subNetworks[['MicrotypeID']].set_index('MicrotypeID')
-AutoBus['Length'] = subNetworks['LengthNetwork'].values * (
-            1.0 - interliningFactor * subNetworks['NetworkFraction'].values) * miles2meters
+AutoBus['Length'] = subNetworks['LengthNetwork'].values * miles2meters
 AutoBus['vMax'] = 16
 AutoBus['Type'] = "Road"
 AutoBus['Dedicated'] = False
@@ -72,8 +71,8 @@ Bike['vMax'] = 4.2
 Bike['Type'] = "BikeLane"
 Bike['Dedicated'] = True
 
-joined = pd.concat([Auto, AutoBus, Bus, Walk, Rail, Bike], axis=1,
-                   keys=['Auto-Bike', 'Auto-Bus-Bike', 'Bus-Bike', 'Walk', 'Rail', 'Bike'],
+joined = pd.concat([AutoBus, Bus, Walk, Rail, Bike], axis=1,
+                   keys=['Auto-Bus-Bike', 'Bus-Bike', 'Walk', 'Rail', 'Bike'],
                    names=['ModesAllowed', 'Field'])
 
 # subNetworks[pd.MultiIndex.from_tuples([('Length', 'Bus')])] = subNetworks["LengthNetwork"] * miles2meters * interliningFactor * subNetworks["NetworkFraction"]
@@ -85,17 +84,17 @@ out['densityMax'] = 0.145
 
 collected = []
 
-Sub = out.loc[out['ModesAllowed'] == "Auto-Bike", ['ModesAllowed']]
-Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "auto"
-
-collected.append(Sub)
-
-Sub = out.loc[out['ModesAllowed'] == "Auto-Bike", ['ModesAllowed']]
-Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "bike"
-
-collected.append(Sub)
+# Sub = out.loc[out['ModesAllowed'] == "Auto-Bike", ['ModesAllowed']]
+# Sub['SubnetworkID'] = Sub.index.copy().values
+# Sub['ModeTypeID'] = "auto"
+#
+# collected.append(Sub)
+#
+# Sub = out.loc[out['ModesAllowed'] == "Auto-Bike", ['ModesAllowed']]
+# Sub['SubnetworkID'] = Sub.index.copy().values
+# Sub['ModeTypeID'] = "bike"
+#
+# collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Auto-Bus-Bike", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values

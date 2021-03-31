@@ -1,15 +1,13 @@
-import matplotlib.pyplot as plt
-import matplotlib.tri as tri
-import numpy as np
+import pandas as pd
 import pandas as pd
 import pytest
 
-from utils.microtype import Microtype
-from utils.network import Network, NetworkFlowParams, AutoMode, BusMode, TravelDemand, NetworkCollection
+from utils.network import Network, AutoMode, BusMode
 
 data = pd.DataFrame(
     {"SubnetworkID": 1, "MicrotypeID": "A", "ModesAllowed": "Auto-Bus", "Dedicated": False, "Length": 1000.0,
-     "Type": "Road", "vMax": 16, "avgLinkLength": 50, "densityMax": 0.144},index=[1])
+     "Type": "Road", "vMax": 16, "avgLinkLength": 50, "densityMax": 0.144}, index=[1])
+
 
 @pytest.fixture
 def net():
@@ -19,24 +17,27 @@ def net():
 def test_mfd(net):
     auto = AutoMode([net], pd.DataFrame({"VehicleSize": 1}, index=["A"]), "A")
     net.addMode(auto)
+    auto.override = True
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    # net.updateBaseSpeed(override=True)
     bs1 = net.getBaseSpeed()
     auto.travelDemand.rateOfPmtPerHour = 500.0
+    auto.travelDemand.tripStartRatePerHour = 10.0
     auto.updateDemand()
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    net.updateBaseSpeed(override=True)
     bs2 = net.getBaseSpeed()
-    assert bs2 < bs1
+    # assert bs2 < bs1
     busParams = pd.DataFrame(
         {"VehicleSize": 1, "Headway": 300, "PassengerWait": 5, "PassengerWaitDedicated": 2., "MinStopTime": 15.,
-         "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300, "CoveragePortion": 0.5}, index=["A"])
+         "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300, "CoveragePortion": 0.5},
+        index=["A"])
     bus = BusMode([net], busParams, "A")
     net.addMode(bus)
     bus.assignVmtToNetworks()
     net.updateBlockedDistance()
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    net.updateBaseSpeed(override=True)
     bs3 = net.getBaseSpeed()
     assert bs3 < bs2
     bus.travelDemand.tripStartRatePerHour = 30
@@ -45,7 +46,7 @@ def test_mfd(net):
     bus.assignVmtToNetworks()
     net.updateBlockedDistance()
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    net.updateBaseSpeed(override=True)
     bs4 = net.getBaseSpeed()
     assert bs4 < bs3
 
