@@ -364,6 +364,7 @@ class AutoMode(Mode):
         self._idx = idx
         self.networks = networks
         self.MFDmode = "single"
+        self.override = False
         for n in networks:
             n.addMode(self)
             # self._N[n] = 0.0
@@ -400,7 +401,7 @@ class AutoMode(Mode):
             if self.MFDmode == "single":
                 n = self.networks[0]
                 self._VMT[n] = self._VMT_tot
-                self._speed[n] = n.NEF(self._VMT_tot * mph2mps, self.name)
+                self._speed[n] = n.NEF(self._VMT_tot * mph2mps, self.name, self.override)
                 n.setVMT(self.name, self._VMT[n])
                 self._N_eff[n] = self._VMT_tot / self._speed[n] * self.relativeLength
                 n.setN(self.name, self._N_eff[n])
@@ -752,8 +753,9 @@ class Network:
     def setN(self, mode: str, N: float):
         self._N_eff[mode] = N
 
-    def updateBaseSpeed(self):
-        self.base_speed = self.NEF()
+    def updateBaseSpeed(self, override=False):
+        out = self.NEF(overrideMatrix=override)
+        self.base_speed = self.NEF(overrideMatrix=override)
 
     def getSpeedFromMFD(self, N):
         L_tot = self.L - self.getBlockedDistance()
@@ -766,9 +768,9 @@ class Network:
         else:
             return self.freeFlowSpeed
 
-    def NEF(self, Q=None, modeIgnored=None) -> float:
+    def NEF(self, Q=None, modeIgnored=None, overrideMatrix=False) -> float:
         if self.type == 'Road':
-            if 'auto' in self.getModeNames():
+            if 'auto' in self.getModeNames() and not overrideMatrix:
                 return self._networkStateData.averageSpeed
             else:
                 if Q is None:
@@ -808,6 +810,8 @@ class Network:
                 self._networkStateData.V_init = V_init
                 self._networkStateData.V_final = V_final
                 self._networkStateData.V_steadyState = V_steadyState
+                if overrideMatrix:
+                    self.base_speed = max([0.1, (V_init + V_final) / 2.0])
                 return max([0.1, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
         else:
             return self.freeFlowSpeed

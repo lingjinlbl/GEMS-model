@@ -19,15 +19,17 @@ def net():
 def test_mfd(net):
     auto = AutoMode([net], pd.DataFrame({"VehicleSize": 1}, index=["A"]), "A")
     net.addMode(auto)
+    auto.override = True
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    #net.updateBaseSpeed(override=True)
     bs1 = net.getBaseSpeed()
     auto.travelDemand.rateOfPmtPerHour = 500.0
+    auto.travelDemand.tripStartRatePerHour = 10.0
     auto.updateDemand()
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    net.updateBaseSpeed(override=True)
     bs2 = net.getBaseSpeed()
-    assert bs2 < bs1
+    #assert bs2 < bs1
     busParams = pd.DataFrame(
         {"VehicleSize": 1, "Headway": 300, "PassengerWait": 5, "PassengerWaitDedicated": 2., "MinStopTime": 15.,
          "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300, "CoveragePortion": 0.5}, index=["A"])
@@ -36,7 +38,7 @@ def test_mfd(net):
     bus.assignVmtToNetworks()
     net.updateBlockedDistance()
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    net.updateBaseSpeed(override=True)
     bs3 = net.getBaseSpeed()
     assert bs3 < bs2
     bus.travelDemand.tripStartRatePerHour = 30
@@ -45,7 +47,7 @@ def test_mfd(net):
     bus.assignVmtToNetworks()
     net.updateBlockedDistance()
     auto.assignVmtToNetworks()
-    net.updateBaseSpeed()
+    net.updateBaseSpeed(override=True)
     bs4 = net.getBaseSpeed()
     assert bs4 < bs3
 
