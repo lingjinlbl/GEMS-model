@@ -35,7 +35,7 @@ class Allocation:
         self._mapping.pop(item)
 
     def values(self):
-        #return np.ndarray([self._mapping[it] for it in sorted(self._mapping)])
+        # return np.ndarray([self._mapping[it] for it in sorted(self._mapping)])
         return list(self._mapping.values())
 
     def sortedValueArray(self):
@@ -526,7 +526,7 @@ class TransitionMatrix:
         val, vec = np.real_if_close(eigs(X, k=1, which='LM'))
         dists = self.diameters / (1 - np.real_if_close(val))
         weights = np.real_if_close(vec / np.sum(vec))
-        dist = np.average(dists, weights=weights.reshape(len(dists),))
+        dist = np.average(dists, weights=weights.reshape(len(dists), ))
         return dist, np.squeeze(weights)
 
 

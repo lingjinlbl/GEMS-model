@@ -2,11 +2,11 @@ import os
 # from noisyopt import minimizeCompass
 from copy import deepcopy
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, Bounds
 from scipy.optimize import shgo
-import matplotlib.pyplot as plt
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit, TransitionMatrices
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics

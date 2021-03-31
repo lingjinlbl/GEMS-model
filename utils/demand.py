@@ -4,7 +4,7 @@ from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, 
 from .choiceCharacteristics import CollectedChoiceCharacteristics, filterAllocation
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins
-from .population import Population, DemandClass
+from .population import Population
 
 
 class TotalUserCosts:
@@ -141,13 +141,15 @@ class CollectedTotalUserCosts:
         for item, cost in other:
             self.__costsByPopulation[item[0]] = self.__costsByPopulation.setdefault(item[0], TotalUserCosts()) + cost
             self.__costsByMode[item[1]] = self.__costsByMode.setdefault(item[1], TotalUserCosts()) + cost
-            self.__costsByPopulationAndMode[item] = self.__costsByPopulationAndMode.setdefault(item, TotalUserCosts()) + cost
+            self.__costsByPopulationAndMode[item] = self.__costsByPopulationAndMode.setdefault(item,
+                                                                                               TotalUserCosts()) + cost
         return self
 
     def toDataFrame(self, index=None) -> pd.DataFrame:
-        muc = pd.concat([val.toDataFrame(pd.MultiIndex.from_tuples([key[0].toTupleWith(key[1])])) for key, val in self.__costsByPopulationAndMode.items()])
-        muc.index.set_names(['homeMicrotype', 'populationGroupType', 'tripPurpose','mode'],  inplace=True)
-        return muc.swaplevel(0,-1)
+        muc = pd.concat([val.toDataFrame(pd.MultiIndex.from_tuples([key[0].toTupleWith(key[1])])) for key, val in
+                         self.__costsByPopulationAndMode.items()])
+        muc.index.set_names(['homeMicrotype', 'populationGroupType', 'tripPurpose', 'mode'], inplace=True)
+        return muc.swaplevel(0, -1)
         # return pd.concat([val.toDataFrame([key.toIndex()]) for key, val in self.__costs.items()])
 
     def groupBy(self, vals) -> pd.DataFrame:
@@ -311,9 +313,10 @@ class Demand:
                                                                                                                 [mode])
                     if demandForTripsPerHour > 0:
                         out[demandIndex, mode] = TotalUserCosts(cost * demandForTripsPerHour, 0.0,
-                                                      inVehicle * demandForTripsPerHour,
-                                                      outVehicle * demandForTripsPerHour, demandForTripsPerHour,
-                                                      demandForTripsPerHour * distance)
+                                                                inVehicle * demandForTripsPerHour,
+                                                                outVehicle * demandForTripsPerHour,
+                                                                demandForTripsPerHour,
+                                                                demandForTripsPerHour * distance)
                 # cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
                 #                                                                                             modes)
                 # # costDefault = demandClass.getCostPerCapita(mcc, ms, modes) * ms.demandForTripsPerHour  # TODO: Add default

@@ -1,8 +1,10 @@
-import pytest
-from utils.population import Population
-from utils.choiceCharacteristics import ModalChoiceCharacteristics, ChoiceCharacteristics
-import pandas as pd
 import os
+
+import pandas as pd
+import pytest
+
+from utils.choiceCharacteristics import ModalChoiceCharacteristics, ChoiceCharacteristics
+from utils.population import Population
 
 
 @pytest.fixture
