@@ -71,7 +71,9 @@ allTrips = everything.groupby(['jamDensity', 'mode', 'homeMicrotype']).agg('sum'
     'demandForTripsPerHour']
 
 busModeSplit = busTrips / allTrips.sum(axis=1).unstack()
-tt = df.groupby(['busLaneDistance','populationGroupType','tripPurpose']).agg(sum).loc[0]['travelTime'].unstack()
+tt = everything.groupby(['busLaneDistance', 'populationGroupType', 'tripPurpose']).agg(sum).loc[0][
+    'travelTime'].unstack()
 y = -everything.groupby('jamDensity').agg(sum)['totalCost'].values
-trips = df.groupby(['busLaneDistance','homeMicrotype','mode']).agg(sum).loc[0]['demandForTripsPerHour'].unstack()
+trips = everything.groupby(['busLaneDistance', 'homeMicrotype', 'mode']).agg(sum).loc[0][
+    'demandForTripsPerHour'].unstack()
 print("DONE")
