@@ -49,7 +49,7 @@ for den in jamDensity:
     i += 1
 x, y = a.plotAllDynamicStats("density")
 ax2.plot(x, y)
-allSpeeds = pd.concat(allSpeeds, keys=busLaneDistance, names=['jamDensity']).swaplevel(0, 1)
+allSpeeds = pd.concat(allSpeeds, keys=jamDensity, names=['jamDensity']).swaplevel(0, 1)
 
 fig2 = plt.figure()
 ax21, ax22 = fig2.subplots(1, 2)
@@ -62,14 +62,16 @@ ax22.set_ylabel("Auto speed (m/s)")
 plt.xlabel("Bus Lane Distance In Microtype B")
 plt.ylabel("Bus Speeds")
 
-everything = pd.concat(allCostObjects, keys=busLaneDistance, names=['jamDensity'])
-everything.groupby(['busLaneDistance', 'mode']).agg('sum')['totalCost'].unstack().plot()
+everything = pd.concat(allCostObjects, keys=jamDensity, names=['jamDensity'])
+everything.groupby(['jamDensity', 'mode']).agg('sum')['totalCost'].unstack().plot()
 
-busTrips = everything.groupby(['busLaneDistance', 'mode', 'homeMicrotype']).agg('sum').unstack(level=1)[
+busTrips = everything.groupby(['jamDensity', 'mode', 'homeMicrotype']).agg('sum').unstack(level=1)[
     'demandForTripsPerHour', 'bus'].unstack()
-allTrips = everything.groupby(['busLaneDistance', 'mode', 'homeMicrotype']).agg('sum').unstack(level=1)[
+allTrips = everything.groupby(['jamDensity', 'mode', 'homeMicrotype']).agg('sum').unstack(level=1)[
     'demandForTripsPerHour']
 
 busModeSplit = busTrips / allTrips.sum(axis=1).unstack()
-
+tt = df.groupby(['busLaneDistance','populationGroupType','tripPurpose']).agg(sum).loc[0]['travelTime'].unstack()
+y = -everything.groupby('jamDensity').agg(sum)['totalCost'].values
+trips = df.groupby(['busLaneDistance','homeMicrotype','mode']).agg(sum).loc[0]['demandForTripsPerHour'].unstack()
 print("DONE")
