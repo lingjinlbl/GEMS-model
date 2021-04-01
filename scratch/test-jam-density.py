@@ -7,7 +7,7 @@ from model import Model
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 a = Model(ROOT_DIR + "/../input-data-geotype-A")
-userCosts, operatorCosts = a.collectAllCosts()
+#userCosts, operatorCosts = a.collectAllCosts()
 allSpeeds = []
 busModeShare = []
 carModeShare = []
@@ -19,14 +19,14 @@ demandForPMTByMode = []
 ldCosts = []
 allCosts = []
 allCostObjects = []
-orig_dist = a.scenarioData['subNetworkData'].at[0, "Length"]
-max_dist = orig_dist / 5.0
-busLaneDistance = np.linspace(0, max_dist, num=20)
+sn = pd.read_csv(ROOT_DIR + "/../input-data-geotype-A/SubNetworks.csv",index_col="SubnetworkID", dtype={"MicrotypeID": str})
+mask = (sn.ModesAllowed == 'Auto-Bus-Bike')
+jamDensity = np.linspace(0.12, 0.2, num=20)
 fig1 = plt.figure()
 ax1, ax2 = fig1.subplots(1,2)
-for dist in busLaneDistance:
-    a.scenarioData['subNetworkData'].at[2, "Length"] = dist
-    a.scenarioData['subNetworkData'].at[0, "Length"] = orig_dist - dist
+i = 0
+for den in jamDensity:
+    a.scenarioData['subNetworkData'].loc[mask, 'densityMax'] = den
     userCosts, operatorCosts = a.collectAllCosts()
     allCostObjects.append(userCosts.toDataFrame())
     ms = a.getModeSplit()
@@ -40,14 +40,14 @@ for dist in busLaneDistance:
     busModeShare.append(ms["bus"])
     carModeShare.append(ms["auto"])
     print(ms)
-    ldCosts.append(0.014 * dist)
-    allCosts.append(userCosts.total + operatorCosts.total + 0.014 * dist)
-    if dist == 0:
+    allCosts.append(userCosts.total + operatorCosts.total)
+    if i == 0:
         x, y = a.plotAllDynamicStats("density")
         ax1.plot(x, y)
+    i += 1
 x, y = a.plotAllDynamicStats("density")
 ax2.plot(x, y)
-allSpeeds = pd.concat(allSpeeds, keys = busLaneDistance, names = ['busLaneDistance']).swaplevel(0,1)
+allSpeeds = pd.concat(allSpeeds, keys = busLaneDistance, names = ['jamDensity']).swaplevel(0,1)
 
 
 fig2 = plt.figure()
@@ -61,7 +61,7 @@ ax22.set_ylabel("Auto speed (m/s)")
 plt.xlabel("Bus Lane Distance In Microtype B")
 plt.ylabel("Bus Speeds")
 
-everything = pd.concat(allCostObjects, keys = busLaneDistance, names = ['busLaneDistance'])
+everything = pd.concat(allCostObjects, keys = busLaneDistance, names = ['jamDensity'])
 everything.groupby(['busLaneDistance','mode']).agg('sum')['totalCost'].unstack().plot()
 
 busTrips = everything.groupby(['busLaneDistance','mode','homeMicrotype']).agg('sum').unstack(level=1)['demandForTripsPerHour','bus'].unstack()
