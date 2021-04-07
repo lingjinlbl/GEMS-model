@@ -233,24 +233,50 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other, minspeed=0.1):
+        def v(n, v_0, n_0, n_other, minspeed=0.1) -> np.ndarray:
             n_eff = n + n_other
             v = v_0 * (1. - n_eff / n_0)
             v[v < minspeed] = minspeed
             v[v > v_0] = v_0[v > v_0]
             return v
 
-        def outflow(n, L, v_0, n_0, n_other):
+        def outflow(n, L, v_0, n_0, n_other) -> np.ndarray:
             return v(n, v_0, n_0, n_other, 1.0) * n / L
 
-        def inflow(n, X, L, v_0, n_0, n_other):
+        def inflow(n, X, L, v_0, n_0, n_other) -> np.ndarray:
             os = X @ (v(n, v_0, n_0, n_other, 1.0) * n / L)
             return os
 
-        def dn_dt(n, demand, L, X, v_0, n_0, n_other):
+        def spillback(n: np.ndarray, N_0: np.ndarray, demand: np.ndarray, inflow: np.ndarray, outflow: np.ndarray,
+                      dt: float, n_other=0.0, criticalDensity=0.9) -> np.ndarray:
+            requestedN = (demand + inflow - outflow) * dt + n
+            criticalN = criticalDensity * (N_0 - n_other)
+            overLimit = requestedN > criticalN
+            counter = 0
+            while np.any(overLimit):
+                if np.all(overLimit):
+                    if counter == 0:
+                        vals = np.linspace(criticalDensity, 1.0, 5)
+                    if counter <= 5:
+                        criticalDensity = vals[counter]
+                        criticalN = criticalDensity * (N_0 - n_other)
+                        counter += 1
+                    else:
+                        print('Youre Effed')
+                        return criticalN
+                before = np.sum(requestedN)
+                totalSpillback = np.sum(requestedN[overLimit] - criticalN[overLimit])
+                toBeLimited = inflow[~overLimit]
+                requestedN[~overLimit] += inflow[~overLimit] * totalSpillback / np.sum(toBeLimited)
+                requestedN[overLimit] = criticalN[overLimit]
+                overLimit = (requestedN / N_0) > criticalN
+                after = np.sum(requestedN)
+            return requestedN
+
+        def dn(n, demand, L, X, v_0, n_0, n_other, dt) -> np.ndarray:
             inflowval = inflow(n, X, L, v_0, n_0, n_other)
             outflowval = outflow(n, L, v_0, n_0, n_other)
-            return demand + inflow(n, X, L, v_0, n_0, n_other) - outflow(n, L, v_0, n_0, n_other)
+            return (demand + inflow(n, X, L, v_0, n_0, n_other) - outflow(n, L, v_0, n_0, n_other)) * dt
 
         # print(tripStartRate)
         characteristicL = np.zeros((len(self)))
@@ -283,9 +309,14 @@ class MicrotypeCollection:
         n_t = n_init.copy()
 
         for i, ti in enumerate(ts):
-            dn = dn_dt(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other) * dt
-            n_t += dn
-            n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
+            # deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
+            # otherval = deltaN + n_t
+            # n_t += deltaN
+            infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
+            outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
+            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.6)
+            # print(otherval, n_t)
+            # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
             pct = n_t / N_0
             ns[:, i] = np.squeeze(n_t)
             vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))

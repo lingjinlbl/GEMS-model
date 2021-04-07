@@ -545,7 +545,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data-geotype-A")
+    a = Model("input-data")
     userCosts, operatorCosts = a.collectAllCosts()
     ms = a.getModeSplit()
     # a.plotAllDynamicStats("N")

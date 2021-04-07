@@ -267,7 +267,7 @@ class Demand:
                 self[demandIndex, odi].updateMapping(ms)
                 self[demandIndex, odi] *= oldModeSplit
         newModeSplit = self.getTotalModeSplit()
-        print(newModeSplit)
+        # print(newModeSplit)
         diff = oldModeSplit - newModeSplit
         return diff
 
