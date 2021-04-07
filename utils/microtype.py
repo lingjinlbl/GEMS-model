@@ -196,8 +196,8 @@ class MicrotypeCollection:
     def getModeStartRatePerSecond(self, mode):
         return np.array([microtype.getModeStartRate(mode) / 3600. for mID, microtype in self])
 
-    def importMicrotypes(self, subNetworkData: pd.DataFrame, modeToSubNetworkData: pd.DataFrame,
-                         microtypeData: pd.DataFrame):
+    def importMicrotypes(self, subNetworkData: pd.DataFrame, subNetworkCharacteristics: pd.DataFrame,
+                         modeToSubNetworkData: pd.DataFrame, microtypeData: pd.DataFrame):
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
         self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list(),
                                                  diameters=microtypeData.DiameterInMiles.to_list())
@@ -208,10 +208,10 @@ class MicrotypeCollection:
                 subNetworkToModes = dict()
                 modeToModeData = dict()
                 allModes = set()
-                for idx in subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index:
+                for idx in subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
                         modeToSubNetworkData['SubnetworkID'] == idx]
-                    subNetwork = Network(subNetworkData, idx, diameter, microtypeID)
+                    subNetwork = Network(subNetworkData, subNetworkCharacteristics, idx, diameter, microtypeID)
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())
@@ -220,7 +220,8 @@ class MicrotypeCollection:
                 networkCollection = NetworkCollection(subNetworkToModes, modeToModeData, microtypeID)
                 self[microtypeID] = Microtype(microtypeID, networkCollection)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeID])
-                print("|  Loaded ", len(subNetworkData.loc[subNetworkData["MicrotypeID"] == microtypeID].index),
+                print("|  Loaded ",
+                      len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
                       " subNetworks in microtype ", microtypeID)
 
     def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):

@@ -672,14 +672,19 @@ class BusMode(Mode):
 
 
 class Network:
-    def __init__(self, data, idx, diameter=None, microtypeID=None):
+    def __init__(self, data, characteristics, idx, diameter=None, microtypeID=None):
         self.data = data
+        self.__data = data.to_numpy()
+        self.characteristics = characteristics
+        self.charColumnToIdx = {i:characteristics.columns.get_loc(i) for i in characteristics.columns}
+        self.dataColumnToIdx = {i:data.columns.get_loc(i) for i in data.columns}
         self.microtypeID = microtypeID
-        self._idx = idx
+        self._idx = data.index.get_loc(idx)
+        self.type = self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
         self.L_blocked = dict()
         self._modes = dict()
         self.base_speed = self.freeFlowSpeed
-        self.dedicated = data.loc[idx, "Dedicated"]
+        self.dedicated = characteristics.loc[idx, "Dedicated"]
         self.isJammed = False
         self._VMT = dict()
         self._N_eff = dict()
@@ -698,25 +703,26 @@ class Network:
         else:
             self.__diameter = diameter
 
-    @property
-    def type(self):
-        return self.data.at[self._idx, "Type"]
+
+    # @property
+    # def type(self):
+    #     return self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
 
     @property
     def avgLinkLength(self):
-        return self.data.at[self._idx, "avgLinkLength"]
+        return self.__data[self._idx, self.dataColumnToIdx["avgLinkLength"]]
 
     @property
     def freeFlowSpeed(self):
-        return self.data.at[self._idx, "vMax"]
+        return self.__data[self._idx, self.dataColumnToIdx["vMax"]]
 
     @property
     def jamDensity(self):
-        return self.data.at[self._idx, "densityMax"]
+        return self.__data[self._idx, self.dataColumnToIdx["densityMax"]]
 
     @property
     def L(self):
-        return self.data.at[self._idx, "Length"]
+        return self.__data[self._idx, self.dataColumnToIdx["Length"]]
 
     @property
     def diameter(self):
@@ -727,6 +733,9 @@ class Network:
 
     def __contains__(self, mode):
         return mode in self._modes
+
+    def updateScenarioInputs(self):
+        self.__data = self.data.to_numpy()
 
     def getAccumulationExcluding(self, mode: str):
         return np.sum(acc for m, acc in self._N_eff.items() if m != mode)

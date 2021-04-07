@@ -234,7 +234,10 @@ class ScenarioData:
         data.
         """
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                             index_col="SubnetworkID", dtype={"MicrotypeID": str})
+                                             usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength"],
+                                             index_col="SubnetworkID", dtype={"MicrotypeID": str}).fillna(0.0)
+        self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
+                                                 index_col="SubnetworkID", dtype={"MicrotypeID": str})
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
         self["microtypeAssignment"] = pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv"),
                                                   dtype={"FromMicrotypeID": str, "ToMicrotypeID": str,
@@ -410,8 +413,8 @@ class Model:
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
             print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
-        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["modeToSubNetworkData"],
-                                         self.scenarioData["microtypeIDs"])
+        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["subNetworkDataFull"],
+                                         self.scenarioData["modeToSubNetworkData"], self.scenarioData["microtypeIDs"])
         self.__originDestination.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
