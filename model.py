@@ -406,7 +406,7 @@ class Model:
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
                                                          self.scenarioData["distanceDistribution"])
         self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
-        self.__transitionMatrices.importTransitionMatrices(self.scenarioData["transitionMatrices"])
+        self.__transitionMatrices.importTransitionMatrices(self.scenarioData["transitionMatrices"], self.scenarioData["microtypeIDs"], self.scenarioData["distanceBins"])
 
     def initializeTimePeriod(self, timePeriod: str):
         self.__currentTimePeriod = timePeriod

@@ -196,6 +196,7 @@ class Demand:
         self.__transitionMatrices = transitionMatrices
         self.timePeriodDuration = timePeriodDuration
         newTransitionMatrix = microtypes.emptyTransitionMatrix()
+        weights = transitionMatrices.emptyWeights()
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
             ratePerHourPerCapita = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
@@ -212,8 +213,9 @@ class Demand:
                 tripRatePerHour = ratePerHourPerCapita * pop * portion
                 self.tripRate += tripRatePerHour
                 demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
-                newTransitionMatrix.addAndMultiply(transitionMatrices[odi],
-                                                   tripRatePerHour)  # += transitionMatrices[odi] * tripRatePerHour
+                # newTransitionMatrix.addAndMultiply(transitionMatrices[odi],
+                #                                    tripRatePerHour)  # += transitionMatrices[odi] * tripRatePerHour
+                weights[transitionMatrices.idx(odi)] += tripRatePerHour
                 self.demandForPMT += demandForPMT
                 self.pop += pop
                 modeSplit = dict()
@@ -228,13 +230,16 @@ class Demand:
                 # allocReal = trip.allocation.sortedValueArray()
                 # diff = alloc - allocReal
                 # print("WHAT")
-        microtypes.transitionMatrix.updateMatrix(newTransitionMatrix * (1.0 / self.tripRate))
+        otherMatrix = transitionMatrices.averageMatrix(weights)
+        microtypes.transitionMatrix.updateMatrix(otherMatrix)
+        # microtypes.transitionMatrix.updateMatrix(newTransitionMatrix * (1.0 / self.tripRate))
 
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=3):
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
         newTransitionMatrix = microtypes.emptyTransitionMatrix()
         totalDemandForTrips = 0.0
+        weights = self.__transitionMatrices.emptyWeights()
         for (di, odi), ms in self.__modeSplit.items():
             # assert (isinstance(ms, ModeSplit))
             # assert (isinstance(odi, ODindex))
@@ -243,14 +248,17 @@ class Demand:
                 microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
                 microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
                 if mode == "auto":
-                    newTransitionMatrix.addAndMultiply(self.__transitionMatrices[odi], ms.demandForTripsPerHour * split)
+                    weights[self.__transitionMatrices.idx(odi)] += ms.demandForTripsPerHour * split
+                    # newTransitionMatrix.addAndMultiply(self.__transitionMatrices[odi], ms.demandForTripsPerHour * split)
                     totalDemandForTrips += ms.demandForTripsPerHour * split
                 else:
                     newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
                     for k, portion in newAllocation.items():
                         microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
                                                           self.__distanceBins[odi.distBin])
-        microtypes.transitionMatrix = newTransitionMatrix * (1.0 / totalDemandForTrips)
+        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
+        microtypes.transitionMatrix.updateMatrix(otherMatrix)
+        # microtypes.transitionMatrix = newTransitionMatrix * (1.0 / totalDemandForTrips)
 
         for it in range(nIters):
             microtypes.transitionMatrixMFD(self.timePeriodDuration)

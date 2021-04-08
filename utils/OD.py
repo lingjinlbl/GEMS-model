@@ -536,6 +536,8 @@ class TransitionMatrices:
         self.__diameters = np.ndarray(0)
         self.__data = dict()
         self.__transitionMatrices = dict()
+        self.__numpy = np.ndarray(0)
+        self.__idx = dict()
 
     def __getitem__(self, item: ODindex):
         if (item.o, item.d, item.distBin) in self.__transitionMatrices:
@@ -555,8 +557,26 @@ class TransitionMatrices:
         self.__names = microtypes["MicrotypeID"].to_list()
         self.__diameters = microtypes["DiameterInMiles"].to_numpy()
 
-    def importTransitionMatrices(self, df: pd.DataFrame):
-        for key, val in df.groupby(level=[0, 1, 2]):
-            self.__data[key] = val.set_index(val.index.droplevel([0, 1, 2]))
+    def idx(self, item) -> int:
+        return self.__idx.get((item.o, item.d, item.distBin), -1)
+
+    def emptyWeights(self) -> np.ndarray:
+        return np.zeros(self.__numpy.shape[0] + 1)
+
+    def averageMatrix(self, weights: np.ndarray):
+        return TransitionMatrix(self.__names, np.average(self.__numpy, axis=0, weights=weights[:-1]),
+                                diameters=self.__diameters)
+
+    def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
+        idx = 0
+        default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)
+        self.__numpy = np.ndarray(
+            (len(microtypeIDs.index) ** 2 * len(distanceBins), len(microtypeIDs.index), len(microtypeIDs.index)))
+        for key, val in matrices.groupby(level=[0, 1, 2]):
+            df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
+            self.__data[key] = df
+            self.__idx[key] = idx
+            self.__numpy[idx, :, :] = df.to_numpy()
+            idx += 1
         print("|  Loaded ", len(df), " transition probabilities")
         print("-------------------------------")

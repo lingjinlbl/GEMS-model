@@ -676,8 +676,8 @@ class Network:
         self.data = data
         self.__data = data.to_numpy()
         self.characteristics = characteristics
-        self.charColumnToIdx = {i:characteristics.columns.get_loc(i) for i in characteristics.columns}
-        self.dataColumnToIdx = {i:data.columns.get_loc(i) for i in data.columns}
+        self.charColumnToIdx = {i: characteristics.columns.get_loc(i) for i in characteristics.columns}
+        self.dataColumnToIdx = {i: data.columns.get_loc(i) for i in data.columns}
         self.microtypeID = microtypeID
         self._idx = data.index.get_loc(idx)
         self.type = self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
@@ -702,7 +702,6 @@ class Network:
             self.__diameter = 1.0
         else:
             self.__diameter = diameter
-
 
     # @property
     # def type(self):
