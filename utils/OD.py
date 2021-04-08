@@ -25,8 +25,23 @@ class Allocation:
     def __getitem__(self, item):
         return self._mapping[item]
 
+    def __contains__(self, item):
+        return item in self._mapping
+
+    @property
+    def mapping(self):
+        return self._mapping
+
+    def filterAllocation(self, validMicrotypes):
+        tot = 0.0
+        for key, val in self._mapping.items():
+            if key in validMicrotypes:
+                tot += val
+        out = {key: self._mapping[key] / tot for key in validMicrotypes if key in self}
+        return out
+
     def keys(self):
-        return list(self._mapping.keys())
+        return set(self._mapping.keys())
 
     def __iter__(self):
         return iter(self._mapping.items())

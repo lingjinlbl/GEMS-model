@@ -4,7 +4,7 @@
 import numpy as np
 import pandas as pd
 
-from .OD import TransitionMatrix
+from .OD import TransitionMatrix, Allocation
 from .choiceCharacteristics import ChoiceCharacteristics
 from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, CollectedNetworkStateData
 
@@ -177,6 +177,7 @@ class MicrotypeCollection:
         self.modeData = modeData
         self.transitionMatrix = None
         self.collectedNetworkStateData = CollectedNetworkStateData()
+        self.__modeToMicrotype = dict()
 
     def __setitem__(self, key: str, value: Microtype):
         self.__microtypes[key] = value
@@ -201,6 +202,7 @@ class MicrotypeCollection:
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
         self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list(),
                                                  diameters=microtypeData.DiameterInMiles.to_list())
+        self.__modeToMicrotype = dict()
         for microtypeID, diameter in microtypeData.itertuples(index=False):
             if microtypeID in self:
                 self[microtypeID].resetDemand()
@@ -215,11 +217,13 @@ class MicrotypeCollection:
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())
+                        self.__modeToMicrotype.setdefault(n.ModeTypeID.lower(), set()).add(microtypeID)
                 for mode in allModes:
                     modeToModeData[mode] = self.modeData[mode]
                 networkCollection = NetworkCollection(subNetworkToModes, modeToModeData, microtypeID)
                 self[microtypeID] = Microtype(microtypeID, networkCollection)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeID])
+
                 print("|  Loaded ",
                       len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
                       " subNetworks in microtype ", microtypeID)
@@ -337,3 +341,10 @@ class MicrotypeCollection:
 
     def emptyTransitionMatrix(self):
         return TransitionMatrix(self.transitionMatrix.names)
+
+    def filterAllocation(self, mode, inputAllocation: Allocation):
+        validMicrotypes = self.__modeToMicrotype[mode]
+        if inputAllocation.keys() == validMicrotypes:
+            return inputAllocation.mapping
+        else:
+            return inputAllocation.filterAllocation(validMicrotypes)

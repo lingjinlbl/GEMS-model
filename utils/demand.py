@@ -1,7 +1,7 @@
 import pandas as pd
 
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit, TransitionMatrices
-from .choiceCharacteristics import CollectedChoiceCharacteristics, filterAllocation
+from .choiceCharacteristics import CollectedChoiceCharacteristics
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins
 from .population import Population
@@ -252,7 +252,8 @@ class Demand:
                     # newTransitionMatrix.addAndMultiply(self.__transitionMatrices[odi], ms.demandForTripsPerHour * split)
                     totalDemandForTrips += ms.demandForTripsPerHour * split
                 else:
-                    newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
+                    newAllocation = microtypes.filterAllocation(mode, self.__trips[odi].allocation)
+                    # newAllocation = filterAllocation(mode, self.__trips[odi].allocation, microtypes)
                     for k, portion in newAllocation.items():
                         microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
                                                           self.__distanceBins[odi.distBin])

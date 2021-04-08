@@ -119,6 +119,9 @@ class Mode:
         # return self.params.to_numpy()[self._inds["PerMileCost"]]
         return self.params.at[self._idx, "PerMileCost"]
 
+    def updateScenarioInputs(self):
+        pass
+
     def updateDemand(self, travelDemand=None):
         if travelDemand is None:
             travelDemand = self.travelDemand
@@ -464,7 +467,9 @@ class BusMode(Mode):
         super(BusMode, self).__init__()
         self.name = "bus"
         self.params = modeParams
-        self._idx = idx
+        self._idx = modeParams.index.get_loc(idx)
+        self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.networks = networks
         for n in networks:
             n.addMode(self)
@@ -481,31 +486,43 @@ class BusMode(Mode):
 
     @property
     def headwayInSec(self):
-        return self.params.at[self._idx, "Headway"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["Headway"]]
 
     @property
     def passengerWaitInSec(self):
-        return self.params.at[self._idx, "PassengerWait"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["PassengerWait"]]
 
     @property
     def passengerWaitInSecDedicated(self):
-        return self.params.at[self._idx, "PassengerWaitDedicated"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["PassengerWaitDedicated"]]
 
     @property
     def stopSpacingInMeters(self):
-        return self.params.at[self._idx, "StopSpacing"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["StopSpacing"]]
 
     @property
     def minStopTimeInSec(self):
-        return self.params.at[self._idx, "MinStopTime"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["MinStopTime"]]
 
     @property
     def fare(self):
-        return self.params.at[self._idx, "PerStartCost"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["PerStartCost"]]
+
+    @property
+    def perStart(self):
+        return self.__params[self._idx, self.modeParamsColumnToIdx["PerStartCost"]]
+
+    @property
+    def perEnd(self):
+        return self.__params[self._idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        return self.__params[self._idx, self.modeParamsColumnToIdx["PerMileCost"]]
 
     @property
     def vehicleOperatingCostPerHour(self):
-        return self.params.at[self._idx, "VehicleOperatingCostPerHour"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["VehicleOperatingCostPerHour"]]
 
     @property
     def routeDistanceToNetworkDistance(self) -> float:
@@ -513,7 +530,15 @@ class BusMode(Mode):
         Changed January 2021: Removed need for car-only subnnetworks.
         Now buses only run on a fixed portion of the bus/car subnetwork
         """
-        return self.params.at[self._idx, "CoveragePortion"]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["CoveragePortion"]]
+
+    @property
+    def relativeLength(self):
+        # return self.params.to_numpy()[self._inds["VehicleSize"]]
+        return self.__params[self._idx, self.modeParamsColumnToIdx["VehicleSize"]]
+
+    def updateScenarioInputs(self):
+        self.__params = self.params.to_numpy()
 
     def updateDemand(self, travelDemand=None):
         if travelDemand is not None:

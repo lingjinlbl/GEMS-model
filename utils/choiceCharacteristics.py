@@ -97,7 +97,11 @@ class CollectedChoiceCharacteristics:
             for mode in modes:
                 self[odIndex][mode] += microtypes[odIndex.o].getStartTimeCostWait(mode)
                 self[odIndex][mode] += microtypes[odIndex.d].getEndTimeCostWait(mode)
-                newAllocation = filterAllocation(mode, trip.allocation, microtypes)
+                newAllocation = microtypes.filterAllocation(mode, trip.allocation)
+                # newAllocation = filterAllocation(mode, trip.allocation, microtypes)
+                # if not newAllocation:
+                #     print('WTF')
+                #     newAllocation = microtypes.filterAllocation(mode, trip.allocation)
                 for microtypeID, allocation in newAllocation.items():
                     self[odIndex][mode] += microtypes[microtypeID].getThroughTimeCostWait(mode, self.__distanceBins[
                         odIndex.distBin] * allocation)
