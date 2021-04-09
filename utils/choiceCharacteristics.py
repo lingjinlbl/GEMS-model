@@ -1,15 +1,77 @@
 # from .microtype import MicrotypeCollection
+import numpy as np
+
 from .misc import DistanceBins
 
 
 class ChoiceCharacteristics:
-    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, protected_distance=0, distance=0):
-        self.travel_time = travel_time
-        self.cost = cost
-        self.wait_time = wait_time
-        self.access_time = access_time
-        self.protected_distance = protected_distance
-        self.distance = distance
+    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, protected_distance=0, distance=0,
+                 data=None):
+        self.__parameterToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
+                                 'protected_distance': 5, 'distance': 6}
+        if data is None:
+            self.__numpy = np.array([1.0, travel_time, cost, wait_time, access_time, protected_distance, distance],
+                                    dtype=float)
+        else:
+            self.__numpy = data
+
+    @property
+    def travel_time(self):
+        return self.__numpy[self.__parameterToIdx['travel_time']]
+
+    @travel_time.setter
+    def travel_time(self, val: float):
+        self.__numpy[self.__parameterToIdx['travel_time']] = val
+
+    @property
+    def cost(self):
+        return self.__numpy[self.__parameterToIdx['cost']]
+
+    @cost.setter
+    def cost(self, val: float):
+        self.__numpy[self.__parameterToIdx['cost']] = val
+
+    @property
+    def wait_time(self):
+        return self.__numpy[self.__parameterToIdx['wait_time']]
+
+    @wait_time.setter
+    def wait_time(self, val: float):
+        self.__numpy[self.__parameterToIdx['wait_time']] = val
+
+    @property
+    def access_time(self):
+        return self.__numpy[self.__parameterToIdx['access_time']]
+
+    @access_time.setter
+    def access_time(self, val: float):
+        self.__numpy[self.__parameterToIdx['access_time']] = val
+
+    @property
+    def protected_distance(self):
+        return self.__numpy[self.__parameterToIdx['protected_distance']]
+
+    @protected_distance.setter
+    def protected_distance(self, val: float):
+        self.__numpy[self.__parameterToIdx['protected_distance']] = val
+
+    @property
+    def distance(self):
+        return self.__numpy[self.__parameterToIdx['distance']]
+
+    @distance.setter
+    def distance(self, val: float):
+        self.__numpy[self.__parameterToIdx['distance']] = val
+
+    @property
+    def data(self):
+        return self.__numpy
+
+    def __len__(self):
+        return len(self.__numpy)
+
+    def idx(self):
+        return self.__parameterToIdx
 
     def __add__(self, other):
         if isinstance(other, ChoiceCharacteristics):
@@ -39,11 +101,16 @@ class ChoiceCharacteristics:
 
 
 class ModalChoiceCharacteristics:
-    def __init__(self, modes, distanceInMiles=0.0):
+    def __init__(self, modes, distanceInMiles=0.0, data=None):
         self.__modalChoiceCharacteristics = dict()
+        if data is None:
+            self.__numpy = np.zeros((len(modes), len(ChoiceCharacteristics())))
+        else:
+            self.__numpy = data
         self.distanceInMiles = distanceInMiles
-        for mode in modes:
-            self.__modalChoiceCharacteristics[mode] = ChoiceCharacteristics()
+        self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
+        for ind, mode in enumerate(modes):
+            self.__modalChoiceCharacteristics[mode] = ChoiceCharacteristics(data=self.__numpy[ind, :])
 
     def __getitem__(self, item: str) -> ChoiceCharacteristics:
         return self.__modalChoiceCharacteristics[item]
@@ -63,9 +130,15 @@ class ModalChoiceCharacteristics:
 
 
 class CollectedChoiceCharacteristics:
-    def __init__(self):
+    def __init__(self, modes: set):
+        self.modes = modes
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
+        self.__numpy = np.ndarray(0)
+        self.__idx = dict()
+        self.__characteristicToIdx = ChoiceCharacteristics().idx()
+        self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
+        self.__odiToIdx = dict()
 
     def __setitem__(self, key, value: ModalChoiceCharacteristics):
         self.__choiceCharacteristics[key] = value
@@ -76,6 +149,9 @@ class CollectedChoiceCharacteristics:
     def initializeChoiceCharacteristics(self, trips,
                                         microtypes, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
+        self.__numpy = np.zeros((len(trips), len(self.modes), len(self.__characteristicToIdx)), dtype=float)
+        self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
+        idx = 0
         for odIndex, trip in trips:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             # common_modes = []
@@ -83,11 +159,16 @@ class CollectedChoiceCharacteristics:
             #     if allocation > 0:
             #         common_modes.append(microtypes[microtypeID].mode_names)
             modes = set.intersection(*common_modes)
-            self[odIndex] = ModalChoiceCharacteristics(modes, distanceBins[odIndex.distBin])
+            self[odIndex] = ModalChoiceCharacteristics(modes, distanceBins[odIndex.distBin],
+                                                       data=self.__numpy[idx, :, :])
+            self.__odiToIdx[odIndex] = idx
+            idx += 1
 
     def resetChoiceCharacteristics(self):
-        for mcc in self.__choiceCharacteristics.values():
-            mcc.reset()
+        self.__numpy *= 0.0
+        self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
+        # for mcc in self.__choiceCharacteristics.values():
+        #     mcc.reset()
 
     def updateChoiceCharacteristics(self, microtypes, trips):
         self.resetChoiceCharacteristics()
@@ -95,17 +176,13 @@ class CollectedChoiceCharacteristics:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             modes = set.intersection(*common_modes)
             for mode in modes:
-                self[odIndex][mode] += microtypes[odIndex.o].getStartTimeCostWait(mode)
-                self[odIndex][mode] += microtypes[odIndex.d].getEndTimeCostWait(mode)
+                microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
+                microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
                 newAllocation = microtypes.filterAllocation(mode, trip.allocation)
-                # newAllocation = filterAllocation(mode, trip.allocation, microtypes)
-                # if not newAllocation:
-                #     print('WTF')
-                #     newAllocation = microtypes.filterAllocation(mode, trip.allocation)
                 for microtypeID, allocation in newAllocation.items():
-                    self[odIndex][mode] += microtypes[microtypeID].getThroughTimeCostWait(mode, self.__distanceBins[
-                        odIndex.distBin] * allocation)
-                # assert self[odIndex][mode].distance == self[odIndex].distanceInMiles
+                    microtypes[microtypeID].addThroughTimeCostWait(mode,
+                                                                   self.__distanceBins[odIndex.distBin] * allocation,
+                                                                   self[odIndex][mode])
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):

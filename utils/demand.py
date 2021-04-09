@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit, TransitionMatrices
@@ -158,13 +159,17 @@ class CollectedTotalUserCosts:
 
 
 class Demand:
-    def __init__(self):
+    def __init__(self, modes: set):
+        self.__modes = modes
+        self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
         self.__modeSplit = dict()
+        self.__diAndOdiToIdx = dict()
+        self.__numpy = np.ndarray(0)
         self.tripRate = 0.0
         self.demandForPMT = 0.0
         self.pop = 0.0
         self.timePeriodDuration = 0.0
-        self.__population = Population()
+        self.__population = Population(modes)
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
         self.__transitionMatrices = TransitionMatrices()
@@ -195,8 +200,15 @@ class Demand:
         self.__distanceBins = distanceBins
         self.__transitionMatrices = transitionMatrices
         self.timePeriodDuration = timePeriodDuration
-        newTransitionMatrix = microtypes.emptyTransitionMatrix()
+
+        # newTransitionMatrix = microtypes.emptyTransitionMatrix()
         weights = transitionMatrices.emptyWeights()
+        counter = 0
+        for demandIndex, _ in population:
+            for _, _ in originDestination[demandIndex].items():
+                counter += 1
+        self.__numpy = np.zeros((counter, len(self.__modes)))
+        counter = 0
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
             ratePerHourPerCapita = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
@@ -224,7 +236,10 @@ class Demand:
                         modeSplit[mode] = 1.0
                     else:
                         modeSplit[mode] = 0.0
-                self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT)
+                self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT,
+                                                   data=self.__numpy[counter, :], modes=self.__modes)
+                self.__diAndOdiToIdx[demandIndex, odi] = counter
+                counter += 1
                 # dist, alloc = transitionMatrices[odi].getSteadyState()
                 # distReal = self.__distanceBins[odi.distBin] * 1609.34
                 # allocReal = trip.allocation.sortedValueArray()

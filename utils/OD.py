@@ -62,19 +62,30 @@ class ModeSplit:
     Class for storing mode splits and respective properties
     """
 
-    def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0):
+    def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0, data=None, modes=None):
         self.demandForTripsPerHour = demandForTrips
         self.demandForPmtPerHour = demandForPMT
         if mapping is None:
-            self._mapping = dict()
+            if data is None:
+                self._mapping = dict()
+            else:
+                self._mapping = dict(zip(modes, data))
         else:
             assert (isinstance(mapping, Dict))
             self._mapping = mapping
         self.__counter = 1.0
+        if data is None:
+            self.__modeToIdx = dict()
+            self.__data = np.ndarray(0)
+        else:
+            self.__modeToIdx = {val: idx for idx, val in enumerate(modes)}
+            self.__data = data
 
     def updateMapping(self, mapping: Dict[str, float]):
         if self._mapping.keys() == mapping.keys():
             self._mapping = mapping
+            self.__modeToIdx = {val: idx for idx, val in enumerate(mapping.keys())}
+            self.__data = np.array(list(mapping.values()))
         else:
             print("OH NO BAD MAPPING")
 
@@ -178,14 +189,11 @@ class ModeSplit:
     def __setitem__(self, key, value):
         self._mapping[key] = value
 
-    def __getitem__(self, item):
+    def __getitem__(self, item):  # TODO, switch to lookup in __data
         if item in self._mapping.keys():
             return self._mapping[item]
         else:
             return 0.0
-
-    def keys(self) -> List:
-        return list(self._mapping.keys())
 
     def __str__(self):
         return str([mode + ': ' + str(self[mode]) for mode in self.keys()])
@@ -347,6 +355,9 @@ class TripCollection:
     def __iter__(self):
         return iter(self.__trips.items())
 
+    def __len__(self):
+        return len(self.__trips)
+
 
 class TripGeneration:
     """
@@ -418,6 +429,9 @@ class OriginDestination:
         self.__ods = ods
         self.__distances = distances
         print("|  Loaded ", len(ods), " ODs and ", len(distances), "unique distance bins")
+
+    def __len__(self):
+        return len(self.originDestination)
 
     def __setitem__(self, key: DemandIndex, value: dict):
         self.originDestination[key] = value
