@@ -203,16 +203,17 @@ class Demand:
 
         # newTransitionMatrix = microtypes.emptyTransitionMatrix()
         weights = transitionMatrices.emptyWeights()
-        counter = 0
-        for demandIndex, _ in population:
-            for _, _ in originDestination[demandIndex].items():
-                counter += 1
-        self.__numpy = np.zeros((counter, len(self.__modes)))
-        counter = 0
+        # counter = 0
+        # for demandIndex, _ in population:
+        #     for _, _ in originDestination[demandIndex].items():
+        #         counter += 1
+        self.__numpy = np.zeros((len(population), len(originDestination), len(self.__modes)))
+        popCounter = 0
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
             ratePerHourPerCapita = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
             pop = population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
+            odCounter = 0
             for odi, portion in od.items():
                 trip = trips[odi]
                 common_modes = [microtypes[trip.odIndex.o].mode_names, microtypes[trip.odIndex.d].mode_names]
@@ -237,14 +238,15 @@ class Demand:
                     else:
                         modeSplit[mode] = 0.0
                 self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT,
-                                                   data=self.__numpy[counter, :], modes=self.__modes)
-                self.__diAndOdiToIdx[demandIndex, odi] = counter
-                counter += 1
+                                                   data=self.__numpy[popCounter, odCounter, :], modes=self.__modes)
+                self.__diAndOdiToIdx[demandIndex, odi] = (popCounter, odCounter)
+                odCounter += 1
                 # dist, alloc = transitionMatrices[odi].getSteadyState()
                 # distReal = self.__distanceBins[odi.distBin] * 1609.34
                 # allocReal = trip.allocation.sortedValueArray()
                 # diff = alloc - allocReal
                 # print("WHAT")
+            popCounter += 1
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
         # microtypes.transitionMatrix.updateMatrix(newTransitionMatrix * (1.0 / self.tripRate))
@@ -283,6 +285,7 @@ class Demand:
 
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):
+        print('OH MAN')
         for demandIndex, utilityParams in self.__population:
             od = originDestination[demandIndex]
             for odi, portion in od.items():
