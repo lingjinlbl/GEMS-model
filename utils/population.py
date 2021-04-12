@@ -49,6 +49,27 @@ class DemandClass:
             mode_split[modes[ind]] = probabilities[ind]
         return mode_split
 
+    def numpyModeSplit(self, mcc: ModalChoiceCharacteristics) -> np.ndarray:
+        k = 1.0
+        modes = mcc.modes()
+        utils = np.zeros(len(modes), dtype=float)
+        for idx, mode in enumerate(modes):
+            util = 0.
+            util += self[mode, "Intercept"]
+            util += (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"]
+            util += (mcc[mode].wait_time * 60.0) * self[mode, "BetaWaitTime"]
+            util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
+            util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
+            util += mcc[mode].cost * self[mode, "VOM"]
+            if mode == "bike":
+                util -= (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"] * self[
+                    mode, "ProtectedPreference"] * (mcc[mode].protected_distance / mcc.distanceInMiles)
+            utils[idx] = util
+            # utils = np.append(utils, util)
+        exp_utils = np.exp(utils * k)
+        probabilities = exp_utils / np.sum(exp_utils)
+        return probabilities
+
     def getModeCostPerTrip(self, mcc: ModalChoiceCharacteristics, mode, params=None):
         if mode not in mcc:
             return np.nan, np.nan, np.nan, np.nan
@@ -105,6 +126,10 @@ class Population:
         self.__modes = modes
         self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
 
+    @property
+    def numpy(self) -> np.ndarray:
+        return self.__numpy
+
     def __setitem__(self, key: DemandIndex, value: DemandClass):
         self.__demandClasses[key] = value
 
@@ -133,11 +158,11 @@ class Population:
         data = populationGroups.set_index(['TripPurposeID', 'PopulationGroupTypeID', 'Mode']).unstack(-1)
         counter = 0
         self.__numpy = np.zeros(
-            (data.shape[0] * populations.MicrotypeID.nunique(), len(ChoiceCharacteristics()), len(self.__modes)))
+            (data.shape[0] * populations.MicrotypeID.nunique(), len(self.__modes), len(ChoiceCharacteristics())))
         for homeMicrotypeID in populations["MicrotypeID"].unique():
             for (groupId, tripPurpose), row in data.iterrows():
                 df = row.unstack().loc[['Intercept', 'BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime'], self.__modes]
-                self.__numpy[counter, [0, 1, 3, 4], :] = df.to_numpy()
+                self.__numpy[counter, :, [0, 1, 3, 4]] = df.to_numpy()
                 self.__demandIndexToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
                 counter += 1
                 # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,

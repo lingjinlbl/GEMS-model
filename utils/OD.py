@@ -328,6 +328,13 @@ class TripCollection:
     def __setitem__(self, key: ODindex, value: Trip):
         self.__trips[key] = value
 
+    def addEmpty(self, item: ODindex):
+        if item.o == item.d:
+            allocation = Allocation({item.o: 1.0})
+        else:
+            allocation = Allocation({item.o: 0.5, item.d: 0.5})
+        self[item] = Trip(item, allocation)
+
     def __getitem__(self, item: ODindex) -> Trip:
         # assert isinstance(item, ODindex)
         if item in self.__trips:
@@ -342,13 +349,21 @@ class TripCollection:
             return self[item]
 
     def importTrips(self, df: pd.DataFrame):
-        for row in df.itertuples():
-            if (not row.FromMicrotypeID == "None") & (not row.ToMicrotypeID == "None"):
-                odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
-                if odi in self.__trips:
-                    self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
-                else:
-                    self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
+        for fromId in df.FromMicrotypeID.unique():
+            for toId in df.ToMicrotypeID.unique():
+                for dId in df.DistanceBinID.unique():
+                    sub = df.loc[
+                          (df.FromMicrotypeID == fromId) & (df.ToMicrotypeID == toId) & (df.DistanceBinID == dId), :]
+                    if len(sub) > 0:
+                        for row in sub.itertuples():
+                            if (not row.FromMicrotypeID == "None") & (not row.ToMicrotypeID == "None"):
+                                odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
+                                if odi in self.__trips:
+                                    self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
+                                else:
+                                    self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
+                    else:
+                        self.addEmpty(ODindex(fromId, toId, dId))
         print("-------------------------------")
         print("|  Loaded ", len(df), " trips")
 

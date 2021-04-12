@@ -140,6 +140,10 @@ class CollectedChoiceCharacteristics:
         self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
         self.__odiToIdx = dict()
 
+    @property
+    def numpy(self) -> np.ndarray:
+        return self.__numpy
+
     def __setitem__(self, key, value: ModalChoiceCharacteristics):
         self.__choiceCharacteristics[key] = value
 
@@ -147,11 +151,11 @@ class CollectedChoiceCharacteristics:
         return self.__choiceCharacteristics[item]
 
     def initializeChoiceCharacteristics(self, trips,
-                                        microtypes, distanceBins: DistanceBins):
+                                        microtypes, distanceBins: DistanceBins, odiToOdx: dict):
+        self.__odiToIdx = odiToOdx
         self.__distanceBins = distanceBins
         self.__numpy = np.zeros((len(trips), len(self.modes), len(self.__characteristicToIdx)), dtype=float)
         self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
-        idx = 0
         for odIndex, trip in trips:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             # common_modes = []
@@ -159,10 +163,8 @@ class CollectedChoiceCharacteristics:
             #     if allocation > 0:
             #         common_modes.append(microtypes[microtypeID].mode_names)
             modes = set.intersection(*common_modes)
-            self[odIndex] = ModalChoiceCharacteristics(modes, distanceBins[odIndex.distBin],
-                                                       data=self.__numpy[idx, :, :])
-            self.__odiToIdx[odIndex] = idx
-            idx += 1
+            self[odiToOdx[odIndex]] = ModalChoiceCharacteristics(modes, distanceBins[odIndex.distBin],
+                                                                 data=self.__numpy[odiToOdx[odIndex], :, :])
 
     def resetChoiceCharacteristics(self):
         self.__numpy *= 0.0
@@ -176,13 +178,13 @@ class CollectedChoiceCharacteristics:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             modes = set.intersection(*common_modes)
             for mode in modes:
-                microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
-                microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
+                microtypes[odIndex.o].addStartTimeCostWait(mode, self[self.__odiToIdx[odIndex]][mode])
+                microtypes[odIndex.d].addEndTimeCostWait(mode, self[self.__odiToIdx[odIndex]][mode])
                 newAllocation = microtypes.filterAllocation(mode, trip.allocation)
                 for microtypeID, allocation in newAllocation.items():
                     microtypes[microtypeID].addThroughTimeCostWait(mode,
                                                                    self.__distanceBins[odIndex.distBin] * allocation,
-                                                                   self[odIndex][mode])
+                                                                   self[self.__odiToIdx[odIndex]][mode])
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):

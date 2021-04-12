@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
 
@@ -163,7 +165,8 @@ class Demand:
         self.__modes = modes
         self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
         self.__modeSplit = dict()
-        self.__diAndOdiToIdx = dict()
+        self.__odiToIdx = defaultdict(lambda: -1)
+        self.__diToIdx = defaultdict(lambda: -1)
         self.__numpy = np.ndarray(0)
         self.tripRate = 0.0
         self.demandForPMT = 0.0
@@ -173,6 +176,14 @@ class Demand:
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
         self.__transitionMatrices = TransitionMatrices()
+
+    @property
+    def odiToIdx(self):
+        return self.__odiToIdx
+
+    @property
+    def diToIdx(self):
+        return self.__diToIdx
 
     def __setitem__(self, key: (DemandIndex, ODindex), value: ModeSplit):
         self.__modeSplit[key] = value
@@ -207,7 +218,9 @@ class Demand:
         # for demandIndex, _ in population:
         #     for _, _ in originDestination[demandIndex].items():
         #         counter += 1
-        self.__numpy = np.zeros((len(population), len(originDestination), len(self.__modes)))
+        self.__numpy = np.zeros((len(population), len(trips), len(self.__modes)))
+        self.__numpy[:, :, self.__modeToIdx['auto']] = 0.9
+        self.__numpy[:, :, self.__modeToIdx['walk']] = 0.1
         popCounter = 0
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
@@ -239,13 +252,15 @@ class Demand:
                         modeSplit[mode] = 0.0
                 self[demandIndex, odi] = ModeSplit(modeSplit, tripRatePerHour, demandForPMT,
                                                    data=self.__numpy[popCounter, odCounter, :], modes=self.__modes)
-                self.__diAndOdiToIdx[demandIndex, odi] = (popCounter, odCounter)
+
+                self.__odiToIdx[odi] = odCounter
                 odCounter += 1
                 # dist, alloc = transitionMatrices[odi].getSteadyState()
                 # distReal = self.__distanceBins[odi.distBin] * 1609.34
                 # allocReal = trip.allocation.sortedValueArray()
                 # diff = alloc - allocReal
                 # print("WHAT")
+            self.__diToIdx[demandIndex] = popCounter
             popCounter += 1
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
@@ -286,11 +301,15 @@ class Demand:
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):
         print('OH MAN')
+        a = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
         for demandIndex, utilityParams in self.__population:
             od = originDestination[demandIndex]
             for odi, portion in od.items():
                 # dg = self.__population[demandIndex]
-                ms = self.__population[demandIndex].updateModeSplit(collectedChoiceCharacteristics[odi])
+                ms = self.__population[demandIndex].updateModeSplit(
+                    collectedChoiceCharacteristics[self.__odiToIdx[odi]])
+                self.__numpy[self.__diToIdx[demandIndex], self.__odiToIdx[odi], :] = self.__population[
+                    demandIndex].numpyModeSplit(collectedChoiceCharacteristics[self.__odiToIdx[odi]])
                 self[demandIndex, odi].updateMapping(ms)
                 self[demandIndex, odi] *= oldModeSplit
         newModeSplit = self.getTotalModeSplit()
@@ -307,6 +326,7 @@ class Demand:
                     (microtypeID is None) or (di.homeMicrotype == microtypeID)) & (
                                (distanceBin is None) or (odi.distBin == distanceBin))
             if relevant:
+                ar = self.__numpy[self.__diToIdx[di], self.__odiToIdx[odi], :]
                 for mode, split in ms:
                     new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
                     trips[mode] = new_demand
@@ -334,7 +354,7 @@ class Demand:
             demandClass = self.__population[demandIndex]
             for odi, portion in od.items():
                 ms = self[(demandIndex, odi)]
-                mcc = collectedChoiceCharacteristics[odi]
+                mcc = collectedChoiceCharacteristics[self.__odiToIdx[odi]]
                 for mode in ms.keys():
                     cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
                                                                                                                 [mode])
@@ -359,3 +379,10 @@ class Demand:
 
     def __str__(self):
         return "Trips: " + str(self.tripRate) + ", PMT: " + str(self.demandForPMT)
+
+
+def modeSplitMatrixCalc(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
+    print('OOOH MAN')
+    expUtils = np.exp(np.einsum('ikl,jkl->ijk', popVars, choiceChars))
+    probs = expUtils / np.expand_dims(np.sum(expUtils, axis=2), 2)
+    return probs
