@@ -1,5 +1,6 @@
 import os
 # from noisyopt import minimizeCompass
+from collections import OrderedDict
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
@@ -221,7 +222,7 @@ class ScenarioData:
         -------
         A dict() with mode type as key and dataframe as value.
         """
-        collected = dict()
+        collected = OrderedDict()
         (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "modes")))
         for file in fileNames:
             collected[file.split(".")[0]] = pd.read_csv(os.path.join(self.__path, "modes", file),
@@ -273,6 +274,10 @@ class ScenarioData:
         return ScenarioData(self.__path, deepcopy(self.data))
 
     # def reallocate(self, fromSubNetwork, toSubNetwork, dist):
+
+    def getModes(self):
+        return set(self["modeData"].keys())
+
 
 
 class Model:
@@ -350,7 +355,7 @@ class Model:
         self.__microtypes = dict()  # MicrotypeCollection(self.modeData.data)
         self.__demand = dict()  # Demand()
         self.__choice = dict()  # CollectedChoiceCharacteristics()
-        self.__population = Population()
+        self.__population = Population(self.scenarioData.getModes())
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
@@ -377,13 +382,13 @@ class Model:
     @property
     def demand(self):
         if self.__currentTimePeriod not in self.__demand:
-            self.__demand[self.__currentTimePeriod] = Demand()
+            self.__demand[self.__currentTimePeriod] = Demand(self.scenarioData.getModes())
         return self.__demand[self.__currentTimePeriod]
 
     @property
     def choice(self):
         if self.__currentTimePeriod not in self.__choice:
-            self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics()
+            self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics(self.scenarioData.getModes())
         return self.__choice[self.__currentTimePeriod]
 
     @property
@@ -420,7 +425,7 @@ class Model:
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins, self.__transitionMatrices,
                                      self.__timePeriods[self.__currentTimePeriod], 1.0)
-        self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
+        self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins, self.demand.odiToIdx)
 
     def initializeAllTimePeriods(self):
         self.__transitionMatrices.adoptMicrotypes(self.scenarioData["microtypeIDs"])
@@ -431,13 +436,13 @@ class Model:
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        while (diff > 0.0001) & (i < 20):
+        while (diff > 0.00001) & (i < 20):
             ms = self.getModeSplit(self.__currentTimePeriod)
             # print(ms)
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, ms)
-            # print(diff)
+            print(diff)
             i += 1
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
@@ -548,11 +553,11 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data-geotype-A")
+    a = Model("input-data")
     userCosts, operatorCosts = a.collectAllCosts()
     ms = a.getModeSplit()
     # a.plotAllDynamicStats("N")
-    x, y = a.plotAllDynamicStats("n")
+    x, y = a.plotAllDynamicStats("v")
     plt.plot(x, y)
     print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))

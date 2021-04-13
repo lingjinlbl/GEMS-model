@@ -68,18 +68,27 @@ class ModeSplit:
         if mapping is None:
             if data is None:
                 self._mapping = dict()
+                self.__modes = []
             else:
                 self._mapping = dict(zip(modes, data))
+                self.__modes = modes
         else:
-            assert (isinstance(mapping, Dict))
-            self._mapping = mapping
+            if data is None:
+                assert (isinstance(mapping, Dict))
+                self._mapping = mapping
+                self.__modes = list(mapping.keys())
+            else:
+                self._mapping = dict(zip(modes, data))
+                self.__modes = modes
         self.__counter = 1.0
         if data is None:
             self.__modeToIdx = dict()
             self.__data = np.ndarray(0)
+            self.__modes = []
         else:
             self.__modeToIdx = {val: idx for idx, val in enumerate(modes)}
             self.__data = data
+            self.__modes = modes
 
     def updateMapping(self, mapping: Dict[str, float]):
         if self._mapping.keys() == mapping.keys():
@@ -199,7 +208,7 @@ class ModeSplit:
         return str([mode + ': ' + str(self[mode]) for mode in self.keys()])
 
     def __iter__(self):
-        return iter(self._mapping.items())
+        return iter(zip(self.__modes, self.__data))
 
 
 class ModeCharacteristics:
@@ -328,12 +337,12 @@ class TripCollection:
     def __setitem__(self, key: ODindex, value: Trip):
         self.__trips[key] = value
 
-    def addEmpty(self, item: ODindex):
+    def addEmpty(self, item: ODindex) -> Trip:
         if item.o == item.d:
             allocation = Allocation({item.o: 1.0})
         else:
             allocation = Allocation({item.o: 0.5, item.d: 0.5})
-        self[item] = Trip(item, allocation)
+        return Trip(item, allocation)
 
     def __getitem__(self, item: ODindex) -> Trip:
         # assert isinstance(item, ODindex)
@@ -363,7 +372,8 @@ class TripCollection:
                                 else:
                                     self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
                     else:
-                        self.addEmpty(ODindex(fromId, toId, dId))
+                        odi = ODindex(fromId, toId, dId)
+                        self[odi] = self.addEmpty(odi)
         print("-------------------------------")
         print("|  Loaded ", len(df), " trips")
 

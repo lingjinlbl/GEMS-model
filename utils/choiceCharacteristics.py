@@ -5,6 +5,10 @@ from .misc import DistanceBins
 
 
 class ChoiceCharacteristics:
+    """
+    UNITS ARE IN HOURS
+    """
+
     def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, protected_distance=0, distance=0,
                  data=None):
         self.__parameterToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
@@ -38,6 +42,14 @@ class ChoiceCharacteristics:
     @wait_time.setter
     def wait_time(self, val: float):
         self.__numpy[self.__parameterToIdx['wait_time']] = val
+
+    # @property
+    # def wait_time_squared(self):
+    #     return self.__numpy[self.__parameterToIdx['wait_time_squared']]
+    #
+    # @wait_time_squared.setter
+    # def wait_time_squared(self, val: float):
+    #     self.__numpy[self.__parameterToIdx['wait_time_squared']] = val
 
     @property
     def access_time(self):
@@ -78,6 +90,7 @@ class ChoiceCharacteristics:
             self.travel_time += other.travel_time
             self.cost += other.cost
             self.wait_time += other.wait_time
+            self.wait_time_squared = self.wait_time ** 2.0
             self.access_time += other.access_time
             self.protected_distance += other.protected_distance
             self.distance += other.distance
@@ -91,6 +104,7 @@ class ChoiceCharacteristics:
             self.travel_time += other.travel_time
             self.cost += other.cost
             self.wait_time += other.wait_time
+            self.wait_time_squared = self.wait_time ** 2.0
             self.access_time += other.access_time
             self.protected_distance += other.protected_distance
             self.distance += other.distance
@@ -113,7 +127,7 @@ class ModalChoiceCharacteristics:
             self.__modalChoiceCharacteristics[mode] = ChoiceCharacteristics(data=self.__numpy[ind, :])
 
     def __getitem__(self, item: str) -> ChoiceCharacteristics:
-        return self.__modalChoiceCharacteristics[item]
+        return self.__modalChoiceCharacteristics[item]  # .setdefault(item, ChoiceCharacteristics())
 
     def __setitem__(self, key: str, value: ChoiceCharacteristics):
         self.__modalChoiceCharacteristics[key] = value
@@ -163,11 +177,15 @@ class CollectedChoiceCharacteristics:
             #     if allocation > 0:
             #         common_modes.append(microtypes[microtypeID].mode_names)
             modes = set.intersection(*common_modes)
-            self[odiToOdx[odIndex]] = ModalChoiceCharacteristics(modes, distanceBins[odIndex.distBin],
+            for mode in self.modes:
+                if mode not in modes:
+                    print("Excluding mode ", mode, "in ODI", odIndex)
+                    self.__numpy[odiToOdx[odIndex], self.__modeToIdx[mode], :] = np.nan
+            self[odiToOdx[odIndex]] = ModalChoiceCharacteristics(self.modes, distanceBins[odIndex.distBin],
                                                                  data=self.__numpy[odiToOdx[odIndex], :, :])
 
     def resetChoiceCharacteristics(self):
-        self.__numpy *= 0.0
+        self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
         # for mcc in self.__choiceCharacteristics.values():
         #     mcc.reset()

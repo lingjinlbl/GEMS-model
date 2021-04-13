@@ -162,6 +162,11 @@ class Population:
         for homeMicrotypeID in populations["MicrotypeID"].unique():
             for (groupId, tripPurpose), row in data.iterrows():
                 df = row.unstack().loc[['Intercept', 'BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime'], self.__modes]
+                # Convert everything to units of hours
+                df.loc['BetaTravelTime', :] *= 60.0
+                df.loc['BetaWaitTime', :] *= 60.0
+                # df.BetaWaitTimeSquared *= 3600.0
+                df.loc['BetaAccessTime', :] *= 60.0
                 self.__numpy[counter, :, [0, 1, 3, 4]] = df.to_numpy()
                 self.__demandIndexToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
                 counter += 1
