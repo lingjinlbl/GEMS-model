@@ -452,7 +452,8 @@ class Model:
         else:
             timePeriods = [timePeriod]
             weights = [1]
-        ms = ModeSplit()
+        modes = self.scenarioData.getModes()
+        ms = ModeSplit(modes=modes, data=np.zeros(len(modes)))
         for tp in timePeriods:
             if tp in self.__demand:
                 ms += self.__demand[tp].getTotalModeSplit(userClass, microtypeID, distanceBin)
@@ -553,7 +554,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data")
+    a = Model("input-data-geotype-A")
     userCosts, operatorCosts = a.collectAllCosts()
     ms = a.getModeSplit()
     # a.plotAllDynamicStats("N")

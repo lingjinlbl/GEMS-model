@@ -82,9 +82,14 @@ class ModeSplit:
                 self.__modes = modes
         self.__counter = 1.0
         if data is None:
-            self.__modeToIdx = dict()
-            self.__data = np.ndarray(0)
-            self.__modes = []
+            if mapping is None:
+                self.__modeToIdx = dict()
+                self.__data = np.ndarray(0)
+                self.__modes = []
+            else:
+                self.__modeToIdx = {val: idx for idx, val in enumerate(mapping.keys())}
+                self.__data = np.array((list(mapping.values())), dtype=float)
+                self.__modes = list(mapping.keys())
         else:
             self.__modeToIdx = {val: idx for idx, val in enumerate(modes)}
             self.__data = data
@@ -102,15 +107,11 @@ class ModeSplit:
         return ModeSplit(self._mapping.copy(), self.demandForTripsPerHour, self.demandForPmtPerHour)
 
     def __sub__(self, other):
-        output = []
-        for key in self._mapping.keys():
-            output.append(self[key] - other[key])
+        output = self.__data - other.__data
         return np.linalg.norm(output)
 
     def __rsub__(self, other):
-        output = []
-        for key in self._mapping.keys():
-            output.append(self[key] - other[key])
+        output = self.__data - other.__data
         return np.linalg.norm(output)
 
     def __mul__(self, other):
@@ -135,6 +136,8 @@ class ModeSplit:
 
     def __add__(self, other):
         out = self.copy()
+        out.__data = ((out.__data / out.demandForTripsPerHour) + (other.__data / other.demandForTripsPerHour)) * (
+                    self.demandForTripsPerHour + other.demandForTripsPerHour)
         for key in set(other.keys() + self.keys()):
             out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
                     self.demandForTripsPerHour + other.demandForTripsPerHour)
@@ -143,6 +146,11 @@ class ModeSplit:
         return out
 
     def __iadd__(self, other):
+        if self.demandForTripsPerHour > 0:
+            self.__data = ((self.__data / self.demandForTripsPerHour) + (other.__data / other.demandForTripsPerHour)) * (
+                    self.demandForTripsPerHour + other.demandForTripsPerHour)
+        else:
+            self.__data = other.__data
         if self._mapping:
             for key in set(other.keys() + self.keys()):
                 self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
@@ -198,9 +206,9 @@ class ModeSplit:
     def __setitem__(self, key, value):
         self._mapping[key] = value
 
-    def __getitem__(self, item):  # TODO, switch to lookup in __data
-        if item in self._mapping.keys():
-            return self._mapping[item]
+    def __getitem__(self, item):
+        if item in self.__modes:
+            return self.__data[self.__modeToIdx[item]]
         else:
             return 0.0
 
