@@ -137,7 +137,7 @@ class ModeSplit:
     def __add__(self, other):
         out = self.copy()
         out.__data = ((out.__data / out.demandForTripsPerHour) + (other.__data / other.demandForTripsPerHour)) * (
-                    self.demandForTripsPerHour + other.demandForTripsPerHour)
+                self.demandForTripsPerHour + other.demandForTripsPerHour)
         for key in set(other.keys() + self.keys()):
             out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
                     self.demandForTripsPerHour + other.demandForTripsPerHour)
@@ -147,8 +147,9 @@ class ModeSplit:
 
     def __iadd__(self, other):
         if self.demandForTripsPerHour > 0:
-            self.__data = ((self.__data / self.demandForTripsPerHour) + (other.__data / other.demandForTripsPerHour)) * (
-                    self.demandForTripsPerHour + other.demandForTripsPerHour)
+            self.__data = ((self.__data / self.demandForTripsPerHour) + (
+                        other.__data / other.demandForTripsPerHour)) * (
+                                  self.demandForTripsPerHour + other.demandForTripsPerHour)
         else:
             self.__data = other.__data
         if self._mapping:

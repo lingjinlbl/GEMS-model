@@ -172,10 +172,6 @@ class CollectedChoiceCharacteristics:
         self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
         for odIndex, trip in trips:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
-            # common_modes = []
-            # for microtypeID, allocation in trip.allocation:
-            #     if allocation > 0:
-            #         common_modes.append(microtypes[microtypeID].mode_names)
             modes = set.intersection(*common_modes)
             for mode in self.modes:
                 if mode not in modes:
@@ -187,8 +183,6 @@ class CollectedChoiceCharacteristics:
     def resetChoiceCharacteristics(self):
         self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
-        # for mcc in self.__choiceCharacteristics.values():
-        #     mcc.reset()
 
     def updateChoiceCharacteristics(self, microtypes, trips):
         self.resetChoiceCharacteristics()
@@ -214,6 +208,4 @@ def filterAllocation(mode: str, inputAllocation, microtypes):
             through_microtypes.append(m)
             allocation.append(a)
             tot += a
-    # allocation = np.array(allocation) / tot
-    # allocation /= np.sum(allocation)
     return {m: a / tot for m, a in zip(through_microtypes, allocation)}  # dict(zip(through_microtypes, allocation))
