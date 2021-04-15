@@ -122,13 +122,19 @@ class Population:
         self.__totalCosts = dict()
         self.totalPopulation = 0
         self.__numpy = np.ndarray(0)
+        self.__numpyCost = np.ndarray(0)
         self.__demandIndexToIdx = dict()
         self.__modes = modes
         self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
+        self.utilsToDollars = 200
 
     @property
     def numpy(self) -> np.ndarray:
         return self.__numpy
+
+    @property
+    def numpyCost(self) -> np.ndarray:
+        return self.__numpyCost
 
     def __setitem__(self, key: DemandIndex, value: DemandClass):
         self.__demandClasses[key] = value
@@ -176,6 +182,8 @@ class Population:
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
                 out = DemandClass(group.set_index("Mode").drop(columns=['PopulationGroupTypeID', 'TripPurposeID']))
                 self[demandIndex] = out
+        self.__numpyCost = self.__numpy.copy() * self.utilsToDollars
+        self.__numpyCost[:, :, 0] = 0.0
         print("|  Loaded ", len(populations), " population groups")
 
     def __iter__(self):

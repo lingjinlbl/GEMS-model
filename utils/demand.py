@@ -367,6 +367,11 @@ class Demand:
                 trips[mode] /= demandForTrips
         return ModeSplit(trips, demandForTrips, demandForDistance)
 
+    def getMatrixUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
+        startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
+        costByMode = utils(self.__population.numpyCost, collectedChoiceCharacteristics.numpy)
+        return startsByMode * costByMode
+
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                      originDestination: OriginDestination, modes=None) -> CollectedTotalUserCosts:
         out = CollectedTotalUserCosts()
@@ -408,8 +413,12 @@ class Demand:
         return "Trips: " + str(self.tripRate) + ", PMT: " + str(self.demandForPMT)
 
 
+def utils(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
+    return np.einsum('ikl,jkl->ijk', popVars, choiceChars)
+
+
 def modeSplitMatrixCalc(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
-    expUtils = np.exp(np.einsum('ikl,jkl->ijk', popVars, choiceChars))
+    expUtils = np.exp(utils(popVars, choiceChars))
     probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
     probabilities[np.isnan(expUtils)] = 0
     return probabilities

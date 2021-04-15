@@ -99,11 +99,11 @@ class Optimizer:
         else:
             transitModification = None
         self.model.modifyNetworks(networkModification, transitModification)
-        userCosts, operatorCosts = self.model.collectAllCosts()
+        userCosts, operatorCosts, scalarUserCosts = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
         print(userCosts.total, operatorCosts.total, dedicationCosts)
-        return userCosts.total + operatorCosts.total + dedicationCosts
+        return scalarUserCosts + operatorCosts.total + dedicationCosts
 
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
@@ -466,6 +466,9 @@ class Model:
     def getUserCosts(self, mode=None):
         return self.demand.getUserCosts(self.choice, self.__originDestination, mode)
 
+    def getMatrixUserCosts(self):
+        return self.demand.getMatrixUserCosts(self.choice)
+
     def getModeUserCosts(self):
         out = dict()
         for mode in self.scenarioData['modeData'].keys():
@@ -506,15 +509,18 @@ class Model:
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
         operatorCosts = CollectedTotalOperatorCosts()
+        scalarUserCosts = 0.0
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod)
             self.findEquilibrium()
-            userCosts += self.getUserCosts() * durationInHours
+            matCosts = self.getMatrixUserCosts() * durationInHours
+            scalarUserCosts += np.sum(matCosts)
+            # userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
             self.__networkStateData[timePeriod] = self.microtypes.getStateData()
             print(self.getModeSplit(self.__currentTimePeriod))
             print(self.getModeSpeeds())
-        return userCosts, operatorCosts
+        return userCosts, operatorCosts, scalarUserCosts
 
     def getModeSpeeds(self, timePeriod=None):
         if timePeriod is None:
@@ -559,7 +565,7 @@ class Model:
 
 if __name__ == "__main__":
     a = Model("input-data-geotype-A")
-    userCosts, operatorCosts = a.collectAllCosts()
+    userCosts, operatorCosts, scalarUserCosts = a.collectAllCosts()
     ms = a.getModeSplit()
     # a.plotAllDynamicStats("N")
     x, y = a.plotAllDynamicStats("v")

@@ -308,8 +308,8 @@ class MicrotypeCollection:
             return os
 
         def dn_dt(n, demand, L, X, v_0, n_0, n_other):
-            # inflowval = inflow(n, X, L, v_0, n_0, n_other)
-            # outflowval = outflow(n, L, v_0, n_0, n_other)
+            inflowval = inflow(n, X, L, v_0, n_0, n_other)
+            outflowval = outflow(n, L, v_0, n_0, n_other)
             return demand + inflow(n, X, L, v_0, n_0, n_other) - outflow(n, L, v_0, n_0, n_other)
 
         # print(tripStartRate)
@@ -346,6 +346,7 @@ class MicrotypeCollection:
             dn = dn_dt(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other) * dt
             n_t += dn
             n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
+            n_t[n_t < 0] = 0.0
             pct = n_t / N_0
             ns[:, i] = np.squeeze(n_t)
             vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
