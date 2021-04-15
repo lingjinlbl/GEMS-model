@@ -919,7 +919,6 @@ class NetworkCollection:
             self.__dataToIdx = dict()
             self.__modeToIdx = dict()
         else:
-            assert isinstance(data, np.ndarray)  # TODO remove check
             self.__data = data
             self.__dataToIdx = dataToIdx
             self.__modeToIdx = modeToIdx
