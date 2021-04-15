@@ -279,7 +279,6 @@ class ScenarioData:
         return set(self["modeData"].keys())
 
 
-
 class Model:
     """
     A class representing the GEMS Model.
@@ -411,21 +410,25 @@ class Model:
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
                                                          self.scenarioData["distanceDistribution"])
         self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
-        self.__transitionMatrices.importTransitionMatrices(self.scenarioData["transitionMatrices"], self.scenarioData["microtypeIDs"], self.scenarioData["distanceBins"])
+        self.__transitionMatrices.importTransitionMatrices(self.scenarioData["transitionMatrices"],
+                                                           self.scenarioData["microtypeIDs"],
+                                                           self.scenarioData["distanceBins"])
 
     def initializeTimePeriod(self, timePeriod: str):
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
             print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
-        self.microtypes.importMicrotypes(self.scenarioData["subNetworkData"], self.scenarioData["subNetworkDataFull"],
+        self.microtypes.importMicrotypes(self.demand, self.scenarioData["subNetworkData"],
+                                         self.scenarioData["subNetworkDataFull"],
                                          self.scenarioData["modeToSubNetworkData"], self.scenarioData["microtypeIDs"])
         self.__originDestination.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins, self.__transitionMatrices,
                                      self.__timePeriods[self.__currentTimePeriod], 1.0)
-        self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins, self.demand.odiToIdx)
+        self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins,
+                                                    self.demand.odiToIdx)
 
     def initializeAllTimePeriods(self):
         self.__transitionMatrices.adoptMicrotypes(self.scenarioData["microtypeIDs"])
@@ -433,16 +436,17 @@ class Model:
             self.initializeTimePeriod(timePeriod)
             print('Done Initializing')
 
+    # @profile
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        while (diff > 0.0001) & (i < 20):
+        while (diff > 0.00001) & (i < 20):
             oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
             # print(ms)
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)
-            print(diff)
+            # print(diff)
             i += 1
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):

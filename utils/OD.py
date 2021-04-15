@@ -136,7 +136,7 @@ class ModeSplit:
 
     def __add__(self, other):
         out = self.copy()
-        out.__data = ((out.__data / out.demandForTripsPerHour) + (other.__data / other.demandForTripsPerHour)) * (
+        out.__data = ((out.__data * out.demandForTripsPerHour) + (other.__data * other.demandForTripsPerHour)) / (
                 self.demandForTripsPerHour + other.demandForTripsPerHour)
         for key in set(other.keys() + self.keys()):
             out[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
@@ -147,8 +147,8 @@ class ModeSplit:
 
     def __iadd__(self, other):
         if self.demandForTripsPerHour > 0:
-            self.__data = ((self.__data / self.demandForTripsPerHour) + (
-                        other.__data / other.demandForTripsPerHour)) * (
+            self.__data = ((self.__data * self.demandForTripsPerHour) + (
+                    other.__data * other.demandForTripsPerHour)) / (
                                   self.demandForTripsPerHour + other.demandForTripsPerHour)
         else:
             self.__data = other.__data
@@ -616,18 +616,25 @@ class TransitionMatrices:
                 out = TransitionMatrix(self.__names).fillZeros()
                 return out
 
+    def reIndex(self, odiToIdx):
+        newNumpy = self.__numpy.copy()
+        for odi, idx in odiToIdx.items():
+            newNumpy[idx, :, :] = self.__numpy[self.idx(odi), :, :]
+        self.__idx = odiToIdx
+        np.copyto(self.__numpy, newNumpy)
+
     def adoptMicrotypes(self, microtypes: pd.DataFrame):
         self.__names = microtypes["MicrotypeID"].to_list()
         self.__diameters = microtypes["DiameterInMiles"].to_numpy()
 
     def idx(self, item) -> int:
-        return self.__idx.get((item.o, item.d, item.distBin), -1)
+        return self.__idx.get(item, -1)
 
     def emptyWeights(self) -> np.ndarray:
-        return np.zeros(self.__numpy.shape[0] + 1)
+        return np.zeros(self.__numpy.shape[0])
 
     def averageMatrix(self, weights: np.ndarray):
-        return TransitionMatrix(self.__names, np.average(self.__numpy, axis=0, weights=weights[:-1]),
+        return TransitionMatrix(self.__names, np.average(self.__numpy, axis=0, weights=weights),
                                 diameters=self.__diameters)
 
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
@@ -637,8 +644,8 @@ class TransitionMatrices:
             (len(microtypeIDs.index) ** 2 * len(distanceBins), len(microtypeIDs.index), len(microtypeIDs.index)))
         for key, val in matrices.groupby(level=[0, 1, 2]):
             df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
-            self.__data[key] = df
-            self.__idx[key] = idx
+            self.__data[ODindex(*key)] = df
+            self.__idx[ODindex(*key)] = idx
             self.__numpy[idx, :, :] = df.to_numpy()
             idx += 1
         print("|  Loaded ", len(df), " transition probabilities")

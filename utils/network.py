@@ -70,7 +70,7 @@ class Costs:
 
 
 class Mode:
-    def __init__(self, networks=None, params=None, idx=None, name=None):
+    def __init__(self, networks=None, params=None, idx=None, name=None, travelDemandData=None):
         self.name = name
         self.params = params
         self._idx = idx
@@ -91,7 +91,7 @@ class Mode:
                 self._L_blocked[n] = 0.0
                 self._VMT[n] = 0.0
                 self._speed[n] = n.base_speed
-        self.travelDemand = TravelDemand()
+        self.travelDemand = TravelDemand(travelDemandData)
 
     # def initInds(self, idx):
     #     inds = dict()
@@ -210,8 +210,8 @@ class Mode:
 
 
 class WalkMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
-        super(WalkMode, self).__init__()
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None) -> None:
+        super(WalkMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "walk"
         self.params = modeParams
         self._idx = idx
@@ -235,8 +235,8 @@ class WalkMode(Mode):
 
 
 class BikeMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
-        super(BikeMode, self).__init__()
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None) -> None:
+        super(BikeMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "bike"
         self.params = modeParams
         self._idx = idx
@@ -281,8 +281,8 @@ class BikeMode(Mode):
 
 
 class RailMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
-        super(RailMode, self).__init__()
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None) -> None:
+        super(RailMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "rail"
         self.params = modeParams
         self._idx = idx
@@ -360,8 +360,8 @@ class RailMode(Mode):
 
 
 class AutoMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
-        super(AutoMode, self).__init__()
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None) -> None:
+        super(AutoMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "auto"
         self.params = modeParams
         self._idx = idx
@@ -463,22 +463,25 @@ class AutoMode(Mode):
 
 
 class BusMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str) -> None:
-        super(BusMode, self).__init__()
+    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None) -> None:
+        super(BusMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "bus"
         self.params = modeParams
         self._idx = modeParams.index.get_loc(idx)
         self.__params = modeParams.to_numpy()
         self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.networks = networks
+        self.__operatingL = dict()
         for n in networks:
             n.addMode(self)
             self._L_blocked[n] = 0.0
             self._VMT[n] = 0.0
             self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
+            self.__operatingL[n] = self.updateOperatingL(n)
+
         self.routeAveragedSpeed = super().getSpeed()
-        self.routeLength = self.getRouteLength()
+        self.__routeLength = self.updateRouteLength()
         self.travelDemand = TravelDemand()
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = 0.0
@@ -553,6 +556,9 @@ class BusMode(Mode):
         return self.getRouteLength() / self.headwayInSec * 3600. / 1609.34
 
     def getOperatingL(self, network) -> float:
+        return self.__operatingL[network]
+
+    def updateOperatingL(self, network) -> float:
         """Changed January 2021: Buses only operate on a portion of subnetwork"""
         if network.dedicated:
             return network.L
@@ -569,6 +575,9 @@ class BusMode(Mode):
             return self.getRouteLength() / self.routeAveragedSpeed / self.headwayInSec
 
     def getRouteLength(self):
+        return self.__routeLength
+
+    def updateRouteLength(self):
         return sum([n.L for n in self.networks]) * self.routeDistanceToNetworkDistance
 
     def getSubNetworkSpeed(self, network):
@@ -627,7 +636,7 @@ class BusMode(Mode):
             perPassenger = self.passengerWaitInSec
         # bs = network.base_speed
         if network.base_speed > 0:
-            numberOfStops = self.routeLength / self.stopSpacingInMeters
+            numberOfStops = self.getRouteLength() / self.stopSpacingInMeters
             # numberOfBuses = self.getN(network)
             meanTimePerStop = (self.minStopTimeInSec + self.headwayInSec * perPassenger * (
                     self.travelDemand.tripStartRatePerHour + self.travelDemand.tripEndRatePerHour) / (
@@ -900,9 +909,21 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, networksAndModes=None, modeToModeData=None, microtypeID=None, verbose=False):
+    def __init__(self, networksAndModes=None, modeToModeData=None, microtypeID=None, data=None, dataToIdx=None,
+                 modeToIdx=None, verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
+
+        if data is None:
+            self.__data = np.ndarray(0)
+            self.__dataToIdx = dict()
+            self.__modeToIdx = dict()
+        else:
+            assert isinstance(data, np.ndarray)  # TODO remove check
+            self.__data = data
+            self.__dataToIdx = dataToIdx
+            self.__modeToIdx = modeToIdx
+
         if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
             self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)
         self.modes = dict()
@@ -930,15 +951,15 @@ class NetworkCollection:
             assert (isinstance(networks, List))
             params = modeToModeData[modeName]
             if modeName == "bus":
-                BusMode(networks, params, microtypeID)
+                BusMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
             elif modeName == "auto":
-                AutoMode(networks, params, microtypeID)
+                AutoMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
             elif modeName == "walk":
-                WalkMode(networks, params, microtypeID)
+                WalkMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
             elif modeName == "bike":
-                BikeMode(networks, params, microtypeID)
+                BikeMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
             elif modeName == "rail":
-                RailMode(networks, params, microtypeID)
+                RailMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
             else:
                 print("BAD!")
                 Mode(networks, params, microtypeID, "bad")
@@ -958,6 +979,7 @@ class NetworkCollection:
             self.demands[m.name] = m.travelDemand
         # self.updateNetworks()
 
+    # @profile
     def updateModes(self, nIters: int = 1):
         # allModes = [n.getModeValues() for n in self._networks]
         # uniqueModes = set([item for sublist in allModes for item in sublist])
