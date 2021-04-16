@@ -144,15 +144,29 @@ class ModalChoiceCharacteristics:
 
 
 class CollectedChoiceCharacteristics:
-    def __init__(self, modes: set):
-        self.modes = modes
+    def __init__(self, scenarioData):
+        self.__scenarioData = scenarioData
+        self.modes = scenarioData.getModes()
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
-        self.__numpy = np.ndarray(0)
-        self.__idx = dict()
-        self.__characteristicToIdx = ChoiceCharacteristics().idx()
-        self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
-        self.__odiToIdx = dict()
+        self.__numpy = np.zeros((len(scenarioData.odiToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)),
+                                dtype=float)
+
+    @property
+    def odiToIdx(self):
+        return self.__scenarioData.odiToIdx
+
+    @property
+    def modeToIdx(self):
+        return self.__scenarioData.modeToIdx
+
+    @property
+    def dataToIdx(self):
+        return self.__scenarioData.dataToIdx
+
+    @property
+    def paramToIdx(self):
+        return self.__scenarioData.paramToIdx
 
     @property
     def numpy(self) -> np.ndarray:
@@ -164,25 +178,22 @@ class CollectedChoiceCharacteristics:
     def __getitem__(self, item) -> ModalChoiceCharacteristics:
         return self.__choiceCharacteristics[item]
 
-    def initializeChoiceCharacteristics(self, trips,
-                                        microtypes, distanceBins: DistanceBins, odiToOdx: dict):
-        self.__odiToIdx = odiToOdx
+    def initializeChoiceCharacteristics(self, trips, microtypes, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
-        self.__numpy = np.zeros((len(trips), len(self.modes), len(self.__characteristicToIdx)), dtype=float)
-        self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
+        self.__numpy[:, :, self.paramToIdx['intercept']] = 1
         for odIndex, trip in trips:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             modes = set.intersection(*common_modes)
             for mode in self.modes:
                 if mode not in modes:
                     print("Excluding mode ", mode, "in ODI", odIndex)
-                    self.__numpy[odiToOdx[odIndex], self.__modeToIdx[mode], :] = np.nan
-            self[odiToOdx[odIndex]] = ModalChoiceCharacteristics(self.modes, distanceBins[odIndex.distBin],
-                                                                 data=self.__numpy[odiToOdx[odIndex], :, :])
+                    self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
+            self[odIndex] = ModalChoiceCharacteristics(self.modes, distanceBins[odIndex.distBin],
+                                                       data=self.__numpy[self.odiToIdx[odIndex], :, :])
 
     def resetChoiceCharacteristics(self):
         self.__numpy[~np.isnan(self.__numpy)] *= 0.0
-        self.__numpy[:, :, self.__characteristicToIdx['intercept']] = 1
+        self.__numpy[:, :, self.paramToIdx['intercept']] = 1
 
     def updateChoiceCharacteristics(self, microtypes, trips):
         self.resetChoiceCharacteristics()
@@ -190,13 +201,13 @@ class CollectedChoiceCharacteristics:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             modes = set.intersection(*common_modes)
             for mode in modes:
-                microtypes[odIndex.o].addStartTimeCostWait(mode, self[self.__odiToIdx[odIndex]][mode])
-                microtypes[odIndex.d].addEndTimeCostWait(mode, self[self.__odiToIdx[odIndex]][mode])
+                microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
+                microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
                 newAllocation = microtypes.filterAllocation(mode, trip.allocation)
                 for microtypeID, allocation in newAllocation.items():
                     microtypes[microtypeID].addThroughTimeCostWait(mode,
                                                                    self.__distanceBins[odIndex.distBin] * allocation,
-                                                                   self[self.__odiToIdx[odIndex]][mode])
+                                                                   self[odIndex][mode])
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):

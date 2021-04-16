@@ -278,6 +278,7 @@ class DemandIndex:
         self.homeMicrotype = homeMicrotypeID
         self.populationGroupType = populationGroupTypeID
         self.tripPurpose = tripPurposeID
+        self.__hash = hash((self.homeMicrotype, self.populationGroupType, self.tripPurpose))
 
     def __eq__(self, other):
         if (self.homeMicrotype == other.homeMicrotype) & (self.populationGroupType == other.populationGroupType) & (
@@ -287,7 +288,7 @@ class DemandIndex:
             return False
 
     def __hash__(self):
-        return hash((self.homeMicrotype, self.populationGroupType, self.tripPurpose))
+        return self.__hash
 
     def __str__(self):
         return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
@@ -594,22 +595,32 @@ class TransitionMatrix:
 
 
 class TransitionMatrices:
-    def __init__(self):
+    def __init__(self, scenarioData):
         self.__names = []
+        self.__scenarioData = scenarioData
         self.__diameters = np.ndarray(0)
         self.__data = dict()
         self.__transitionMatrices = dict()
-        self.__numpy = dict()
         self.__idx = dict()
         self.__currentTimePeriod = 0
-        self.__baseNumpy = np.ndarray(0)
+        self.__numpy = np.zeros(
+            (len(scenarioData.odiToIdx), len(scenarioData.microtypeIdToIdx), len(scenarioData.microtypeIdToIdx)))
+        self.__baseIdx = dict()
 
     @property
     def numpy(self):
-        if self.__currentTimePeriod in self.__numpy:
-            return self.__numpy[self.__currentTimePeriod]
-        else:
-            return np.ndarray(0)
+        return self.__numpy
+
+    @property
+    def odiToIdx(self):
+        return self.__scenarioData.odiToIdx
+
+    # @property
+    # def idx(self):
+    #     if self.__currentTimePeriod in self.__idx:
+    #         return self.__idx[self.__currentTimePeriod]
+    #     else:
+    #         return dict()
 
     def __getitem__(self, item: ODindex):
         if (item.o, item.d, item.distBin) in self.__transitionMatrices:
@@ -625,38 +636,34 @@ class TransitionMatrices:
                 out = TransitionMatrix(self.__names).fillZeros()
                 return out
 
-    def reIndex(self, odiToIdx, currentTimePeriod):
-        newNumpy = self.__baseNumpy.copy()
-        for odi, idx in odiToIdx.items():
-            newNumpy[idx, :, :] = self.__baseNumpy[self.idx(odi), :, :]
-        self.__idx = odiToIdx
-        self.__currentTimePeriod = currentTimePeriod
-        self.__numpy[currentTimePeriod] = newNumpy
+    # def reIndex(self, odiToIdx, currentTimePeriod):
+    #     newNumpy = self.__baseNumpy.copy()
+    #     for odi, idx in odiToIdx.items():
+    #         newNumpy[idx, :, :] = self.__baseNumpy[self.__baseIdx.get(idx, -1), :, :]
+    #     self.__idx[currentTimePeriod] = odiToIdx
+    #     self.__currentTimePeriod = currentTimePeriod
+    #     self.__numpy[currentTimePeriod] = newNumpy
 
     def adoptMicrotypes(self, microtypes: pd.DataFrame):
         self.__names = microtypes["MicrotypeID"].to_list()
         self.__diameters = microtypes["DiameterInMiles"].to_numpy()
 
-    def idx(self, item) -> int:
-        return self.__idx.get(item, -1)
+    # def getIdx(self, item) -> int:
+    #     return self.idx.get(item, -1)
 
     def emptyWeights(self) -> np.ndarray:
         return np.zeros(self.numpy.shape[0])
 
     def averageMatrix(self, weights: np.ndarray):
-        return TransitionMatrix(self.__names, np.average(self.numpy[:len(weights), :, :], axis=0, weights=weights),
+        return TransitionMatrix(self.__names, np.average(self.numpy, axis=0, weights=weights),
                                 diameters=self.__diameters)
 
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
-        idx = 0
         default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)
-        self.__baseNumpy = np.ndarray(
-            (len(microtypeIDs.index) ** 2 * len(distanceBins), len(microtypeIDs.index), len(microtypeIDs.index)))
         for key, val in matrices.groupby(level=[0, 1, 2]):
             df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
-            self.__data[ODindex(*key)] = df
-            self.__idx[ODindex(*key)] = idx
-            self.__baseNumpy[idx, :, :] = df.to_numpy()
-            idx += 1
+            odi = ODindex(*key)
+            self.__data[odi] = df  # TODO: Delete this
+            self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
         print("|  Loaded ", len(df), " transition probabilities")
         print("-------------------------------")

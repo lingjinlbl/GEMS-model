@@ -211,12 +211,6 @@ class MicrotypeCollection:
         self.collectedNetworkStateData = CollectedNetworkStateData()
         self.__modeToMicrotype = dict()
         self.__numpy = np.ndarray([0])
-        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'throughDistance': 3}
-        self.__microtypeToIdx = dict()
-
-    @property
-    def microtypeToIdx(self):
-        return self.__microtypeToIdx
 
     def updateNumpy(self, data):
         np.copyto(self.__numpy, data)
@@ -244,22 +238,27 @@ class MicrotypeCollection:
     def getModeStartRatePerSecond(self, mode):
         return np.array([microtype.getModeStartRate(mode) / 3600. for mID, microtype in self])
 
-    def importMicrotypes(self, demand, subNetworkData: pd.DataFrame, subNetworkCharacteristics: pd.DataFrame,
-                         modeToSubNetworkData: pd.DataFrame, microtypeData: pd.DataFrame):
+    def importMicrotypes(self, demand, scenarioData):
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
+
+        subNetworkData = scenarioData["subNetworkData"]
+        subNetworkCharacteristics = scenarioData["subNetworkDataFull"]
+        modeToSubNetworkData = scenarioData["modeToSubNetworkData"]
+        microtypeData = scenarioData["microtypeIDs"]
+
         self.transitionMatrix = TransitionMatrix(microtypeData.MicrotypeID.to_list(),
                                                  diameters=microtypeData.DiameterInMiles.to_list())
-        microtypeIdx = 0
+
         if len(self.__microtypes) == 0:
             self.__numpy = np.zeros(
-                (len(microtypeData), demand.nModes(), len(self.__dataToIdx)))
+                (len(scenarioData.microtypeIdToIdx), len(scenarioData.modeToIdx), len(scenarioData.dataToIdx)))
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
+            microtypeIdx = scenarioData.microtypeIdToIdx[microtypeID]
             if microtypeID in self:
                 self[microtypeID].resetDemand()
             else:
-                self.__microtypeToIdx[microtypeID] = microtypeIdx
                 subNetworkToModes = dict()
                 modeToModeData = dict()
                 allModes = set()
@@ -274,11 +273,11 @@ class MicrotypeCollection:
                 for mode in allModes:
                     modeToModeData[mode] = self.modeData[mode]
                 networkCollection = NetworkCollection(subNetworkToModes, modeToModeData, microtypeID,
-                                                      self.__numpy[microtypeIdx, :, :], self.__dataToIdx,
-                                                      demand.modeToIdx)
+                                                      self.__numpy[microtypeIdx, :, :], scenarioData.dataToIdx,
+                                                      scenarioData.modeToIdx)
                 self[microtypeID] = Microtype(microtypeID, networkCollection)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeID])
-                microtypeIdx += 1
+
                 print("|  Loaded ",
                       len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
                       " subNetworks in microtype ", microtypeID)

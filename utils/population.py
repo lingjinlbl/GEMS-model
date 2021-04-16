@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from utils.OD import DemandIndex
-from utils.choiceCharacteristics import ModalChoiceCharacteristics, ChoiceCharacteristics
+from utils.choiceCharacteristics import ModalChoiceCharacteristics
 
 
 class PopulationGroup:
@@ -116,17 +116,25 @@ class Population:
     Class for storing and representing population of microtypes.
     """
 
-    def __init__(self, modes: set):
+    def __init__(self, scenarioData):
+        self.__scenarioData = scenarioData
         self.__populationGroups = dict()
         self.__demandClasses = dict()
         self.__totalCosts = dict()
         self.totalPopulation = 0
-        self.__numpy = np.ndarray(0)
-        self.__numpyCost = np.ndarray(0)
-        self.__demandIndexToIdx = dict()
-        self.__modes = modes
-        self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
+        self.__numpy = np.zeros((len(scenarioData.diToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)))
+        self.__numpyCost = np.zeros(
+            (len(scenarioData.diToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)))
+        self.__modes = scenarioData.getModes()
         self.utilsToDollars = 200
+
+    @property
+    def diToIdx(self):
+        return self.__scenarioData.diToIdx
+
+    @property
+    def paramToIdx(self):
+        return self.__scenarioData.paramToIdx
 
     @property
     def numpy(self) -> np.ndarray:
@@ -162,20 +170,19 @@ class Population:
             self.totalPopulation += row.Population
 
         data = populationGroups.set_index(['TripPurposeID', 'PopulationGroupTypeID', 'Mode']).unstack(-1)
-        counter = 0
-        self.__numpy = np.zeros(
-            (data.shape[0] * populations.MicrotypeID.nunique(), len(self.__modes), len(ChoiceCharacteristics())))
+
         for homeMicrotypeID in populations["MicrotypeID"].unique():
-            for (groupId, tripPurpose), row in data.iterrows():
+            for (tripPurpose, groupId), row in data.iterrows():
                 df = row.unstack().loc[['Intercept', 'BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime'], self.__modes]
                 # Convert everything to units of hours
                 df.loc['BetaTravelTime', :] *= 60.0
                 df.loc['BetaWaitTime', :] *= 60.0
                 # df.BetaWaitTimeSquared *= 3600.0
                 df.loc['BetaAccessTime', :] *= 60.0
-                self.__numpy[counter, :, [0, 1, 3, 4]] = df.to_numpy()
-                self.__demandIndexToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
-                counter += 1
+                self.__numpy[self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)], :,
+                [0, 1, 3, 4]] = df.to_numpy()
+                # self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
+                # counter += 1
                 # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
                 # 'protected_distance': 5, 'distance': 6}
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
