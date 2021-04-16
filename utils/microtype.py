@@ -204,6 +204,7 @@ class Microtype:
 
 class MicrotypeCollection:
     def __init__(self, modeData: dict):
+        self.__timeStepInSeconds = 30.0
         self.__microtypes = dict()
         self.modeData = modeData
         self.transitionMatrix = None
@@ -362,19 +363,19 @@ class MicrotypeCollection:
 
         X = np.transpose(self.transitionMatrix.matrix.values)
 
-        dt = 0.02 * 3600.
+        dt = self.__timeStepInSeconds
         ts = np.arange(0, durationInHours * 3600., dt)
         ns = np.zeros((len(self), np.size(ts)))
         vs = np.zeros((len(self), np.size(ts)))
         n_t = n_init.copy()
 
         for i, ti in enumerate(ts):
-            # deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
+            deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
             # otherval = deltaN + n_t
-            # n_t += deltaN
-            infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
-            outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.6)
+            n_t += deltaN
+            # infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
+            # outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
+            # n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.6)
             # print(otherval, n_t)
             # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
             n_t[n_t < 0] = 0.0
@@ -394,6 +395,9 @@ class MicrotypeCollection:
                         networkStateData.finalAccumulation = ns[idx, -1]
                         networkStateData.finalSpeed = vs[idx, -1]
                         networkStateData.averageSpeed = averageSpeeds[idx]
+                        networkStateData.n = np.squeeze(ns[idx, :])
+                        networkStateData.v = np.squeeze(vs[idx, :])
+                        networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
         return {"t": np.transpose(ts), "v": np.transpose(vs), "n": np.transpose(ns), "v_av": averageSpeeds,
                 "max_accumulation": N_0}
 

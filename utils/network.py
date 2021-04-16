@@ -890,10 +890,10 @@ class Network:
     def getModeValues(self) -> list:
         return list(self._modes.values())
 
-    def updateFromMFD(self, V_final, N_final, V_mean):
-        self._networkStateData.finalSpeed = V_final
-        self._networkStateData.finalAccumulation = N_final
-        self._networkStateData.averageSpeed = V_mean
+    def updateFromMFD(self, v, n):
+        self._networkStateData.finalSpeed = v[-1]
+        self._networkStateData.finalAccumulation = n[-1]
+        self._networkStateData.averageSpeed = np.mean(v)
 
     def getTransitionMatrixMeanSpeed(self):
         return self._networkStateData.averageSpeed
@@ -902,8 +902,10 @@ class Network:
         return self._networkStateData
 
     def setInitialStateData(self, oldNetworkStateData):
-        self._networkStateData.initialAccumulation = oldNetworkStateData.finalAccumulation
-        self._networkStateData.initialSpeed = oldNetworkStateData.finalSpeed
+        if len(oldNetworkStateData.n > 0):
+            self._networkStateData.initialAccumulation = oldNetworkStateData.n[-1]
+            self._networkStateData.initialSpeed = oldNetworkStateData.v[-1]
+            self._networkStateData.initialTime = oldNetworkStateData.t[-1]
         # self._networkStateData.nonAutoAccumulation = oldNetworkStateData.nonAutoAccumulation
         # self._networkStateData.blockedDistance = oldNetworkStateData.blockedDistance
 
@@ -999,8 +1001,8 @@ class NetworkCollection:
                 # m.updateN(self.demands[m.name])
             # self.updateNetworks()
             # self.updateMFD()
-            if self.verbose:
-                print(str(self))
+            # if self.verbose:
+            #     print(str(self))
             # if np.any([n.isJammed for n in self._networks]):
             #     break
             newSpeeds = self.getModeSpeeds()
@@ -1051,6 +1053,10 @@ class NetworkStateData:
             self.nonAutoAccumulation = 0.0
             self.blockedDistance = 0.0
             self.averageSpeed = 0.0
+            self.initialTime = 0.0
+            self.v = np.zeros(0)
+            self.n = np.zeros(0)
+            self.t = np.zeros(0)
         else:
             self.finalAccumulation = data.finalAccumulation
             self.finalProduction = data.finalProduction
@@ -1061,6 +1067,10 @@ class NetworkStateData:
             self.nonAutoAccumulation = data.nonAutoAccumulation
             self.blockedDistance = data.blockedDistance
             self.averageSpeed = data.averageSpeed
+            self.initialTime = data.initialTime
+            self.v = data.v
+            self.n = data.n
+            self.t = data.t
 
     def initFromNetwork(self, network: Network):
         self.initialSpeed = network.freeFlowSpeed
@@ -1093,6 +1103,20 @@ class CollectedNetworkStateData:
     def adoptPreviousMicrotypeState(self, microtype):
         for modes, network in microtype.networks:
             network.setInitialStateData(self[(microtype.microtypeID, modes)])
+
+    def getAutoSpeeds(self):
+        speeds = []
+        ns = []
+        ts = None
+        labels = []
+        for (mID, modes), val in self.__data.items():
+            if "auto" in modes:
+                speeds.append(val.v)
+                ns.append(val.n)
+                if ts is None:
+                    ts = val.t
+                labels.append((mID, modes))
+        return ts, np.stack(speeds, axis=-1), np.stack(ns, axis=-1), labels
 
     def __bool__(self):
         return len(self.__data) > 0

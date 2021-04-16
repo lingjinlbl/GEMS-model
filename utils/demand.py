@@ -7,7 +7,7 @@ import pandas as pd
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit, TransitionMatrices
 from .choiceCharacteristics import CollectedChoiceCharacteristics
 from .microtype import MicrotypeCollection
-from .misc import DistanceBins
+from .misc import DistanceBins, TimePeriods
 from .population import Population
 
 
@@ -203,16 +203,17 @@ class Demand:
 
     def initializeDemand(self, population: Population, originDestination: OriginDestination,
                          tripGeneration: TripGeneration, trips: TripCollection, microtypes: MicrotypeCollection,
-                         distanceBins: DistanceBins, transitionMatrices: TransitionMatrices, timePeriodDuration: float,
-                         multiplier=1.0):
+                         distanceBins: DistanceBins, transitionMatrices: TransitionMatrices, timePeriods: TimePeriods,
+                         currentTimePeriod: int, multiplier=1.0):
         self.__population = population
         self.__trips = trips
         self.__distanceBins = distanceBins
         self.__transitionMatrices = transitionMatrices
-        self.timePeriodDuration = timePeriodDuration
+        self.timePeriodDuration = timePeriods[currentTimePeriod]
 
         # newTransitionMatrix = microtypes.emptyTransitionMatrix()
-        weights = transitionMatrices.emptyWeights()
+        # weights = transitionMatrices.emptyWeights()
+        weights = np.zeros(len(trips))
         # counter = 0
         # for demandIndex, _ in population:
         #     for _, _ in originDestination[demandIndex].items():
@@ -286,7 +287,7 @@ class Demand:
             self.__diToIdx[demandIndex] = popCounter
             popCounter += 1
 
-        self.__transitionMatrices.reIndex(self.__odiToIdx)
+        self.__transitionMatrices.reIndex(self.__odiToIdx, currentTimePeriod)
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 

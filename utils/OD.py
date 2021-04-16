@@ -599,8 +599,17 @@ class TransitionMatrices:
         self.__diameters = np.ndarray(0)
         self.__data = dict()
         self.__transitionMatrices = dict()
-        self.__numpy = np.ndarray(0)
+        self.__numpy = dict()
         self.__idx = dict()
+        self.__currentTimePeriod = 0
+        self.__baseNumpy = np.ndarray(0)
+
+    @property
+    def numpy(self):
+        if self.__currentTimePeriod in self.__numpy:
+            return self.__numpy[self.__currentTimePeriod]
+        else:
+            return np.ndarray(0)
 
     def __getitem__(self, item: ODindex):
         if (item.o, item.d, item.distBin) in self.__transitionMatrices:
@@ -616,12 +625,13 @@ class TransitionMatrices:
                 out = TransitionMatrix(self.__names).fillZeros()
                 return out
 
-    def reIndex(self, odiToIdx):
-        newNumpy = self.__numpy.copy()
+    def reIndex(self, odiToIdx, currentTimePeriod):
+        newNumpy = self.__baseNumpy.copy()
         for odi, idx in odiToIdx.items():
-            newNumpy[idx, :, :] = self.__numpy[self.idx(odi), :, :]
+            newNumpy[idx, :, :] = self.__baseNumpy[self.idx(odi), :, :]
         self.__idx = odiToIdx
-        np.copyto(self.__numpy, newNumpy)
+        self.__currentTimePeriod = currentTimePeriod
+        self.__numpy[currentTimePeriod] = newNumpy
 
     def adoptMicrotypes(self, microtypes: pd.DataFrame):
         self.__names = microtypes["MicrotypeID"].to_list()
@@ -631,22 +641,22 @@ class TransitionMatrices:
         return self.__idx.get(item, -1)
 
     def emptyWeights(self) -> np.ndarray:
-        return np.zeros(self.__numpy.shape[0])
+        return np.zeros(self.numpy.shape[0])
 
     def averageMatrix(self, weights: np.ndarray):
-        return TransitionMatrix(self.__names, np.average(self.__numpy, axis=0, weights=weights),
+        return TransitionMatrix(self.__names, np.average(self.numpy[:len(weights), :, :], axis=0, weights=weights),
                                 diameters=self.__diameters)
 
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
         idx = 0
         default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)
-        self.__numpy = np.ndarray(
+        self.__baseNumpy = np.ndarray(
             (len(microtypeIDs.index) ** 2 * len(distanceBins), len(microtypeIDs.index), len(microtypeIDs.index)))
         for key, val in matrices.groupby(level=[0, 1, 2]):
             df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
             self.__data[ODindex(*key)] = df
             self.__idx[ODindex(*key)] = idx
-            self.__numpy[idx, :, :] = df.to_numpy()
+            self.__baseNumpy[idx, :, :] = df.to_numpy()
             idx += 1
         print("|  Loaded ", len(df), " transition probabilities")
         print("-------------------------------")
