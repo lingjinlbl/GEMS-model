@@ -143,8 +143,8 @@ class CollectedTotalUserCosts:
 
 class Demand:
     def __init__(self, scenarioData):
-        self.__modes = scenarioData.getModes()
         self.__scenarioData = scenarioData
+        self.__modes = list(scenarioData.modeToIdx.keys())
         self.__modeSplit = dict()
         self.__modeSplitData = np.ndarray(0)
         self.__tripRate = np.ndarray(0)
@@ -226,8 +226,8 @@ class Demand:
                 # TODO: Make smoother
                 trip = trips[odi]
         self.__modeSplitData = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.modeToIdx)))
-        self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.9
-        self.__modeSplitData[:, :, self.modeToIdx['walk']] = 0.1
+        self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.7
+        self.__modeSplitData[:, :, self.modeToIdx['walk']] = 0.3
 
         self.__tripRate = np.zeros((len(self.diToIdx), len(self.odiToIdx)))
         self.__toStarts = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)))
@@ -278,7 +278,7 @@ class Demand:
                     self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
                 self[demandIndex, odi] = ModeSplit(demandForTrips=tripRatePerHour, demandForPMT=demandForPMT,
                                                    data=self.__modeSplitData[currentPopIndex, currentODindex, :],
-                                                   modes=self.__modes)
+                                                   modeToIdx=self.modeToIdx)
 
                 # dist, alloc = transitionMatrices[odi].getSteadyState()
                 # distReal = self.__distanceBins[odi.distBin] * 1609.34
@@ -303,6 +303,8 @@ class Demand:
         throughCountsByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughCounts)
         newData = np.stack([startsByOrigin, startsByDestination, throughCountsByMicrotype, distanceByMicrotype],
                            axis=-1)
+        autoDemandInMeters = newData[:, self.modeToIdx['auto'], 3] * 3600 * self.timePeriodDuration
+        print(np.sum(np.sum(startsByMode, axis=0), axis=0))
         microtypes.updateNumpy(newData)
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
         # for di, odi in self.keys():
@@ -330,10 +332,13 @@ class Demand:
             for microtypeID, microtype in microtypes:
                 microtype.updateNetworkSpeeds(1)
 
+        autoProductionInMeters = microtypes.collectedNetworkStateData.getAutoProduction()
+        # print(autoProductionInMeters)
+
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):
         newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
-        np.copyto(self.__modeSplitData, newModeSplit)
+        np.copyto(self.__modeSplitData, np.average([newModeSplit, self.__modeSplitData], axis=0, weights=[0.75, 0.25]))
         # for demandIndex, utilityParams in self.__population:
         #     od = originDestination[demandIndex]
         #     for odi, portion in od.items():

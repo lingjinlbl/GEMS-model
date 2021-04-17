@@ -1096,6 +1096,13 @@ class CollectedNetworkStateData:
     def __getitem__(self, item) -> NetworkStateData:
         return self.__data[item]
 
+    def getAutoProduction(self):
+        prods = []
+        for (mID, modes), val in self.__data.items():
+            if "auto" in modes:
+                prods.append(np.sum(val.v * val.n) * (val.t[1] - val.t[0]))
+        return np.array(prods)
+
     def addMicrotype(self, microtype):
         for modes, network in microtype.networks:
             self[(microtype.microtypeID, modes)] = network.getNetworkStateData()

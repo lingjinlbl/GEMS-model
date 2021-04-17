@@ -115,16 +115,18 @@ class ChoiceCharacteristics:
 
 
 class ModalChoiceCharacteristics:
-    def __init__(self, modes, distanceInMiles=0.0, data=None):
+    def __init__(self, modeToIdx=None, distanceInMiles=0.0, data=None):
+        if modeToIdx is None:
+            modeToIdx = dict()
         self.__modalChoiceCharacteristics = dict()
         if data is None:
-            self.__numpy = np.zeros((len(modes), len(ChoiceCharacteristics())))
+            self.__numpy = np.zeros((len(modeToIdx), len(ChoiceCharacteristics())))
         else:
             self.__numpy = data
         self.distanceInMiles = distanceInMiles
-        self.__modeToIdx = {val: ind for ind, val in enumerate(modes)}
-        for ind, mode in enumerate(modes):
-            self.__modalChoiceCharacteristics[mode] = ChoiceCharacteristics(data=self.__numpy[ind, :])
+        self.__modeToIdx = modeToIdx
+        for mode, idx in modeToIdx.items():
+            self.__modalChoiceCharacteristics[mode] = ChoiceCharacteristics(data=self.__numpy[idx, :])
 
     def __getitem__(self, item: str) -> ChoiceCharacteristics:
         return self.__modalChoiceCharacteristics[item]  # .setdefault(item, ChoiceCharacteristics())
@@ -188,7 +190,7 @@ class CollectedChoiceCharacteristics:
                 if mode not in modes:
                     print("Excluding mode ", mode, "in ODI", odIndex)
                     self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
-            self[odIndex] = ModalChoiceCharacteristics(self.modes, distanceBins[odIndex.distBin],
+            self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
                                                        data=self.__numpy[self.odiToIdx[odIndex], :, :])
 
     def resetChoiceCharacteristics(self):

@@ -293,7 +293,7 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other, minspeed=0.1) -> np.ndarray:
+        def v(n, v_0, n_0, n_other, minspeed=0.02) -> np.ndarray:
             n_eff = n + n_other
             v = v_0 * (1. - n_eff / n_0)
             v[v < minspeed] = minspeed
@@ -369,12 +369,12 @@ class MicrotypeCollection:
         n_t = n_init.copy()
 
         for i, ti in enumerate(ts):
-            deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
+            # deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
             # otherval = deltaN + n_t
-            n_t += deltaN
-            # infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
-            # outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-            # n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.6)
+            # n_t += deltaN
+            infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
+            outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
+            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.6)
             # print(otherval, n_t)
             # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
             n_t[n_t < 0] = 0.0

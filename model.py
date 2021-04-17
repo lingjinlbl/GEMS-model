@@ -330,7 +330,7 @@ class ScenarioData:
     # def reallocate(self, fromSubNetwork, toSubNetwork, dist):
 
     def getModes(self):
-        return set(self["modeData"].keys())
+        return set(self.__modeToIdx.keys())
 
 
 class Model:
@@ -513,7 +513,7 @@ class Model:
         i = 0
         while (diff > 0.00001) & (i < 20):
             oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
-
+            #print(oldModeSplit)
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)
@@ -528,7 +528,7 @@ class Model:
             timePeriods = [timePeriod]
             weights = [1]
         modes = self.scenarioData.getModes()
-        ms = ModeSplit(modes=modes, data=np.zeros(len(modes)))
+        ms = ModeSplit(modeToIdx=self.modeToIdx, data=np.zeros(len(modes)))
         for tp in timePeriods:
             if tp in self.__demand:
                 ms += self.__demand[tp].getTotalModeSplit(userClass, microtypeID, distanceBin)

@@ -62,16 +62,18 @@ class ModeSplit:
     Class for storing mode splits and respective properties
     """
 
-    def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0, data=None, modes=None):
+    def __init__(self, mapping=None, demandForTrips=0, demandForPMT=0, data=None, modeToIdx=None):
         self.demandForTripsPerHour = demandForTrips
         self.demandForPmtPerHour = demandForPMT
         if mapping is None:
             if data is None:
                 self._mapping = dict()
                 self.__modes = []
+                self.__modeToIdx = dict()
             else:
-                self._mapping = dict(zip(modes, data))
-                self.__modes = modes
+                self._mapping = dict(zip(modeToIdx.keys(), data))
+                self.__modes = list(modeToIdx.keys())
+                self.__modeToIdx = modeToIdx
         else:
             if data is None:
                 assert (isinstance(mapping, Dict))
@@ -91,17 +93,17 @@ class ModeSplit:
                 self.__data = np.array((list(mapping.values())), dtype=float)
                 self.__modes = list(mapping.keys())
         else:
-            self.__modeToIdx = {val: idx for idx, val in enumerate(modes)}
+            self.__modeToIdx = modeToIdx
             self.__data = data
-            self.__modes = modes
+            self.__modes = list(modeToIdx.keys())
 
-    def updateMapping(self, mapping: Dict[str, float]):
-        if self._mapping.keys() == mapping.keys():
-            self._mapping = mapping
-            self.__modeToIdx = {val: idx for idx, val in enumerate(mapping.keys())}
-            self.__data = np.array(list(mapping.values()))
-        else:
-            print("OH NO BAD MAPPING")
+    # def updateMapping(self, mapping: Dict[str, float]):
+    #     if self._mapping.keys() == mapping.keys():
+    #         self._mapping = mapping
+    #         self.__modeToIdx = {val: idx for idx, val in enumerate(mapping.keys())}
+    #         self.__data = np.array(list(mapping.values()))
+    #     else:
+    #         print("OH NO BAD MAPPING")
 
     def copy(self):
         return ModeSplit(self._mapping.copy(), self.demandForTripsPerHour, self.demandForPmtPerHour)
