@@ -154,12 +154,12 @@ class ModeSplit:
                                   self.demandForTripsPerHour + other.demandForTripsPerHour)
         else:
             self.__data = other.__data
-        if self._mapping:
-            for key in set(other.keys() + self.keys()):
-                self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
-                        self.demandForTripsPerHour + other.demandForTripsPerHour)
-        else:
-            self._mapping = other._mapping.copy()
+        # if self._mapping:
+        #     for key in set(other.keys() + self.keys()):
+        #         self[key] = (self[key] * self.demandForTripsPerHour + other[key] * other.demandForTripsPerHour) / (
+        #                 self.demandForTripsPerHour + other.demandForTripsPerHour)
+        # else:
+        #     self._mapping = other._mapping.copy()
         self.demandForTripsPerHour = (self.demandForTripsPerHour + other.demandForTripsPerHour)
         self.demandForPmtPerHour = (self.demandForPmtPerHour + other.demandForPmtPerHour)
         return self

@@ -215,6 +215,14 @@ class MicrotypeCollection:
     def updateNumpy(self, data):
         np.copyto(self.__numpy, data)
 
+    def updateNetworkData(self):
+        for m in self.__microtypes.values():
+            # assert isinstance(m, Microtype)
+            m.networks.updateModeData()
+            for _, n in m.networks:
+                # assert isinstance(n, Network)
+                n.updateScenarioInputs()
+
     def __setitem__(self, key: str, value: Microtype):
         self.__microtypes[key] = value
 
@@ -293,7 +301,7 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other, minspeed=0.02) -> np.ndarray:
+        def v(n, v_0, n_0, n_other, minspeed=0.005) -> np.ndarray:
             n_eff = n + n_other
             v = v_0 * (1. - n_eff / n_0)
             v[v < minspeed] = minspeed
@@ -301,10 +309,10 @@ class MicrotypeCollection:
             return v
 
         def outflow(n, L, v_0, n_0, n_other) -> np.ndarray:
-            return v(n, v_0, n_0, n_other, 1.0) * n / L
+            return v(n, v_0, n_0, n_other, 0.005) * n / L
 
         def inflow(n, X, L, v_0, n_0, n_other) -> np.ndarray:
-            os = X @ (v(n, v_0, n_0, n_other, 1.0) * n / L)
+            os = X @ (v(n, v_0, n_0, n_other, 0.005) * n / L)
             return os
 
         def spillback(n: np.ndarray, N_0: np.ndarray, demand: np.ndarray, inflow: np.ndarray, outflow: np.ndarray,
@@ -327,7 +335,8 @@ class MicrotypeCollection:
                 before = np.sum(requestedN)
                 totalSpillback = np.sum(requestedN[overLimit] - criticalN[overLimit])
                 toBeLimited = inflow[~overLimit]
-                requestedN[~overLimit] += inflow[~overLimit] * totalSpillback / np.sum(toBeLimited)
+                requestedN[~overLimit] += inflow[~overLimit] * totalSpillback / np.sum(
+                    toBeLimited)  # TODO: Matrix math here?
                 requestedN[overLimit] = criticalN[overLimit]
                 overLimit = (requestedN / N_0) > criticalN
                 after = np.sum(requestedN)
@@ -374,7 +383,7 @@ class MicrotypeCollection:
             # n_t += deltaN
             infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
             outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.6)
+            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.9)
             # print(otherval, n_t)
             # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
             n_t[n_t < 0] = 0.0
@@ -422,6 +431,10 @@ class MicrotypeCollection:
     def importPreviousStateData(self, networkStateData: CollectedNetworkStateData):
         for mID, microtype in self:
             networkStateData.adoptPreviousMicrotypeState(microtype)
+
+    def resetStateData(self):
+        for _, nsd in self.collectedNetworkStateData:
+            nsd.reset()
 
     def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
         if self.transitionMatrix.names == transitionMatrix.names:

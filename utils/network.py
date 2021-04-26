@@ -542,6 +542,12 @@ class BusMode(Mode):
 
     def updateScenarioInputs(self):
         self.__params = self.params.to_numpy()
+        for n in self.networks:
+            self._L_blocked[n] = 0.0
+            self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
+            self._speed[n] = n.base_speed
+            self.__operatingL[n] = self.updateOperatingL(n)
 
     def updateDemand(self, travelDemand=None):
         if travelDemand is not None:
@@ -768,7 +774,7 @@ class Network:
         return mode in self._modes
 
     def updateScenarioInputs(self):
-        self.__data = self.data.to_numpy()
+        np.copyto(self.__data, self.data.to_numpy())
 
     def getAccumulationExcluding(self, mode: str):
         return np.sum(acc for m, acc in self._N_eff.items() if m != mode)
@@ -915,6 +921,7 @@ class NetworkCollection:
                  modeToIdx=None, verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
+        self.__modes = []
 
         if data is None:
             self.__data = np.ndarray(0)
@@ -952,18 +959,27 @@ class NetworkCollection:
             assert (isinstance(networks, List))
             params = modeToModeData[modeName]
             if modeName == "bus":
-                BusMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
+                self.__modes.append(BusMode(networks, params, microtypeID,
+                                            travelDemandData=self.__data[self.__modeToIdx[modeName], :]))
             elif modeName == "auto":
-                AutoMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
+                self.__modes.append(AutoMode(networks, params, microtypeID,
+                                             travelDemandData=self.__data[self.__modeToIdx[modeName], :]))
             elif modeName == "walk":
-                WalkMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
+                self.__modes.append(WalkMode(networks, params, microtypeID,
+                                             travelDemandData=self.__data[self.__modeToIdx[modeName], :]))
             elif modeName == "bike":
-                BikeMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
+                self.__modes.append(BikeMode(networks, params, microtypeID,
+                                             travelDemandData=self.__data[self.__modeToIdx[modeName], :]))
             elif modeName == "rail":
-                RailMode(networks, params, microtypeID, travelDemandData=self.__data[self.__modeToIdx[modeName], :])
+                self.__modes.append(RailMode(networks, params, microtypeID,
+                                             travelDemandData=self.__data[self.__modeToIdx[modeName], :]))
             else:
                 print("BAD!")
                 Mode(networks, params, microtypeID, "bad")
+
+    def updateModeData(self):
+        for m in self.__modes:
+            m.updateScenarioInputs()
 
     def isJammed(self):
         return np.any([n.isJammed for n in self._networks])
@@ -1085,6 +1101,22 @@ class NetworkStateData:
     def resetNonAutoAccumulation(self):
         self.nonAutoAccumulation = 0.0
 
+    def reset(self):
+        self.__data = dict()
+        self.finalAccumulation = 0.0
+        self.finalProduction = 0.0
+        self.initialSpeed = np.inf
+        self.finalSpeed = np.inf
+        self.steadyStateSpeed = np.inf
+        self.initialAccumulation = 0.0
+        self.nonAutoAccumulation = 0.0
+        self.blockedDistance = 0.0
+        self.averageSpeed = 0.0
+        self.initialTime = 0.0
+        self.v = np.zeros(0)
+        self.n = np.zeros(0)
+        self.t = np.zeros(0)
+
 
 class CollectedNetworkStateData:
     def __init__(self):
@@ -1100,7 +1132,10 @@ class CollectedNetworkStateData:
         prods = []
         for (mID, modes), val in self.__data.items():
             if "auto" in modes:
-                prods.append(np.sum(val.v * val.n) * (val.t[1] - val.t[0]))
+                if len(val.t) == 0:
+                    prods.append(0.)
+                else:
+                    prods.append(np.sum(val.v * val.n) * (val.t[1] - val.t[0]))
         return np.array(prods)
 
     def addMicrotype(self, microtype):
@@ -1127,3 +1162,6 @@ class CollectedNetworkStateData:
 
     def __bool__(self):
         return len(self.__data) > 0
+
+    def __iter__(self):
+        return iter(self.__data.items())

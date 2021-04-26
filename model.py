@@ -10,7 +10,7 @@ import pandas as pd
 from scipy.optimize import minimize, Bounds
 from scipy.optimize import shgo
 
-from utils.OD import TripCollection, OriginDestination, TripGeneration, ModeSplit, TransitionMatrices, DemandIndex
+from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand, CollectedTotalUserCosts, ODindex
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
@@ -203,7 +203,7 @@ class ScenarioData:
                 Dictionary containing input data from respective inputs
         """
         self.__path = path
-        self.__diToIdx = dict() # TODO: Just define this once at the beginning of everything
+        self.__diToIdx = dict()  # TODO: Just define this once at the beginning of everything
         self.__odiToIdx = dict()
         self.__modeToIdx = dict()
         self.__dataToIdx = dict()
@@ -307,7 +307,8 @@ class ScenarioData:
         DIs = [(hID, popGroup, purpose) for hID, (popGroup, purpose) in nestedDIs]
         self.__diToIdx = {DemandIndex(*di): idx for idx, di in enumerate(DIs)}
 
-        allODIs = list(product(self["microtypeIDs"].MicrotypeID, self["microtypeIDs"].MicrotypeID, self["distanceBins"].DistanceBinID))
+        allODIs = list(product(self["microtypeIDs"].MicrotypeID, self["microtypeIDs"].MicrotypeID,
+                               self["distanceBins"].DistanceBinID))
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(allODIs)}
 
         self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'throughDistance': 3}
@@ -315,7 +316,7 @@ class ScenarioData:
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
         self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                                 'protected_distance': 5, 'distance': 6}
+                             'protected_distance': 5, 'distance': 6}
 
     def copy(self):
         """
@@ -513,7 +514,7 @@ class Model:
         i = 0
         while (diff > 0.00001) & (i < 20):
             oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
-            #print(oldModeSplit)
+            # print(oldModeSplit)
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)
@@ -528,11 +529,12 @@ class Model:
             timePeriods = [timePeriod]
             weights = [1]
         modes = self.scenarioData.getModes()
-        ms = ModeSplit(modeToIdx=self.modeToIdx, data=np.zeros(len(modes)))
-        for tp in timePeriods:
+        # ms = ModeSplit(modeToIdx=self.modeToIdx, data=np.zeros(len(modes)))
+        ms = np.zeros(len(self.modeToIdx))
+        for tp, weight in zip(timePeriods, weights):
             if tp in self.__demand:
-                ms += self.__demand[tp].getTotalModeSplit(userClass, microtypeID, distanceBin)
-        return ms
+                ms += self.__demand[tp].getMatrixModeCounts() * weight
+        return ms / np.sum(ms)
 
     def getUserCosts(self, mode=None):
         return self.demand.getUserCosts(self.choice, self.__originDestination, mode)
@@ -566,7 +568,7 @@ class Model:
     def resetNetworks(self):
         self.scenarioData = self.__initialScenarioData.copy()
 
-    def setTimePeriod(self, timePeriod: str):
+    def setTimePeriod(self, timePeriod: str, init=False):
         """Note: Are we always going to go through them in order? Should maybe just store time periods
         as a dataframe and go by index. But, we're not keeping track of all accumulations so in that sense
         we always need to go in order."""
@@ -575,14 +577,20 @@ class Model:
         self.__originDestination.setTimePeriod(timePeriod)
         self.__tripGeneration.setTimePeriod(timePeriod)
         if networkStateData:
-            self.microtypes.importPreviousStateData(networkStateData)
+            if not init:
+                self.microtypes.importPreviousStateData(networkStateData)
+            else:
+                self.microtypes.resetStateData()
 
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
         operatorCosts = CollectedTotalOperatorCosts()
         scalarUserCosts = 0.0
+        init = True
         for timePeriod, durationInHours in self.__timePeriods:
-            self.setTimePeriod(timePeriod)
+            self.setTimePeriod(timePeriod, init)
+            self.microtypes.updateNetworkData()
+            init = False
             self.findEquilibrium()
             matCosts = self.getMatrixUserCosts() * durationInHours
             scalarUserCosts += np.sum(matCosts)
@@ -633,11 +641,11 @@ class Model:
 
 
 if __name__ == "__main__":
-    a = Model("input-data-geotype-A")
-    userCosts, operatorCosts, scalarUserCosts = a.collectAllCosts()
-    ms = a.getModeSplit()
+    model = Model("input-data-geotype-A")
+    userCosts, operatorCosts, scalarUserCosts = model.collectAllCosts()
+    ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")
-    x, y = a.plotAllDynamicStats("v")
+    x, y = model.plotAllDynamicStats("v")
     plt.plot(x, y)
     print(ms)
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
