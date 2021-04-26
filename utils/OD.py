@@ -80,8 +80,8 @@ class ModeSplit:
                 self._mapping = mapping
                 self.__modes = list(mapping.keys())
             else:
-                self._mapping = dict(zip(modes, data))
-                self.__modes = modes
+                self._mapping = dict(zip(modeToIdx.keys(), data))
+                self.__modes = list(modeToIdx.keys())
         self.__counter = 1.0
         if data is None:
             if mapping is None:

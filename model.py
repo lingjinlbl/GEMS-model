@@ -100,11 +100,11 @@ class Optimizer:
         else:
             transitModification = None
         self.model.modifyNetworks(networkModification, transitModification)
-        userCosts, operatorCosts, scalarUserCosts = self.model.collectAllCosts()
+        userCosts, operatorCosts, vectorUserCosts = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
         print(userCosts.total, operatorCosts.total, dedicationCosts)
-        return scalarUserCosts + operatorCosts.total + dedicationCosts
+        return np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts
 
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
@@ -585,7 +585,7 @@ class Model:
     def collectAllCosts(self):
         userCosts = CollectedTotalUserCosts()
         operatorCosts = CollectedTotalOperatorCosts()
-        scalarUserCosts = 0.0
+        vectorUserCosts = 0.0
         init = True
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, init)
@@ -593,13 +593,13 @@ class Model:
             init = False
             self.findEquilibrium()
             matCosts = self.getMatrixUserCosts() * durationInHours
-            scalarUserCosts += np.sum(matCosts)
+            vectorUserCosts += matCosts
             # userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
             self.__networkStateData[timePeriod] = self.microtypes.getStateData()
             print(self.getModeSplit(self.__currentTimePeriod))
             print(self.getModeSpeeds())
-        return userCosts, operatorCosts, scalarUserCosts
+        return userCosts, operatorCosts, vectorUserCosts
 
     def getModeSpeeds(self, timePeriod=None):
         if timePeriod is None:
@@ -642,7 +642,7 @@ class Model:
 
 if __name__ == "__main__":
     model = Model("input-data-geotype-A")
-    userCosts, operatorCosts, scalarUserCosts = model.collectAllCosts()
+    userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
     ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")
     x, y = model.plotAllDynamicStats("v")
