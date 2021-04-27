@@ -1,5 +1,6 @@
 import os
 # from noisyopt import minimizeCompass
+# from line_profiler_pycharm import profile
 from collections import OrderedDict
 from copy import deepcopy
 from itertools import product
@@ -447,7 +448,8 @@ class Model:
     @property
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
-            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData["modeData"])
+            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData["modeData"],
+                                                                              self.modeToIdx, self.microtypeIdToIdx)
         return self.__microtypes[self.__currentTimePeriod]
 
     def getMicrotypeCollection(self, timePeriod) -> MicrotypeCollection:
