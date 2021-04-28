@@ -146,8 +146,9 @@ class ModalChoiceCharacteristics:
 
 
 class CollectedChoiceCharacteristics:
-    def __init__(self, scenarioData):
+    def __init__(self, scenarioData, demand):
         self.__scenarioData = scenarioData
+        self.__demand = demand
         self.modes = scenarioData.getModes()
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
@@ -199,17 +200,30 @@ class CollectedChoiceCharacteristics:
 
     def updateChoiceCharacteristics(self, microtypes, trips):
         self.resetChoiceCharacteristics()
+        travelTimeInHours = speedToTravelTime(microtypes.numpySpeed, self.__demand.toThroughDistance)
+
         for odIndex, trip in trips:
             common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
             modes = set.intersection(*common_modes)
             for mode in modes:
                 microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
                 microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
-                newAllocation = microtypes.filterAllocation(mode, trip.allocation)
-                for microtypeID, allocation in newAllocation.items():
-                    microtypes[microtypeID].addThroughTimeCostWait(mode,
-                                                                   self.__distanceBins[odIndex.distBin] * allocation,
-                                                                   self[odIndex][mode])
+        #         newAllocation = microtypes.filterAllocation(mode, trip.allocation)
+        #         for microtypeID, allocation in newAllocation.items():
+        #             microtypes[microtypeID].addThroughTimeCostWait(mode,
+        #                                                            self.__distanceBins[odIndex.distBin] * allocation,
+        #                                                            self[odIndex][mode])
+        # otherTravelTime = self.__numpy[:,:, self.paramToIdx['travel_time']]
+        # print(travelTimeInHours - otherTravelTime)
+        self.__numpy[:, :, self.paramToIdx['travel_time']] = travelTimeInHours
+
+
+def speedToTravelTime(modeSpeed: np.ndarray, toThroughDistance: np.ndarray) -> np.ndarray:
+    modeSecondsPerMeter = (1 / modeSpeed)
+    modeSecondsPerMeter[np.isinf(modeSecondsPerMeter)] = 0.0
+    assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
+    throughTravelTimeInSeconds = assignmentMatrix @ modeSecondsPerMeter
+    return throughTravelTimeInSeconds / 3600.0
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):

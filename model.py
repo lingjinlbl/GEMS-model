@@ -294,7 +294,7 @@ class ScenarioData:
                                                  dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
         self["modeData"] = self.loadModeData()
         self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
-                                           dtype={"MicrotypeID": str})
+                                           dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
 
         self.defineIndices()
 
@@ -448,8 +448,7 @@ class Model:
     @property
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
-            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData["modeData"],
-                                                                              self.modeToIdx, self.microtypeIdToIdx)
+            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData)
         return self.__microtypes[self.__currentTimePeriod]
 
     def getMicrotypeCollection(self, timePeriod) -> MicrotypeCollection:
@@ -464,7 +463,7 @@ class Model:
     @property
     def choice(self):
         if self.__currentTimePeriod not in self.__choice:
-            self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics(self.scenarioData)
+            self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics(self.scenarioData, self.demand)
         return self.__choice[self.__currentTimePeriod]
 
     @property
@@ -496,7 +495,7 @@ class Model:
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
             print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
-        self.microtypes.importMicrotypes(self.demand, self.scenarioData)
+        self.microtypes.importMicrotypes()
         self.__originDestination.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
@@ -505,7 +504,7 @@ class Model:
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self):
-        self.__transitionMatrices.adoptMicrotypes(self.scenarioData["microtypeIDs"])
+        # self.__transitionMatrices.adoptMicrotypes(self.scenarioData["microtypeIDs"])
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod)
             print('Done Initializing')

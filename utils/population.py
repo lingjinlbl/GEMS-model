@@ -133,6 +133,10 @@ class Population:
         return self.__scenarioData.diToIdx
 
     @property
+    def modeToIdx(self):
+        return self.__scenarioData.modeToIdx
+
+    @property
     def paramToIdx(self):
         return self.__scenarioData.paramToIdx
 
@@ -179,8 +183,13 @@ class Population:
                 df.loc['BetaWaitTime', :] *= 60.0
                 # df.BetaWaitTimeSquared *= 3600.0
                 df.loc['BetaAccessTime', :] *= 60.0
-                self.__numpy[self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)], :,
-                [0, 1, 3, 4]] = df.to_numpy()
+                for row2 in df.transpose().iterrows():
+                    self.__numpy[
+                        self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)], self.modeToIdx[row2[0]], [0,
+                                                                                                                    1,
+                                                                                                                    3,
+                                                                                                                    4]] = \
+                    row2[1].to_numpy()
                 # self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
                 # counter += 1
                 # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,

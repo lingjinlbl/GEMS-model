@@ -1,6 +1,8 @@
 from itertools import product
 
 import numpy as np
+
+np.set_printoptions(precision=5)
 import pandas as pd
 
 from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit, TransitionMatrices
@@ -162,6 +164,10 @@ class Demand:
         self.__transitionMatrices = None
 
     @property
+    def toThroughDistance(self):
+        return self.__toThroughDistance
+
+    @property
     def odiToIdx(self):
         return self.__scenarioData.odiToIdx
 
@@ -215,7 +221,7 @@ class Demand:
 
         # newTransitionMatrix = microtypes.emptyTransitionMatrix()
         # weights = transitionMatrices.emptyWeights()
-        weights = np.zeros(len(self.odiToIdx))
+        weights = np.zeros(len(self.odiToIdx), dtype=float)
         # counter = 0
         # for demandIndex, _ in population:
         #     for _, _ in originDestination[demandIndex].items():
@@ -225,15 +231,17 @@ class Demand:
             for odi, _ in od.items():
                 # TODO: Make smoother
                 trip = trips[odi]
-        self.__modeSplitData = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.modeToIdx)))
+        self.__modeSplitData = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.modeToIdx)), dtype=float)
         self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.7
         self.__modeSplitData[:, :, self.modeToIdx['walk']] = 0.3
 
-        self.__tripRate = np.zeros((len(self.diToIdx), len(self.odiToIdx)))
-        self.__toStarts = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)))
-        self.__toEnds = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)))
-        self.__toThroughDistance = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)))
-        self.__toThroughCounts = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)))
+        self.__tripRate = np.zeros((len(self.diToIdx), len(self.odiToIdx)), dtype=float)
+        self.__toStarts = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)), dtype=float)
+        self.__toEnds = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)), dtype=float)
+        self.__toThroughDistance = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)),
+                                            dtype=float)
+        self.__toThroughCounts = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)),
+                                          dtype=float)
 
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
@@ -272,7 +280,9 @@ class Demand:
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
                 self.__toStarts[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.o]] = 1.0
                 self.__toEnds[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.d]] = 1.0
+                # TODO: Expand through distance to have a mode dimension, then filter and reallocate
                 for mID, pct in trip.allocation:
+                    # NOTE: THis doesn't actually need to be indexed by currentPopIndex
                     self.__toThroughDistance[
                         currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[odi.distBin]
                     self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
@@ -309,6 +319,7 @@ class Demand:
         microtypes.updateNumpyDemand(newData)
         # weights = distanceByOdx[:, self.modeToIdx["auto"]]
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
+
         # for di, odi in self.keys():
         #     if (di, odi) not in self:
         #         continue
@@ -342,6 +353,7 @@ class Demand:
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):
         newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
         np.copyto(self.__modeSplitData, np.average([newModeSplit, self.__modeSplitData], axis=0, weights=[0.85, 0.15]))
+        # np.copyto(self.__modeSplitData, newModeSplit)
         # for demandIndex, utilityParams in self.__population:
         #     od = originDestination[demandIndex]
         #     for odi, portion in od.items():
@@ -428,11 +440,20 @@ class Demand:
 
 
 def utils(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
-    return np.einsum('ikl,jkl->ijk', popVars, choiceChars)
+    """ Indices:
+    i: population group (demand index)
+    j: OD index
+    k: mode
+    l: parameter
+    """
+    utils = np.einsum('ikl,jkl->ijk', popVars, choiceChars)
+    # print(choiceChars[0,-1,:])
+    return utils
 
 
 def modeSplitMatrixCalc(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
     expUtils = np.exp(utils(popVars, choiceChars))
     probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
     probabilities[np.isnan(expUtils)] = 0
+    # print(probabilities[0,0,:])
     return probabilities
