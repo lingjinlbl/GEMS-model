@@ -186,7 +186,7 @@ class Population:
                 for mode, values in df.transpose().iterrows():
                     self.__numpy[
                         self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose
-                                                 )], self.modeToIdx[mode], [0,1,3,4]] = values.to_numpy()
+                                                 )], self.modeToIdx[mode], [0, 1, 3, 4]] = values.to_numpy()
                 # self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
                 # counter += 1
                 # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,

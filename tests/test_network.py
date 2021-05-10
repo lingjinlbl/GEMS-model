@@ -1,8 +1,11 @@
 import pandas as pd
-import pandas as pd
 import pytest
+import os
+from model import Model
+import matplotlib.pyplot as plt
 
 from utils.network import Network, AutoMode, BusMode
+import numpy as np
 
 data = pd.DataFrame(
     {"SubnetworkID": 1, "MicrotypeID": "A", "ModesAllowed": "Auto-Bus", "Dedicated": False, "Length": 1000.0,
@@ -10,12 +13,28 @@ data = pd.DataFrame(
 
 
 @pytest.fixture
-def net():
-    return Network(data, 1)
+def model() -> Model:
+    ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+    return Model(ROOT_DIR + "/../input-data-simpler")
 
 
-def test_mfd(net):
-    auto = AutoMode([net], pd.DataFrame({"VehicleSize": 1}, index=["A"]), "A")
+def test_mfd(model):
+    fig, axs = plt.subplots(1,3)
+    demands = [50, 75, 100]
+    totalTimesPlot = []
+    totalTimesSpeed = []
+    for ind, d in enumerate(demands):
+        model.updateTimePeriodDemand(1, d)
+        vectorUserCosts = model.collectAllCharacteristics()
+        x, y = model.plotAllDynamicStats("delay")
+        axs.flat[ind].clear()
+        axs.flat[ind].set_title("Demand: " + str(d))
+        axs.flat[ind].plot(x, y)
+        totalTimesPlot.append(np.sum(y[:,0] - y[:,1]))
+        totalTimesSpeed.append(vectorUserCosts[2,1]*60)
+        print('awfdasdfa')
+    axs.flat[0].set_ylabel("Cumulative vehicles")
+    axs.flat[-1].legend(['Arrivals','Departures'])
     net.addMode(auto)
     auto.override = True
     auto.assignVmtToNetworks()

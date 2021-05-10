@@ -1106,6 +1106,8 @@ class NetworkStateData:
             self.blockedDistance = 0.0
             # self.averageSpeed = 0.0
             self.initialTime = 0.0
+            self.inflow = np.zeros(0)
+            self.outflow = np.zeros(0)
             self.v = np.zeros(0)
             self.n = np.zeros(0)
             self.t = np.zeros(0)
@@ -1120,6 +1122,8 @@ class NetworkStateData:
             self.blockedDistance = data.blockedDistance
             # self.averageSpeed = data.averageSpeed
             self.initialTime = data.initialTime
+            self.inflow = data.inflow
+            self.outflow = data.outflow
             self.v = data.v
             self.n = data.n
             self.t = data.t
@@ -1149,6 +1153,8 @@ class NetworkStateData:
         self.blockedDistance = 0.0
         # self.averageSpeed = 0.0
         self.initialTime = 0.0
+        self.inflow = np.zeros(0)
+        self.outflow = np.zeros(0)
         self.v = np.zeros(0)
         self.n = np.zeros(0)
         self.t = np.zeros(0)
@@ -1169,9 +1175,14 @@ class CollectedNetworkStateData:
         for (mID, modes), val in self.__data.items():
             if "auto" in modes:
                 if len(val.t) == 0:
-                    prods.append(0.)
+                    continue
                 else:
-                    prods.append(np.sum(val.v * val.n) * (val.t[1] - val.t[0]))
+                    prod = np.zeros(len(val.t) - 1)
+                    for i in np.arange(len(val.t) - 1):
+                        dt = val.t[i + 1] - val.t[i]
+                        prod[i] = val.v[i] * val.n[i] * dt
+                    prods.append(prod)
+                    # prods.append(np.sum(val.v * val.n) * (val.t[1] - val.t[0]))
         return np.array(prods)
 
     def addMicrotype(self, microtype):
@@ -1185,16 +1196,21 @@ class CollectedNetworkStateData:
     def getAutoSpeeds(self):
         speeds = []
         ns = []
+        inflows = []
+        outflows = []
         ts = None
         labels = []
         for (mID, modes), val in self.__data.items():
             if "auto" in modes:
-                speeds.append(val.v)
-                ns.append(val.n)
+                speeds.append(val.v[:-1])
+                ns.append(val.n[:-1])
+                inflows.append(val.inflow[:-1])
+                outflows.append(val.outflow[:-1])
                 if ts is None:
-                    ts = val.t
+                    ts = val.t[:-1]
                 labels.append((mID, modes))
-        return ts, np.stack(speeds, axis=-1), np.stack(ns, axis=-1), labels
+        return ts, np.stack(speeds, axis=-1), np.stack(ns, axis=-1), np.stack(inflows, axis=-1), np.stack(outflows,
+                                                                                                          axis=-1), labels
 
     def __bool__(self):
         return len(self.__data) > 0

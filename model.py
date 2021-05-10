@@ -543,6 +543,9 @@ class Model:
     def getMatrixUserCosts(self):
         return self.demand.getMatrixUserCosts(self.choice)
 
+    def getMatrixSummedCharacteristics(self):
+        return self.demand.getSummedCharacteristics(self.choice)
+
     def getModeUserCosts(self):
         out = dict()
         for mode in self.scenarioData['modeData'].keys():
@@ -568,6 +571,9 @@ class Model:
 
     def resetNetworks(self):
         self.scenarioData = self.__initialScenarioData.copy()
+
+    def updateTimePeriodDemand(self, timePeriodId, newTripStartRate):
+        self.__demand[timePeriodId].updateTripStartRate(newTripStartRate)
 
     def setTimePeriod(self, timePeriod: str, init=False):
         """Note: Are we always going to go through them in order? Should maybe just store time periods
@@ -602,6 +608,21 @@ class Model:
             print(self.getModeSpeeds())
         return userCosts, operatorCosts, vectorUserCosts
 
+    def collectAllCharacteristics(self):
+        vectorUserCosts = 0.0
+        init = True
+        for timePeriod, durationInHours in self.__timePeriods:
+            self.setTimePeriod(timePeriod, init)
+            self.microtypes.updateNetworkData()
+            init = False
+            self.findEquilibrium()
+            matCosts = self.getMatrixSummedCharacteristics() * durationInHours
+            vectorUserCosts += matCosts
+            self.__networkStateData[timePeriod] = self.microtypes.getStateData()
+            print(self.getModeSplit(self.__currentTimePeriod))
+            print(self.getModeSpeeds())
+        return vectorUserCosts
+
     def getModeSpeeds(self, timePeriod=None):
         if timePeriod is None:
             timePeriod = self.__currentTimePeriod
@@ -611,13 +632,19 @@ class Model:
         ts = []
         vs = []
         ns = []
+        prods = []
+        inflows = []
+        outflows = []
         runningTotal = 0.0
         for id, dur in self.__timePeriods:
             # out = self.getMicrotypeCollection(id).transitionMatrixMFD(dur, self.getNetworkStateData(id),
             #                                                           self.getMicrotypeCollection(
             #                                                               id).getModeStartRatePerSecond("auto"))
             sd = self.getNetworkStateData(id)
-            t, v, n, label = sd.getAutoSpeeds()
+            t, v, n, inflow, outflow, label = sd.getAutoSpeeds()
+            prods.append(sd.getAutoProduction())
+            inflows.append(inflow)
+            outflows.append(outflow)
             ts.append(t)
             vs.append(v)
             ns.append(n)
@@ -631,6 +658,12 @@ class Model:
             y = np.concatenate(vs)
             # plt.plot(x, y)
             return x, y
+        elif type.lower() == "delay":
+            y1 = np.cumsum(np.concatenate(inflows))
+            y2 = np.cumsum(np.concatenate(outflows))
+            x = np.concatenate(ts)
+            plt.plot(x, np.transpose(np.stack([y1, y2])))
+            return x, np.transpose(np.stack([y1, y2]))
         # elif type.lower() == "density":
         #     x = np.concatenate(ts)
         #     y = np.concatenate(reldensity)

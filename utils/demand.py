@@ -183,6 +183,11 @@ class Demand:
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
 
+    def updateTripStartRate(self, newTripStartRate):
+        tripRate = self.__tripRate
+        newTripRate = np.ones(np.shape(tripRate)) * newTripStartRate
+        np.copyto(self.__tripRate, newTripRate)
+
     def nModes(self):
         return len(self.__modes)
 
@@ -397,6 +402,11 @@ class Demand:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
         costByMode = utils(self.__population.numpyCost, collectedChoiceCharacteristics.numpy)
         return startsByMode * costByMode
+
+    def getSummedCharacteristics(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
+        startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
+        totalsByModeAndCharacteristic = np.einsum('ijk,jkl->kl', startsByMode, collectedChoiceCharacteristics.numpy)
+        return totalsByModeAndCharacteristic
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                      originDestination: OriginDestination, modes=None) -> CollectedTotalUserCosts:

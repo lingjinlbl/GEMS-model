@@ -331,7 +331,6 @@ class MicrotypeCollection:
                       len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
                       " subNetworks in microtype ", microtypeID)
 
-    # @profile
     def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):
         if collectedNetworkStateData is None:
             collectedNetworkStateData = self.collectedNetworkStateData
@@ -348,6 +347,9 @@ class MicrotypeCollection:
             v[v < minspeed] = minspeed
             v[v > v_0] = v_0[v > v_0]
             return v
+
+        def tripEndingRate(n, X, L, v_0, n_0, n_other) -> np.ndarray:
+            return (1 - np.sum(X, axis=0)) * v(n, v_0, n_0, n_other, 0.005) * n / L
 
         def outflow(n, L, v_0, n_0, n_other) -> np.ndarray:
             return v(n, v_0, n_0, n_other, 0.005) * n / L
@@ -366,7 +368,7 @@ class MicrotypeCollection:
                 if np.all(overLimit):
                     if counter == 0:
                         vals = np.linspace(criticalDensity, 1.0, 5)
-                    if counter <= 5:
+                    if counter <= 1:
                         criticalDensity = vals[counter]
                         criticalN = criticalDensity * (N_0 - n_other)
                         counter += 1
@@ -416,6 +418,8 @@ class MicrotypeCollection:
         ts = np.arange(0, durationInHours * 3600., dt)
         ns = np.zeros((len(self), np.size(ts)), dtype=float)
         vs = np.zeros((len(self), np.size(ts)), dtype=float)
+        inflows = np.zeros((len(self), np.size(ts)), dtype=float)
+        outflows = np.zeros((len(self), np.size(ts)), dtype=float)
         n_t = n_init.copy()
 
         for i, ti in enumerate(ts):
@@ -424,16 +428,19 @@ class MicrotypeCollection:
             # n_t += deltaN
             infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
             outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 0.9)
+            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 1.0)
+            ends = tripEndingRate(n_t, X, characteristicL, V_0, N_0, n_other)
             # print(otherval, n_t)
             # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
             n_t[n_t < 0] = 0.0
             pct = n_t / N_0
             ns[:, i] = np.squeeze(n_t)
             vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
+            inflows[:, i] = np.squeeze(tripStartRate * dt)
+            outflows[:, i] = np.squeeze(ends * dt)
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
-        averageSpeeds = np.mean(vs, axis=1)
+        averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
         # print(averageSpeeds)
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
@@ -448,11 +455,13 @@ class MicrotypeCollection:
                         networkStateData.finalAccumulation = ns[idx, -1]
                         networkStateData.finalSpeed = vs[idx, -1]
                         # networkStateData.averageSpeed = averageSpeeds[idx]
+                        networkStateData.inflow = np.squeeze(inflows[idx, :])
+                        networkStateData.outflow = np.squeeze(outflows[idx, :])
                         networkStateData.n = np.squeeze(ns[idx, :])
                         networkStateData.v = np.squeeze(vs[idx, :])
                         networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
         return {"t": np.transpose(ts), "v": np.transpose(vs), "n": np.transpose(ns),
-                "max_accumulation": N_0}
+                "max_accumulation": N_0, "inflow": np.transpose(inflows)}
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
