@@ -582,7 +582,8 @@ class BusMode(Mode):
             dedicatedDistance = sum([n.L for n in self.networks if n.dedicated])
             totalDistance = sum([n.L for n in self.networks])
             undedicatedDistance = totalDistance - dedicatedDistance
-            return max(0, (self.routeDistanceToNetworkDistance * totalDistance - dedicatedDistance) * (network.L / undedicatedDistance) )
+            return max(0, (self.routeDistanceToNetworkDistance * totalDistance - dedicatedDistance) * (
+                        network.L / undedicatedDistance))
             # return self.routeDistanceToNetworkDistance * totalDistance * network.L / (totalDistance - dedicatedDistance)
 
     def getN(self, network=None):
