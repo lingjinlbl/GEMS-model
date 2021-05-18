@@ -484,7 +484,7 @@ class BusMode(Mode):
             self.__operatingL[n] = self.updateOperatingL(n)
 
         self.__routeLength = self.updateRouteLength()
-        self.travelDemand = TravelDemand()
+        self.travelDemand = TravelDemand(travelDemandData)
         self.routeAveragedSpeed = self.getSpeed()
         self.occupancy = 0.0
         self.updateModeBlockedDistance()
@@ -581,7 +581,9 @@ class BusMode(Mode):
         else:
             dedicatedDistance = sum([n.L for n in self.networks if n.dedicated])
             totalDistance = sum([n.L for n in self.networks])
-            return self.routeDistanceToNetworkDistance * totalDistance * network.L / (totalDistance - dedicatedDistance)
+            undedicatedDistance = totalDistance - dedicatedDistance
+            return max(0, (self.routeDistanceToNetworkDistance * totalDistance - dedicatedDistance) * (network.L / undedicatedDistance) )
+            # return self.routeDistanceToNetworkDistance * totalDistance * network.L / (totalDistance - dedicatedDistance)
 
     def getN(self, network=None):
         """Changed January 2021: Buses only operate on a portion of subnetwork"""
@@ -633,12 +635,14 @@ class BusMode(Mode):
     def getSpeed(self):
         meters = np.zeros(len(self.networks), dtype=float)
         seconds = np.zeros(len(self.networks), dtype=float)
+        speeds = np.zeros(len(self.networks), dtype=float)
         for idx, n in enumerate(self.networks):
             if n.L > 0:
                 # n_bus = self.getN(n)
                 bus_speed = self.getSubNetworkSpeed(n)
                 meters[idx] = self.getOperatingL(n)
                 seconds[idx] = self.getOperatingL(n) / bus_speed
+                speeds[idx] = meters[idx] / seconds[idx]
         if np.sum(seconds) > 0:
             spd = np.sum(meters) / np.sum(seconds)
             return spd
@@ -755,6 +759,9 @@ class Network:
             self.__diameter = 1.0
         else:
             self.__diameter = diameter
+
+    def updateNetworkData(self):
+        self.__data = self.data.to_numpy()
 
     # @property
     # def type(self):
@@ -963,6 +970,10 @@ class NetworkCollection:
         self.demands = TravelDemands([])
         self.verbose = verbose
         # self.resetModes()
+
+    def updateNetworkData(self):
+        for n in self._networks.values():
+            n.updateNetworkData()
 
     def populateNetworksAndModes(self, networksAndModes, modeToModeData, microtypeID):
         # modeToNetwork = dict()

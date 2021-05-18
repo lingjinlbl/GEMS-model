@@ -28,31 +28,18 @@ def test_find_equilibrium():
     for dist in busLaneDistance:
         a.scenarioData['subNetworkData'].at[10, "Length"] = dist
         a.scenarioData['subNetworkData'].at[2, "Length"] = initialDistance - dist
+        a.microtypes.updateNetworkData()
         a.findEquilibrium()
         ms = a.getModeSplit(1)
-        """
-        We'll finish this in another branch
-        
-        
-        ms = a.getModeSplit()._mapping
-        fig1, ax1 = plt.subplots()
-        explode = (0.1, 0.1, 0.1, 0.1, 0.1)
-        patches, texts = ax1.pie(ms.values(), explode=explode, labels=ms.keys())
-        plt.legend(patches, ms.values(), loc="best")
-        ax1.axis('equal')
-        ax1.set_title("Mode splits for " + str(dist) + " busLaneDistance")
-        # Not sure where to save for now, will figure that out sooner or later
-        plt.savefig("graphs/.....????")
-        plt.show()
-        """
+
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
-        busSpeed.append(speeds.loc["bus", "B"])
-        carSpeedA.append(speeds.loc["auto", "A"])
-        carSpeedB.append(speeds.loc["auto", "B"])
-        carSpeedC.append(speeds.loc["auto", "C"])
-        carSpeedD.append(speeds.loc["auto", "D"])
-        busModeShare.append(ms["bus"])
-        carModeShare.append(ms["auto"])
+        busSpeed.append(speeds.loc["B", "bus"])
+        carSpeedA.append(speeds.loc["A", "auto"])
+        carSpeedB.append(speeds.loc["B", "auto"])
+        carSpeedC.append(speeds.loc["C", "auto"])
+        carSpeedD.append(speeds.loc["D", "auto"])
+        busModeShare.append(ms[a.scenarioData.modeToIdx["bus"]])
+        carModeShare.append(ms[a.scenarioData.modeToIdx["auto"]])
         uc = a.getUserCosts()
         userCosts.append(a.getUserCosts().total)
         operatorCosts.append(a.getOperatorCosts().total)
@@ -112,16 +99,17 @@ def test_find_equilibrium():
     operatorCosts = []
     for hw in headways:
         a.scenarioData["modeData"]["bus"].loc["A", "Headway"] = hw
+        a.microtypes.updateNetworkData()
         a.findEquilibrium()
         ms = a.getModeSplit(1)
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
-        busSpeed.append(speeds.loc["bus", "A"])
-        carSpeedA.append(speeds.loc["auto", "A"])
-        carSpeedB.append(speeds.loc["auto", "B"])
-        carSpeedC.append(speeds.loc["auto", "C"])
-        carSpeedD.append(speeds.loc["auto", "D"])
-        busModeShare.append(ms["bus"])
-        carModeShare.append(ms["auto"])
+        busSpeed.append(speeds.loc["B", "bus"])
+        carSpeedA.append(speeds.loc["A", "auto"])
+        carSpeedB.append(speeds.loc["B", "auto"])
+        carSpeedC.append(speeds.loc["C", "auto"])
+        carSpeedD.append(speeds.loc["D", "auto"])
+        busModeShare.append(ms[a.scenarioData.modeToIdx["bus"]])
+        carModeShare.append(ms[a.scenarioData.modeToIdx["auto"]])
         uc = a.getUserCosts()
         oc = a.getOperatorCosts()
         userCosts.append(a.getUserCosts().total + oc.total)

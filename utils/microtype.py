@@ -251,6 +251,7 @@ class MicrotypeCollection:
         for m in self.__microtypes.values():
             # assert isinstance(m, Microtype)
             m.networks.updateModeData()
+            m.networks.updateNetworkData()
             for _, n in m.networks:
                 # assert isinstance(n, Network)
                 n.updateScenarioInputs()
