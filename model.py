@@ -515,7 +515,6 @@ class Model:
         i = 0
         while (diff > 0.00001) & (i < 20):
             oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
-            # print(oldModeSplit)
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)

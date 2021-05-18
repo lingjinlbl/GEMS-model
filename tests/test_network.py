@@ -19,55 +19,25 @@ def model() -> Model:
 
 
 def test_mfd(model):
-    fig, axs = plt.subplots(1,3)
-    demands = [50, 75, 100]
+    demands = [235, 255, 265]
     totalTimesPlot = []
     totalTimesSpeed = []
+    carSpeeds = []
     for ind, d in enumerate(demands):
         model.updateTimePeriodDemand(1, d)
         vectorUserCosts = model.collectAllCharacteristics()
         x, y = model.plotAllDynamicStats("delay")
-        axs.flat[ind].clear()
-        axs.flat[ind].set_title("Demand: " + str(d))
-        axs.flat[ind].plot(x, y)
         totalTimesPlot.append(np.sum(y[:,0] - y[:,1]))
         totalTimesSpeed.append(vectorUserCosts[2,1]*60)
-        print('awfdasdfa')
-    axs.flat[0].set_ylabel("Cumulative vehicles")
-    axs.flat[-1].legend(['Arrivals','Departures'])
-    net.addMode(auto)
-    auto.override = True
-    auto.assignVmtToNetworks()
-    # net.updateBaseSpeed(override=True)
-    bs1 = net.getBaseSpeed()
-    auto.travelDemand.rateOfPmtPerHour = 500.0
-    auto.travelDemand.tripStartRatePerHour = 10.0
-    auto.updateDemand()
-    auto.assignVmtToNetworks()
-    net.updateBaseSpeed(override=True)
-    bs2 = net.getBaseSpeed()
-    # assert bs2 < bs1
-    busParams = pd.DataFrame(
-        {"VehicleSize": 1, "Headway": 300, "PassengerWait": 5, "PassengerWaitDedicated": 2., "MinStopTime": 15.,
-         "PerStartCost": 2.5, "VehicleOperatingCostPerHour": 30., "StopSpacing": 300, "CoveragePortion": 0.5},
-        index=["A"])
-    bus = BusMode([net], busParams, "A")
-    net.addMode(bus)
-    bus.assignVmtToNetworks()
-    net.updateBlockedDistance()
-    auto.assignVmtToNetworks()
-    net.updateBaseSpeed(override=True)
-    bs3 = net.getBaseSpeed()
-    assert bs3 < bs2
-    bus.travelDemand.tripStartRatePerHour = 30
-    bus.updateDemand()
-    net.updateBlockedDistance()
-    bus.assignVmtToNetworks()
-    net.updateBlockedDistance()
-    auto.assignVmtToNetworks()
-    net.updateBaseSpeed(override=True)
-    bs4 = net.getBaseSpeed()
-    assert bs4 < bs3
+        carSpeeds.append(model.getModeSpeeds()['auto'][0])
+    assert(totalTimesPlot[-1] > totalTimesPlot[0])
+    assert(np.abs((totalTimesPlot[0] - totalTimesSpeed[0]) / totalTimesPlot[0]) < 0.025)
+    print('Done')
+    # model.scenarioData['modeData']['bus']['Headway'][0] = 300
+    # vectorUserCosts = model.collectAllCharacteristics()
+    # x, y = model.plotAllDynamicStats("delay")
+
+
 
     # net2 = Network(pd.DataFrame({"Length": {0: 6000}, "Dedicated": {0: True}}), 0.,
     #                NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))
