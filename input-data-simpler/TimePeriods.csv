@@ -1,6 +1,4 @@
 ﻿TimePeriodID,DurationInHours
-AM-Peak,4
-Midday,6
-PM-Peak,4
+Midday,1
+PM-Peak,1
 Evening,4
-Overnight,6
