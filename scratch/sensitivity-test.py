@@ -1,12 +1,14 @@
-import pandas as pd
-import matplotlib.pyplot as plt
 import os
-from model import Model
+
+import matplotlib.pyplot as plt
 import numpy as np
+
+from model import Model
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 model = Model(ROOT_DIR + "/../input-data-simpler")
-model.scenarioData['populationGroups'].loc[model.scenarioData['populationGroups']['Mode'] == "bus","BetaTravelTime"] = -1e9
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "bus", "BetaTravelTime"] = -1e9
 model.readFiles()
 fig, axs = plt.subplots(3, 5)
 demands = [270, 280, 290, 300, 305]
@@ -35,7 +37,7 @@ axs[2, 0].set_ylabel("Accumulation")
 axs.flat[0].set_ylabel("Cumulative vehicles")
 
 fig2, axs2 = plt.subplots(3, 4)
-busVOTs = [-0.1,-0.05,-0.03, -0.02]
+busVOTs = [-0.1, -0.05, -0.03, -0.02]
 busModeSplit = []
 carModeSplit = []
 for ind, vot in enumerate(busVOTs):
@@ -45,18 +47,24 @@ for ind, vot in enumerate(busVOTs):
     model.updateTimePeriodDemand(1, 320)
     vectorUserCosts = model.collectAllCharacteristics()
     x, y = model.plotAllDynamicStats("delay")
+
     axs2[0, ind].clear()
-    axs2[0, ind].plot(x, y)
+    axs2[0, ind].plot(x[1:], np.diff(y, axis=0))
 
     axs2[1, ind].clear()
-    axs2[1, ind].plot(x[1:], np.diff(y, axis=0))
+    axs2[1, ind].step([0, 1, 2, 3], np.vstack(
+        [model.getModeSplit(0), model.getModeSplit(0), model.getModeSplit(1), model.getModeSplit(2)]))
+    axs2[1, ind].set_ylim([0, 1])
 
     axs2[2, ind].clear()
-    axs2[2, ind].plot(x, y[:, 0] - y[:, 1])
+    axs2[2, ind].step([0, 1, 2, 3], np.vstack(
+        [model.getModeSpeeds(0).to_numpy(), model.getModeSpeeds(0).to_numpy(), model.getModeSpeeds(1).to_numpy(),
+         model.getModeSpeeds(2).to_numpy()]))
+    axs2[2, ind].set_ylim([0, 17])
     busModeSplit.append(model.getModeSplit()[model.scenarioData.modeToIdx["bus"]])
     carModeSplit.append(model.getModeSplit()[model.scenarioData.modeToIdx["auto"]])
-
-
+axs2[0, 0].set_ylabel("Rate of Change")
+axs2[0, 0].legend(['Bus', 'Walk', 'Auto'])
+axs2[1, 0].set_ylabel("Mode Split")
+axs2[2, 0].set_ylabel("Speed")
 print('done')
-
-
