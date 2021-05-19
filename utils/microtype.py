@@ -128,8 +128,7 @@ class Microtype:
             if mode in ['bus', 'rail']:
                 cc.wait_time += self.networks.modes[
                                     'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
-            cc.access_time += self.networks.modes[mode].getAccessDistance() * self.networks.modes[
-                'walk'].speedInMetersPerSecond / 3600.0
+            cc.access_time += self.networks.modes[mode].getAccessDistance() / 1.5 / 3600.0 # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
 
     def addThroughTimeCostWait(self, mode: str, distanceInMiles: float, cc: ChoiceCharacteristics):
         if mode in self:
