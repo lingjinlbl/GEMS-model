@@ -373,7 +373,6 @@ class MicrotypeCollection:
                         criticalN = criticalDensity * (N_0 - n_other)
                         counter += 1
                     else:
-                        print('Youre Effed')
                         return criticalN
                 before = np.sum(requestedN)
                 totalSpillback = np.sum(requestedN[overLimit] - criticalN[overLimit])
@@ -428,7 +427,7 @@ class MicrotypeCollection:
             # n_t += deltaN
             infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
             outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 1.0)
+            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 1.0) #CHANGE BACK TO n_other
             ends = tripEndingRate(n_t, X, characteristicL, V_0, N_0, n_other)
             # print(otherval, n_t)
             # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
@@ -440,8 +439,14 @@ class MicrotypeCollection:
             outflows[:, i] = np.squeeze(ends * dt)
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
-        averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
-        # print(averageSpeeds)
+        # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
+        # averageSpeeds = 1 / np.mean(1 / vs, axis=1)
+
+        averageSpeeds = np.min(vs, axis=1)
+        # print('----new iter---')
+        # print(tripStartRate, averageSpeeds, n_other, L_eff, n_init)
+        if np.any(np.isnan(averageSpeeds)):
+            print('STOP')
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)

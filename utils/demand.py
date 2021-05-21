@@ -149,11 +149,16 @@ class Demand:
         self.__modes = list(scenarioData.modeToIdx.keys())
         self.__modeSplit = dict()
         self.__modeSplitData = np.ndarray(0)
+        self.__previousUtilityInput = np.ndarray(0)
+        self.__previousUtilityOutput = np.ndarray(0)
+        self.__currentUtility = np.ndarray(0)
+        self.__jacobian = np.ndarray(0)
         self.__tripRate = np.ndarray(0)
         self.__toStarts = np.ndarray(0)
         self.__toEnds = np.ndarray(0)
         self.__toThroughDistance = np.ndarray(0)
         self.__toThroughCounts = np.ndarray(0)
+        self.__shape = tuple
         self.tripRate = 0.0
         self.demandForPMT = 0.0
         self.pop = 0.0
@@ -237,6 +242,7 @@ class Demand:
                 # TODO: Make smoother
                 trip = trips[odi]
         self.__modeSplitData = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.modeToIdx)), dtype=float)
+        self.__shape = self.__modeSplitData.shape
         self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.7
         self.__modeSplitData[:, :, self.modeToIdx['walk']] = 0.3
 
@@ -305,9 +311,10 @@ class Demand:
 
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
+        # self.__previousModeSplitInput = self.__modeSplitData.copy()
 
     # @profile
-    def updateMFD(self, microtypes: MicrotypeCollection, nIters=3):
+    def updateMFD(self, microtypes: MicrotypeCollection, nIters=5):
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
         totalDemandForTrips = 0.0
@@ -346,7 +353,14 @@ class Demand:
         otherMatrix = self.__transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
+        for microtypeID, microtype in microtypes:
+            for modes, n in microtype.networks:
+                n.getNetworkStateData().resetBlockedDistance()
+                n.getNetworkStateData().resetNonAutoAccumulation()
+
         for it in range(nIters):
+            # for microtypeID, microtype in microtypes:
+            #     microtype.updateNetworkSpeeds(1)
             microtypes.transitionMatrixMFD(self.timePeriodDuration)
             for microtypeID, microtype in microtypes:
                 microtype.updateNetworkSpeeds(1)
@@ -354,10 +368,89 @@ class Demand:
         autoProductionInMeters = microtypes.collectedNetworkStateData.getAutoProduction()
         # print(autoProductionInMeters)
 
+    def utility(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics):
+        return utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
+
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
                         originDestination: OriginDestination, oldModeSplit: ModeSplit):
+        newUtils = utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
+
         newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
-        np.copyto(self.__modeSplitData, np.average([newModeSplit, self.__modeSplitData], axis=0, weights=[0.85, 0.15]))
+        if self.__previousUtilityInput.size > 0:
+            if collectedChoiceCharacteristics.isBroken():
+                # output = 0.5* self.__previousUtilityInput + 0.5*self.__currentUtility
+                output = self.__currentUtility.copy()
+                output[:, :, self.modeToIdx['auto']] -= np.random.uniform(0.02,0.1)
+                # output[:, :, self.modeToIdx['auto']] *= np.random.uniform(1.25, 1.5)
+                # prob = np.random.uniform(0.05,0.15)
+                # output = (1-prob) * self.__previousUtilityInput + prob * self.__currentUtility
+                print("THIS WENT OVER")
+                print(self.__previousUtilityInput[:, 0, :])
+                # print(self.__currentUtility[:, 0, :])
+                print(output[:, 0, :])
+                x_curr = self.__previousUtilityInput
+                fx_curr = self.__previousUtilityOutput
+                gx_curr = fx_curr - x_curr
+                x_next = self.__modeSplitData
+                fx_next = newModeSplit
+                gx_next = fx_next - x_next
+                err=1e6
+                print('---------')
+                self.__previousUtilityInput = self.__currentUtility.copy()
+                self.__previousUtilityOutput = newUtils
+            else:
+                """
+                Implement Newton's method to estimate the zero of g(x) = f(x) - x
+                """
+                x_curr = self.__previousUtilityInput
+                fx_curr = self.__previousUtilityOutput
+                gx_curr = fx_curr - x_curr
+                x_next = self.__currentUtility
+                fx_next = newUtils
+                gx_next = fx_next - x_next
+
+                jac = self.__jacobian
+
+                gprime = (gx_next - gx_curr) / (x_next - x_curr)
+                # gprime[gprime > 4] = 4
+                # gprime[gprime < -4] = -4
+                # fprime_curr = (fx_next - fx_curr - x_next + x_curr) / (x_next - x_curr)
+
+                diff = gx_curr / gprime
+                diff[np.isnan(diff)] = 0.0
+                output = x_curr - diff
+
+                err = np.linalg.norm(diff)
+
+                # print('---n---')
+                # print(modeSplitFromUtils(x_curr)[:, 0, :])
+                # # print(fx_curr[:, 0, :])
+                # print('---n+1---')
+                # print(modeSplitFromUtils(x_next)[:, 0, :])
+                # # print(fx_next[:, 0, :])
+                # print('--gives--')
+                # # print(diff[:, 0, :])
+                # print(modeSplitFromUtils(output)[:, 0, :])
+                # print('---------')
+                self.__previousUtilityInput = self.__currentUtility.copy()
+                self.__previousUtilityOutput = newUtils
+                print(err)
+        else:
+            output = newModeSplit
+            self.__previousUtilityInput = self.__currentUtility.copy()
+            self.__previousUtilityOutput = newUtils
+            err = 1e6
+            # jacobianSub = np.eye(self.__shape[2]) - np.ones((self.__shape[2], self.__shape[2])) / self.__shape[2]
+            # self.__jacobian = np.kron(np.eye(self.__shape[0] * self.__shape[1]), jacobianSub)
+        if np.any(np.isnan(self.__modeSplitData)):
+            print("why nan")
+
+        self.__currentUtility = output.copy()
+        np.copyto(self.__modeSplitData, modeSplitFromUtils(output))
+
+
+
+        # np.copyto(self.__modeSplitData, np.average([newModeSplit, self.__modeSplitData], axis=0, weights=[0.75, 0.25]))
         # np.copyto(self.__modeSplitData, newModeSplit)
         # for demandIndex, utilityParams in self.__population:
         #     od = originDestination[demandIndex]
@@ -366,10 +459,10 @@ class Demand:
         #             collectedChoiceCharacteristics[self.__odiToIdx[odi]])
         #         self[demandIndex, odi].updateMapping(ms)
         #         self[demandIndex, odi] *= oldModeSplit
-        modeCounts = self.getMatrixModeCounts()
-        newModeSplit = modeCounts / np.sum(modeCounts)
-        diff = np.linalg.norm(oldModeSplit - newModeSplit)
-        return diff
+        # modeCounts = self.getMatrixModeCounts()
+        # newModeSplit = modeCounts / np.sum(modeCounts)
+        # diff = np.linalg.norm(oldModeSplit - newModeSplit)
+        return err
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
         demandForTrips = 0
@@ -461,9 +554,31 @@ def utils(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
     return utils
 
 
+def modeSplitFromUtils(utilities: np.ndarray) -> np.ndarray:
+    expUtils = np.exp(utilities)
+    probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
+    probabilities[np.isnan(expUtils)] = 0
+    return probabilities
+
+
 def modeSplitMatrixCalc(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
     expUtils = np.exp(utils(popVars, choiceChars))
     probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
     probabilities[np.isnan(expUtils)] = 0
     # print(probabilities[0,0,:])
     return probabilities
+
+
+def correctModeSplit(modeSplit: np.ndarray) -> np.ndarray:
+    modeSplit[np.isnan(modeSplit)] = 0.0
+    if np.any(modeSplit < 0.0):
+        badSplits = np.any(modeSplit < 0, axis=-1)
+
+        positiveValues = modeSplit[badSplits, :]
+        positiveValues[positiveValues < 0] = - 0.5* positiveValues[positiveValues < 0]
+
+        corrected = positiveValues
+        modeSplit[badSplits, :] = corrected
+        return modeSplit / modeSplit.sum(axis=-1)[:, None]
+    else:
+        return modeSplit / modeSplit.sum(axis=-1)[:, None]

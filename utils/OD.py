@@ -661,8 +661,11 @@ class TransitionMatrices:
         return np.zeros(self.numpy.shape[0])
 
     def averageMatrix(self, weights: np.ndarray):
-        return TransitionMatrix(self.microtypeIdToIdx, np.average(self.numpy, axis=0, weights=weights),
+        if np.sum(weights) > 0.0:
+            return TransitionMatrix(self.microtypeIdToIdx, np.average(self.numpy, axis=0, weights=weights),
                                 diameters=self.__diameters)
+        else:
+            return TransitionMatrix(self.microtypeIdToIdx, diameters=self.__diameters)
 
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
         default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)

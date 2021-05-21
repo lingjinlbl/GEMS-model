@@ -513,13 +513,16 @@ class Model:
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        while (diff > 0.00001) & (i < 20):
+        while (diff > 0.0001) & (i < 40):
             oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
             self.demand.updateMFD(self.microtypes)
             self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
             diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)
-
+            print(oldModeSplit)
+            print([i, diff])
             i += 1
+        self.demand.updateMFD(self.microtypes)
+        self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
         if timePeriod is None:
@@ -603,13 +606,14 @@ class Model:
             # userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
             self.__networkStateData[timePeriod] = self.microtypes.getStateData()
-            print(self.getModeSplit(self.__currentTimePeriod))
-            print(self.getModeSpeeds())
+            # print(self.getModeSplit(self.__currentTimePeriod))
+            # print(self.getModeSpeeds())
         return userCosts, operatorCosts, vectorUserCosts
 
     def collectAllCharacteristics(self):
         vectorUserCosts = 0.0
         init = True
+        utilities = []
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, init)
             self.microtypes.updateNetworkData()
@@ -618,9 +622,10 @@ class Model:
             matCosts = self.getMatrixSummedCharacteristics() * durationInHours
             vectorUserCosts += matCosts
             self.__networkStateData[timePeriod] = self.microtypes.getStateData()
+            utilities.append(self.demand.utility(self.choice))
             print(self.getModeSplit(self.__currentTimePeriod))
             print(self.getModeSpeeds())
-        return vectorUserCosts
+        return vectorUserCosts, np.stack(utilities)
 
     def getModeSpeeds(self, timePeriod=None):
         if timePeriod is None:
