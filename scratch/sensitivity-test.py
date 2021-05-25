@@ -15,7 +15,7 @@ model.scenarioData['populationGroups'].loc[
 model.readFiles()
 # Redo this
 fig, axs = plt.subplots(4, 4)
-demands = [160, 220, 250, 280]
+demands = [160, 200, 240, 280]
 # demands = [390, 400, 405, 410]
 totalTimesPlot = []
 totalTimesSpeed = []
@@ -28,19 +28,25 @@ for ind, d in enumerate(demands):
     axs[0, ind].plot(x, y)
 
     axs[1, ind].clear()
-    axs[1, ind].plot(x[:-1], np.interp(y[:, 0], y[:, 1], x)[:-1] - x[:-1])
-    axs[1, ind].set_ylim((200,2500))
-    axs[1, ind].step(np.array([0, 1, 2, 3])*3600, np.vstack(
-        [6436/model.getModeSpeeds(0)['auto'], 6436/model.getModeSpeeds(0)['auto'], 6436/model.getModeSpeeds(1)['auto'], 6436/model.getModeSpeeds(2)['auto']]))
+    axs[1, ind].plot(x[:-1], np.interp(y[:, 0], y[:, 1], x)[:-1]/60. - x[:-1]/60., 'C3')
+    axs[1, ind].set_ylim((0, 50))
+    axs[1, ind].step(np.array([0, 1, 2, 3])*3609, np.vstack(
+        [6436/model.getModeSpeeds(0)['auto']/60, 6436/model.getModeSpeeds(0)['auto']/60, 6436/model.getModeSpeeds(1)['auto']/60,
+         6436/model.getModeSpeeds(2)['auto']/60]), color='C4')
     # axs[1, ind].plot(x[1:], np.diff(y, axis=0))
-    axs[1, ind].step(np.array([0, 1, 2, 3]) * 3600, np.vstack(
-        [6436 / model.getModeSpeeds(0)['bus'], 6436 / model.getModeSpeeds(0)['bus'],
-         6436 / model.getModeSpeeds(1)['bus'], 6436 / model.getModeSpeeds(2)['bus']]))
+    # axs[1, ind].step(np.array([0, 1, 2, 3]) * 3600, np.vstack(
+    #     [6436 / model.getModeSpeeds(0)['bus'], 6436 / model.getModeSpeeds(0)['bus'],
+    #      6436 / model.getModeSpeeds(1)['bus'], 6436 / model.getModeSpeeds(2)['bus']]))
 
     axs[2, ind].clear()
     # axs[2, ind].plot(x, y[:, 0] - y[:, 1])
-    axs[2, ind].step([0, 1, 2, 3], np.vstack([model.getModeSplit(0), model.getModeSplit(0), model.getModeSplit(1), model.getModeSplit(2)]))
+    axs[2, ind].step([0, 1, 2, 3], np.vstack([model.getModeSplit(0), model.getModeSplit(0), model.getModeSplit(1),
+                                              model.getModeSplit(2)]))
     axs[2, ind].set_ylim([0, 1])
+
+    axs[2, ind].lines[model.modeToIdx['auto']].set_color('C5')
+    axs[2, ind].lines[model.modeToIdx['bus']].set_color('C6')
+    axs[2, ind].lines[model.modeToIdx['walk']].set_color('C7')
 
     axs[3, ind].clear()
     # axs[3, ind].set_ylim((200,1000))
@@ -53,15 +59,18 @@ for ind, d in enumerate(demands):
     axs[3, ind].step(np.array([0, 1, 2, 3]) * 3600, np.vstack(
         [model.getModeSpeeds(0)['walk'], model.getModeSpeeds(0)['walk'],
          model.getModeSpeeds(1)['walk'], model.getModeSpeeds(2)['walk']]))
+    axs[3, ind].lines[model.modeToIdx['auto']].set_color('C7')
+    axs[3, ind].lines[model.modeToIdx['bus']].set_color('C5')
+    axs[3, ind].lines[model.modeToIdx['walk']].set_color('C6')
     totalTimesPlot.append(np.sum(y[:, 0] - y[:, 1]))
     totalTimesSpeed.append(vectorUserCosts[2, 1] * 60)
 axs[0, 0].set_ylabel("Cumulative vehicles")
 axs[0, 0].legend(['Arrivals', 'Departures'])
-axs[1, 0].set_ylabel("Rate of Change")
-axs[1, 0].legend(["Inflow", "Outflow"])
+axs[1, 0].set_ylabel("Travel Time (min)")
+axs[1, 0].legend(["Inst. Travel Time", "Avg. Travel Time"])
 axs[2, 0].set_ylabel("Mode Split")
-axs[2, 0].legend(["Auto",'Bus'])
-axs[3, 0].set_ylabel("Utility")
+axs[2, 0].legend(list(model.modeToIdx.keys()))
+axs[3, 0].set_ylabel("Speed")
 axs.flat[0].set_ylabel("Cumulative vehicles")
 
 print('done')

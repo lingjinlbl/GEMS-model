@@ -439,10 +439,10 @@ class MicrotypeCollection:
             outflows[:, i] = np.squeeze(ends * dt)
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
-        # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
-        # averageSpeeds = 1 / np.mean(1 / vs, axis=1)
+        averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
+        # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
-        averageSpeeds = np.min(vs, axis=1)
+        # averageSpeeds = np.min(vs, axis=1)
         # print('----new iter---')
         # print(tripStartRate, averageSpeeds, n_other, L_eff, n_init)
         if np.any(np.isnan(averageSpeeds)):

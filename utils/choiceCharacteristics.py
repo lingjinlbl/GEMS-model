@@ -199,7 +199,7 @@ class CollectedChoiceCharacteristics:
         self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, self.paramToIdx['intercept']] = 1
 
-    def updateChoiceCharacteristics(self, microtypes, trips):
+    def updateChoiceCharacteristics(self, microtypes, trips) -> np.ndarray:
         self.resetChoiceCharacteristics()
         travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed, self.__demand.toThroughDistance)
         self.__broken = broken
@@ -218,6 +218,7 @@ class CollectedChoiceCharacteristics:
         # otherTravelTime = self.__numpy[:,:, self.paramToIdx['travel_time']]
         # print(travelTimeInHours - otherTravelTime)
         self.__numpy[:, :, self.paramToIdx['travel_time']] = travelTimeInHours
+        return self.__numpy
 
     def isBroken(self):
         return self.__broken

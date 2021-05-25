@@ -156,6 +156,11 @@ class Demand:
         self.__tripRate = np.ndarray(0)
         self.__toStarts = np.ndarray(0)
         self.__toEnds = np.ndarray(0)
+        self.__counter = 1
+        self.__highestUnjammedUtility = np.ndarray(0)
+        self.__lowestJammedUtiltiy = np.ndarray(0)
+        self.__highestUnjammedAutoCounts = 0
+        self.__lowestJammedAutoCounts = np.inf
         self.__toThroughDistance = np.ndarray(0)
         self.__toThroughCounts = np.ndarray(0)
         self.__shape = tuple
@@ -314,7 +319,9 @@ class Demand:
         # self.__previousModeSplitInput = self.__modeSplitData.copy()
 
     # @profile
-    def updateMFD(self, microtypes: MicrotypeCollection, nIters=5):
+    def updateMFD(self, microtypes: MicrotypeCollection, nIters=5, utilitiesArray=None):
+        if utilitiesArray is not None:
+            np.copyto(self.__modeSplitData, modeSplitFromUtils(utilitiesArray))
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
         totalDemandForTrips = 0.0
@@ -371,34 +378,40 @@ class Demand:
     def utility(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics):
         return utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
 
+    def resetCounter(self):
+        self.__counter = 1
+
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-                        originDestination: OriginDestination, oldModeSplit: ModeSplit):
+                        originDestination: OriginDestination, oldModeSplit: ModeSplit=None):
         newUtils = utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
 
         newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
         if self.__previousUtilityInput.size > 0:
+            carModeCounts = self.getMatrixModeCounts()[self.modeToIdx['auto']]
             if collectedChoiceCharacteristics.isBroken():
-                # output = 0.5* self.__previousUtilityInput + 0.5*self.__currentUtility
-                output = self.__currentUtility.copy()
-                output[:, :, self.modeToIdx['auto']] -= np.random.uniform(0.02,0.1)
+
+                noiseSize = 0.1*self.__counter
+                # output += np.random.uniform(-noiseSize, noiseSize, output.shape)
+                self.__counter += 1
+                print(noiseSize)
+                pct = np.random.uniform(0,1)
+                output = pct * self.__currentUtility + (1-pct)*newUtils
+                # output[:,:,self.modeToIdx['auto']] += np.random.uniform(-noiseSize, 0, output[:,:,self.modeToIdx['auto']].shape)
+
+                # output[:, :, self.modeToIdx['auto']] += np.random.uniform(-0.01, 0.01, output[:, :, self.modeToIdx['auto']].shape)
+
+                # output[:, :, self.modeToIdx['auto']] += np.random.uniform(-0.1,0.0,output[:, :, self.modeToIdx['auto']].shape)
+
                 # output[:, :, self.modeToIdx['auto']] *= np.random.uniform(1.25, 1.5)
                 # prob = np.random.uniform(0.05,0.15)
                 # output = (1-prob) * self.__previousUtilityInput + prob * self.__currentUtility
-                print("THIS WENT OVER")
-                print(self.__previousUtilityInput[:, 0, :])
-                # print(self.__currentUtility[:, 0, :])
-                print(output[:, 0, :])
-                x_curr = self.__previousUtilityInput
-                fx_curr = self.__previousUtilityOutput
-                gx_curr = fx_curr - x_curr
-                x_next = self.__modeSplitData
-                fx_next = newModeSplit
-                gx_next = fx_next - x_next
+                # print("THIS WENT OVER")
                 err=1e6
-                print('---------')
-                self.__previousUtilityInput = self.__currentUtility.copy()
-                self.__previousUtilityOutput = newUtils
+                # self.__previousUtilityInput = self.__currentUtility.copy()
+                # self.__previousUtilityOutput = newUtils
+
             else:
+
                 """
                 Implement Newton's method to estimate the zero of g(x) = f(x) - x
                 """
@@ -411,30 +424,30 @@ class Demand:
 
                 jac = self.__jacobian
 
-                gprime = (gx_next - gx_curr) / (x_next - x_curr)
+                gprime = (gx_next - gx_curr) / (x_next - x_curr + 0.0001)
                 # gprime[gprime > 4] = 4
                 # gprime[gprime < -4] = -4
                 # fprime_curr = (fx_next - fx_curr - x_next + x_curr) / (x_next - x_curr)
+                # print(np.linalg.norm(gprime))
 
                 diff = gx_curr / gprime
                 diff[np.isnan(diff)] = 0.0
-                output = x_curr - diff
+                # output = x_curr - diff / 2.0
+                """
+                NOTE: Not doing Newton's method anymore
+                """
+                output = 0.1*x_next + 0.9*fx_next
 
-                err = np.linalg.norm(diff)
+                # noiseSize = 0.5 * np.exp(-self.__counter)
+                # output += np.random.uniform(-noiseSize, noiseSize, output.shape)
+                # self.__counter += 1
 
-                # print('---n---')
-                # print(modeSplitFromUtils(x_curr)[:, 0, :])
-                # # print(fx_curr[:, 0, :])
-                # print('---n+1---')
-                # print(modeSplitFromUtils(x_next)[:, 0, :])
-                # # print(fx_next[:, 0, :])
-                # print('--gives--')
-                # # print(diff[:, 0, :])
-                # print(modeSplitFromUtils(output)[:, 0, :])
-                # print('---------')
+                # err = np.linalg.norm(diff)
+                err = np.linalg.norm(x_next - fx_next)
+
                 self.__previousUtilityInput = self.__currentUtility.copy()
                 self.__previousUtilityOutput = newUtils
-                print(err)
+                # print(err)
         else:
             output = newModeSplit
             self.__previousUtilityInput = self.__currentUtility.copy()
@@ -463,6 +476,13 @@ class Demand:
         # newModeSplit = modeCounts / np.sum(modeCounts)
         # diff = np.linalg.norm(oldModeSplit - newModeSplit)
         return err
+
+    def currentUtilities(self):
+        return self.__currentUtility
+
+    def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray) -> np.ndarray:
+        newUtilities = utils(self.__population.numpy, choiceCharacteristicsArray)
+        return newUtilities
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
         demandForTrips = 0

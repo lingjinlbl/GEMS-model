@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, Bounds
-from scipy.optimize import shgo
+from scipy.optimize import shgo, fixed_point, root
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -510,19 +510,58 @@ class Model:
             print('Done Initializing')
 
     # @profile
+
+    def supplySide(self, utilitiesArray):
+        self.demand.updateMFD(self.microtypes, utilitiesArray=utilitiesArray)
+        choiceCharacteristicsArray = self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        return choiceCharacteristicsArray
+
+    def demandSide(self, choiceCharacteristicsArray):
+        utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray)
+        return utilitiesArray
+
+    def f(self, utilitiesArray):
+        choiceCharacteristicsArray = self.supplySide(utilitiesArray)
+        output = self.demandSide(choiceCharacteristicsArray)
+        return output
+
+    def g(self, utilitiesArray):
+        diff = self.f(utilitiesArray) - utilitiesArray
+        diff[np.isnan(diff)] = 0.0
+        return diff
+
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        while (diff > 0.0001) & (i < 40):
-            oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
-            self.demand.updateMFD(self.microtypes)
-            self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-            diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)
-            print(oldModeSplit)
-            print([i, diff])
-            i += 1
+        self.demand.resetCounter()
+
         self.demand.updateMFD(self.microtypes)
         self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        self.demand.updateModeSplit(self.choice, self.__originDestination)
+        # fixedPointUtilities = fixed_point(self.f, self.demand.currentUtilities(), xtol=1e-1,maxiter=500)
+        sp = self.demand.currentUtilities()
+        sp[np.isnan(sp)] = -1e6
+        sol = root(self.g, sp, method='linearmixing', tol=0.1, options={'maxiter':20})
+        print(sol.message, sol.nit, np.linalg.norm(sol.fun))
+        fixedPointUtilities = sol.x
+        # oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
+        self.demand.updateMFD(self.microtypes, utilitiesArray=fixedPointUtilities)
+        # self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        # self.demand.updateModeSplit(self.choice, self.__originDestination)
+        # newModeSplit = self.getModeSplit(self.__currentTimePeriod)
+        # print(oldModeSplit)
+        # print(newModeSplit)
+
+        # while (diff > 0.0001) & (i < 600):
+        #     oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
+        #     self.demand.updateMFD(self.microtypes)
+        #     self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        #     diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)
+        #     # print(oldModeSplit)
+        #     print([i, diff])
+        #     i += 1
+        # self.demand.updateMFD(self.microtypes)
+        # self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
         if timePeriod is None:
@@ -679,7 +718,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    model = Model("input-data-geotype-A")
+    model = Model("input-data")
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
     ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")
