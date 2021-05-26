@@ -490,7 +490,7 @@ class Model:
                                                            self.scenarioData["microtypeIDs"],
                                                            self.scenarioData["distanceBins"])
 
-    def initializeTimePeriod(self, timePeriod: str):
+    def initializeTimePeriod(self, timePeriod):
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
