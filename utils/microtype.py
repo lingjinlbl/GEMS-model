@@ -387,8 +387,6 @@ class MicrotypeCollection:
             return requestedN
 
         def dn(n, demand, L, X, v_0, n_0, n_other, dt) -> np.ndarray:
-            inflowval = inflow(n, X, L, v_0, n_0, n_other)
-            outflowval = outflow(n, L, v_0, n_0, n_other)
             return (demand + inflow(n, X, L, v_0, n_0, n_other) - outflow(n, L, v_0, n_0, n_other)) * dt
 
         # print(tripStartRate)
@@ -434,7 +432,7 @@ class MicrotypeCollection:
             # print(otherval, n_t)
             # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
             n_t[n_t < 0] = 0.0
-            pct = n_t / N_0
+            # pct = n_t / N_0
             ns[:, i] = np.squeeze(n_t)
             vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
             inflows[:, i] = np.squeeze(tripStartRate * dt)
