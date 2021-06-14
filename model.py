@@ -500,7 +500,7 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins, self.__transitionMatrices,
-                                     self.__timePeriods, self.__currentTimePeriod, 1.0)
+                                     self.__timePeriods, self.__currentTimePeriod, 2.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self, override=False):
@@ -563,31 +563,16 @@ class Model:
         """
         self.demand.updateMFD(self.microtypes, utilitiesArray=fixedPointUtilities)
 
-        # while (diff > 0.0001) & (i < 600):
-        #     oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
-        #     self.demand.updateMFD(self.microtypes)
-        #     self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-        #     diff = self.demand.updateModeSplit(self.choice, self.__originDestination, oldModeSplit)
-        #     # print(oldModeSplit)
-        #     print([i, diff])
-        #     i += 1
-        # self.demand.updateMFD(self.microtypes)
-        # self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
+        # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
         if timePeriod is None:
-            timePeriods = self.scenarioData["timePeriods"].index
-            weights = self.scenarioData["timePeriods"].DurationInHours.values
+            modeSplit = np.zeros(len(self.modeToIdx))
+            for tp, weight in self.__timePeriods:
+                if tp in self.__demand:
+                    modeSplit += self.__demand[tp].getMatrixModeCounts() * weight
         else:
-            timePeriods = [timePeriod]
-            weights = [1]
-        modes = self.scenarioData.getModes()
-        # ms = ModeSplit(modeToIdx=self.modeToIdx, data=np.zeros(len(modes)))
-        ms = np.zeros(len(self.modeToIdx))
-        for tp, weight in zip(timePeriods, weights):
-            if tp in self.__demand:
-                ms += self.__demand[tp].getMatrixModeCounts() * weight
-        return ms / np.sum(ms)
+            modeSplit = self.__demand[timePeriod].getMatrixModeCounts()
+        return modeSplit / np.sum(modeSplit)
 
     def getUserCosts(self, mode=None):
         return self.demand.getUserCosts(self.choice, self.__originDestination, mode)
@@ -735,7 +720,7 @@ if __name__ == "__main__":
     # a.plotAllDynamicStats("N")
     x, y = model.plotAllDynamicStats("v")
     plt.plot(x, y)
-    print(ms)
+    print(dict(zip(model.modeToIdx.keys(), ms)))
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
     # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
     #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),

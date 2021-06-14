@@ -1105,6 +1105,7 @@ class NetworkCollection:
         return list(self.modeToNetwork.keys())
 
     def getModeSpeeds(self) -> np.array:
+        # TODO: This can get slow
         return np.array([m.getSpeed() for m in self.modes.values()])
 
     def getModeOperatingCosts(self):
