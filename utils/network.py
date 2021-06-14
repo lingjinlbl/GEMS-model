@@ -583,7 +583,7 @@ class BusMode(Mode):
             totalDistance = sum([n.L for n in self.networks])
             undedicatedDistance = totalDistance - dedicatedDistance
             return max(0, (self.routeDistanceToNetworkDistance * totalDistance - dedicatedDistance) * (
-                        network.L / undedicatedDistance))
+                    network.L / undedicatedDistance))
             # return self.routeDistanceToNetworkDistance * totalDistance * network.L / (totalDistance - dedicatedDistance)
 
     def getN(self, network=None):
@@ -665,7 +665,7 @@ class BusMode(Mode):
             portionOfTimeStopped = min([meanTimePerStop * meanTimePerStop / self.headwayInSec, 1.0])
             # TODO: Think through this more fully. Is this the right way to scale up this time to distance?
             out = portionOfTimeStopped * network.avgLinkLength * self.getN(network)
-            out = min(out, self.getRouteLength())
+            out = min(out, self.getRouteLength(), (network.L - network.getBlockedDistance()) * 0.5)
             # portionOfRouteBlocked = out / self.routeLength
         else:
             out = 0
@@ -831,7 +831,7 @@ class Network:
     #         self.L_blocked[mode.name] = mode.getBlockedDistance(self)
     #     self.isJammed = False
     #     self.base_speed = self.freeFlowSpeed
-        # mode.reset()
+    # mode.reset()
 
     def setVMT(self, mode: str, VMT: float):
         self._VMT[mode] = VMT
@@ -900,7 +900,7 @@ class Network:
                 self._networkStateData.V_steadyState = V_steadyState
                 if overrideMatrix:
                     self.base_speed = max([0.1, (V_init + V_final) / 2.0])
-                return max([0.1, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
+                return max([2.0, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
         else:
             return self.freeFlowSpeed
 

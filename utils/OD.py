@@ -663,7 +663,7 @@ class TransitionMatrices:
     def averageMatrix(self, weights: np.ndarray):
         if np.sum(weights) > 0.0:
             return TransitionMatrix(self.microtypeIdToIdx, np.average(self.numpy, axis=0, weights=weights),
-                                diameters=self.__diameters)
+                                    diameters=self.__diameters)
         else:
             return TransitionMatrix(self.microtypeIdToIdx, diameters=self.__diameters)
 

@@ -128,7 +128,8 @@ class Microtype:
             if mode in ['bus', 'rail']:
                 cc.wait_time += self.networks.modes[
                                     'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
-            cc.access_time += self.networks.modes[mode].getAccessDistance() / 1.5 / 3600.0 # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
+            cc.access_time += self.networks.modes[
+                                  mode].getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
 
     def addThroughTimeCostWait(self, mode: str, distanceInMiles: float, cc: ChoiceCharacteristics):
         if mode in self:
@@ -278,7 +279,7 @@ class MicrotypeCollection:
     def getModeStartRatePerSecond(self, mode):
         return np.array([microtype.getModeStartRate(mode) / 3600. for mID, microtype in self])
 
-    def importMicrotypes(self):
+    def importMicrotypes(self, override=False):
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
 
         subNetworkData = self.__scenarioData["subNetworkData"]
@@ -302,7 +303,7 @@ class MicrotypeCollection:
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
-            if microtypeID in self:
+            if (microtypeID in self) & ~override:
                 self[microtypeID].resetDemand()
             else:
                 subNetworkToModes = OrderedDict()
@@ -427,7 +428,7 @@ class MicrotypeCollection:
             # n_t += deltaN
             infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
             outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 1.0) #CHANGE BACK TO n_other
+            n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 1.0)  # CHANGE BACK TO n_other
             ends = tripEndingRate(n_t, X, characteristicL, V_0, N_0, n_other)
             # print(otherval, n_t)
             # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
@@ -439,14 +440,14 @@ class MicrotypeCollection:
             outflows[:, i] = np.squeeze(ends * dt)
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
-        averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
+        # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
         # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
-        # averageSpeeds = np.min(vs, axis=1)
+        averageSpeeds = np.min(vs, axis=1)
         # print('----new iter---')
         # print(tripStartRate, averageSpeeds, n_other, L_eff, n_init)
-        if np.any(np.isnan(averageSpeeds)):
-            print('STOP')
+        # if np.any(np.isnan(averageSpeeds)):
+        #     print('STOP')
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)

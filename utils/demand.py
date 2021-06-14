@@ -152,7 +152,6 @@ class Demand:
         self.__previousUtilityInput = np.ndarray(0)
         self.__previousUtilityOutput = np.ndarray(0)
         self.__currentUtility = np.ndarray(0)
-        self.__jacobian = np.ndarray(0)
         self.__tripRate = np.ndarray(0)
         self.__toStarts = np.ndarray(0)
         self.__toEnds = np.ndarray(0)
@@ -382,99 +381,43 @@ class Demand:
         self.__counter = 1
 
     def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-                        originDestination: OriginDestination, oldModeSplit: ModeSplit=None):
+                        originDestination: OriginDestination, oldModeSplit: ModeSplit = None):
         newUtils = utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
 
         newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
         if self.__previousUtilityInput.size > 0:
-            carModeCounts = self.getMatrixModeCounts()[self.modeToIdx['auto']]
             if collectedChoiceCharacteristics.isBroken():
-
-                noiseSize = 0.1*self.__counter
-                # output += np.random.uniform(-noiseSize, noiseSize, output.shape)
-                self.__counter += 1
-                print(noiseSize)
-                pct = np.random.uniform(0,1)
-                output = pct * self.__currentUtility + (1-pct)*newUtils
-                # output[:,:,self.modeToIdx['auto']] += np.random.uniform(-noiseSize, 0, output[:,:,self.modeToIdx['auto']].shape)
-
-                # output[:, :, self.modeToIdx['auto']] += np.random.uniform(-0.01, 0.01, output[:, :, self.modeToIdx['auto']].shape)
-
-                # output[:, :, self.modeToIdx['auto']] += np.random.uniform(-0.1,0.0,output[:, :, self.modeToIdx['auto']].shape)
-
-                # output[:, :, self.modeToIdx['auto']] *= np.random.uniform(1.25, 1.5)
-                # prob = np.random.uniform(0.05,0.15)
-                # output = (1-prob) * self.__previousUtilityInput + prob * self.__currentUtility
-                # print("THIS WENT OVER")
-                err=1e6
-                # self.__previousUtilityInput = self.__currentUtility.copy()
-                # self.__previousUtilityOutput = newUtils
-
-            else:
-
-                """
-                Implement Newton's method to estimate the zero of g(x) = f(x) - x
-                """
-                x_curr = self.__previousUtilityInput
-                fx_curr = self.__previousUtilityOutput
-                gx_curr = fx_curr - x_curr
+                # Oops, we really went off the deep end there
                 x_next = self.__currentUtility
                 fx_next = newUtils
-                gx_next = fx_next - x_next
 
-                jac = self.__jacobian
+                output = 0.95 * x_next + 0.05 * fx_next
 
-                gprime = (gx_next - gx_curr) / (x_next - x_curr + 0.0001)
-                # gprime[gprime > 4] = 4
-                # gprime[gprime < -4] = -4
-                # fprime_curr = (fx_next - fx_curr - x_next + x_curr) / (x_next - x_curr)
-                # print(np.linalg.norm(gprime))
-
-                diff = gx_curr / gprime
-                diff[np.isnan(diff)] = 0.0
-                # output = x_curr - diff / 2.0
-                """
-                NOTE: Not doing Newton's method anymore
-                """
-                output = 0.1*x_next + 0.9*fx_next
-
-                # noiseSize = 0.5 * np.exp(-self.__counter)
-                # output += np.random.uniform(-noiseSize, noiseSize, output.shape)
-                # self.__counter += 1
-
-                # err = np.linalg.norm(diff)
                 err = np.linalg.norm(x_next - fx_next)
 
                 self.__previousUtilityInput = self.__currentUtility.copy()
                 self.__previousUtilityOutput = newUtils
-                # print(err)
+            else:
+                # Start by mostly adoping the next mode split as a starting point
+                x_next = self.__currentUtility
+                fx_next = newUtils
+
+                output = 0.1 * x_next + 0.9 * fx_next
+
+                err = np.linalg.norm(x_next - fx_next)
+
+                self.__previousUtilityInput = self.__currentUtility.copy()
+                self.__previousUtilityOutput = newUtils
         else:
             output = newModeSplit
             self.__previousUtilityInput = self.__currentUtility.copy()
             self.__previousUtilityOutput = newUtils
             err = 1e6
-            # jacobianSub = np.eye(self.__shape[2]) - np.ones((self.__shape[2], self.__shape[2])) / self.__shape[2]
-            # self.__jacobian = np.kron(np.eye(self.__shape[0] * self.__shape[1]), jacobianSub)
         if np.any(np.isnan(self.__modeSplitData)):
             print("why nan")
 
         self.__currentUtility = output.copy()
         np.copyto(self.__modeSplitData, modeSplitFromUtils(output))
-
-
-
-        # np.copyto(self.__modeSplitData, np.average([newModeSplit, self.__modeSplitData], axis=0, weights=[0.75, 0.25]))
-        # np.copyto(self.__modeSplitData, newModeSplit)
-        # for demandIndex, utilityParams in self.__population:
-        #     od = originDestination[demandIndex]
-        #     for odi, portion in od.items():
-        #         ms = self.__population[demandIndex].updateModeSplit(
-        #             collectedChoiceCharacteristics[self.__odiToIdx[odi]])
-        #         self[demandIndex, odi].updateMapping(ms)
-        #         self[demandIndex, odi] *= oldModeSplit
-        # modeCounts = self.getMatrixModeCounts()
-        # newModeSplit = modeCounts / np.sum(modeCounts)
-        # diff = np.linalg.norm(oldModeSplit - newModeSplit)
         return err
 
     def currentUtilities(self):
@@ -595,7 +538,7 @@ def correctModeSplit(modeSplit: np.ndarray) -> np.ndarray:
         badSplits = np.any(modeSplit < 0, axis=-1)
 
         positiveValues = modeSplit[badSplits, :]
-        positiveValues[positiveValues < 0] = - 0.5* positiveValues[positiveValues < 0]
+        positiveValues[positiveValues < 0] = - 0.5 * positiveValues[positiveValues < 0]
 
         corrected = positiveValues
         modeSplit[badSplits, :] = corrected

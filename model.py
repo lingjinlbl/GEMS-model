@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, Bounds
-from scipy.optimize import shgo, fixed_point, root
+from scipy.optimize import shgo, root
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -481,7 +481,7 @@ class Model:
     def readFiles(self):
         self.__trips.importTrips(self.scenarioData["microtypeAssignment"])
         self.__population.importPopulation(self.scenarioData["populations"], self.scenarioData["populationGroups"])
-        self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"])
+        self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"], nSubBins=2)
         self.__distanceBins.importDistanceBins(self.scenarioData["distanceBins"])
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
                                                          self.scenarioData["distanceDistribution"])
@@ -490,12 +490,12 @@ class Model:
                                                            self.scenarioData["microtypeIDs"],
                                                            self.scenarioData["distanceBins"])
 
-    def initializeTimePeriod(self, timePeriod: str):
+    def initializeTimePeriod(self, timePeriod: str, override=False):
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self.__microtypes:
             print("-------------------------------")
             print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
-        self.microtypes.importMicrotypes()
+        self.microtypes.importMicrotypes(override)
         self.__originDestination.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
@@ -503,10 +503,10 @@ class Model:
                                      self.__timePeriods, self.__currentTimePeriod, 1.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
-    def initializeAllTimePeriods(self):
+    def initializeAllTimePeriods(self, override=False):
         # self.__transitionMatrices.adoptMicrotypes(self.scenarioData["microtypeIDs"])
         for timePeriod, durationInHours in self.__timePeriods:
-            self.initializeTimePeriod(timePeriod)
+            self.initializeTimePeriod(timePeriod, override)
             print('Done Initializing')
 
     # @profile
@@ -530,27 +530,38 @@ class Model:
         diff[np.isnan(diff)] = 0.0
         return diff
 
+    def timePeriods(self):
+        return {a: b for a, b in self.__timePeriods}
+
     def findEquilibrium(self):
         diff = 1000.
         i = 0
         self.demand.resetCounter()
 
+        """
+        Initial conditions
+        """
+
         self.demand.updateMFD(self.microtypes)
         self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
         self.demand.updateModeSplit(self.choice, self.__originDestination)
-        # fixedPointUtilities = fixed_point(self.f, self.demand.currentUtilities(), xtol=1e-1,maxiter=500)
-        sp = self.demand.currentUtilities()
-        sp[np.isnan(sp)] = -1e6
-        sol = root(self.g, sp, method='linearmixing', tol=0.1, options={'maxiter':20})
+
+        """
+        Optimization loop
+        """
+
+        startingPoint = self.demand.currentUtilities()
+        startingPoint[np.isnan(startingPoint)] = -1e6
+        startingPoint *= 0.0
+        startingPoint[:, :, self.modeToIdx['bus']] = -1.0
+        sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 50})
         print(sol.message, sol.nit, np.linalg.norm(sol.fun))
         fixedPointUtilities = sol.x
-        # oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
+
+        """
+        Finalize
+        """
         self.demand.updateMFD(self.microtypes, utilitiesArray=fixedPointUtilities)
-        # self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-        # self.demand.updateModeSplit(self.choice, self.__originDestination)
-        # newModeSplit = self.getModeSplit(self.__currentTimePeriod)
-        # print(oldModeSplit)
-        # print(newModeSplit)
 
         # while (diff > 0.0001) & (i < 600):
         #     oldModeSplit = self.getModeSplit(self.__currentTimePeriod)
