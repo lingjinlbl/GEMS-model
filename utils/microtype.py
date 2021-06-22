@@ -245,6 +245,18 @@ class MicrotypeCollection:
     def numpySpeed(self):
         return self.__numpySpeed
 
+    @property
+    def throughDistanceByMode(self):
+        return self.__numpyDemand[:, :, -1]
+
+    @property
+    def tripStartRateByMode(self):
+        return self.__numpyDemand[:, :, 0]
+
+    @property
+    def tripEndRateByMode(self):
+        return self.__numpyDemand[:, :, 1]
+
     def updateNumpyDemand(self, data):
         np.copyto(self.__numpyDemand, data)
 
@@ -295,8 +307,6 @@ class MicrotypeCollection:
         self.transitionMatrix = TransitionMatrix(self.microtypeIdToIdx,
                                                  diameters=self.__diameters)
 
-        print(microtypeData.MicrotypeID.to_list())
-        print(self.microtypeIdToIdx)
         if len(self.__microtypes) == 0:
             self.__numpyDemand = np.zeros(
                 (len(self.microtypeIdToIdx), len(self.modeToIdx), len(self.dataToIdx)), dtype=float)
@@ -488,15 +498,15 @@ class MicrotypeCollection:
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
         # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
-        # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
-        averageSpeeds = np.min(vs, axis=1)
+        # averageSpeeds = np.min(vs, axis=1)
         # print('----new iter---')
         # print(tripStartRate, averageSpeeds, n_other, L_eff, n_init)
         # if np.any(np.isnan(averageSpeeds)):
         #     print('STOP')
 
-        print(averageSpeeds)
+        # print(averageSpeeds)
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)

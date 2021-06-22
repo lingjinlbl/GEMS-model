@@ -402,8 +402,9 @@ class Model:
         Returns speeds for each mode in each microtype
     """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, nSubBins=2):
         self.__path = path
+        self.__nSubBins = nSubBins
         self.scenarioData = ScenarioData(path)
         self.__initialScenarioData = ScenarioData(path)
         self.__currentTimePeriod = None
@@ -481,7 +482,7 @@ class Model:
     def readFiles(self):
         self.__trips.importTrips(self.scenarioData["microtypeAssignment"])
         self.__population.importPopulation(self.scenarioData["populations"], self.scenarioData["populationGroups"])
-        self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"], nSubBins=4)
+        self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"], nSubBins=self.__nSubBins)
         self.__distanceBins.importDistanceBins(self.scenarioData["distanceBins"])
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
                                                          self.scenarioData["distanceDistribution"])
@@ -517,7 +518,6 @@ class Model:
     def supplySide(self, modeSplitArray):
         self.demand.updateMFD(self.microtypes, modeSplitArray=modeSplitArray)
         choiceCharacteristicsArray = self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-        print(choiceCharacteristicsArray[self.demand.validOD,:,1])
         return choiceCharacteristicsArray
 
     def demandSide(self, choiceCharacteristicsArray):
@@ -537,8 +537,6 @@ class Model:
     def f(self, flatModeSplitArray):
         choiceCharacteristicsArray = self.supplySide(self.fromObjectiveFunction(flatModeSplitArray))
         modeSplitArray = self.demandSide(choiceCharacteristicsArray)
-        justImportantModeSplits = modeSplitArray[:, self.demand.validOD,:]
-        print(justImportantModeSplits[0,:,:])
         return self.toObjectiveFunction(modeSplitArray)
 
     def g(self, flatModeSplitArray):
@@ -580,15 +578,21 @@ class Model:
         self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
         # self.demand.updateModeSplit(self.choice, self.__originDestination)
 
-    def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
+    def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
         if timePeriod is None:
             modeSplit = np.zeros(len(self.modeToIdx))
             for tp, weight in self.__timePeriods:
                 if tp in self.__demand:
-                    modeSplit += self.__demand[tp].getMatrixModeCounts() * weight
+                    if microtypeID is None:
+                        modeSplit += self.__microtypes[tp].throughDistanceByMode.sum(axis=0) * weight
+                    else:
+                        modeSplit += self.__microtypes[tp].throughDistanceByMode[self.microtypeIdToIdx[microtypeID], :] * weight
         else:
-            modeSplit = self.__demand[timePeriod].getMatrixModeCounts()
+            if microtypeID is None:
+                modeSplit = self.__microtypes[timePeriod].throughDistanceByMode.sum(axis=0)
+            else:
+                modeSplit = self.__microtypes[timePeriod].throughDistanceByMode[self.microtypeIdToIdx[microtypeID], :]
         return modeSplit / np.sum(modeSplit)
 
     def getUserCosts(self, mode=None):

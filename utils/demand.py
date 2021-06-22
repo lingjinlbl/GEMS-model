@@ -352,13 +352,7 @@ class Demand:
         newData = np.stack([startsByOrigin, startsByDestination, throughCountsByMicrotype, distanceByMicrotype],
                            axis=-1)
 
-
-        autoDemandInMeters = newData[:, self.modeToIdx['auto'], 3] * 3600 * self.timePeriodDuration
-        # print(np.sum(np.sum(startsByMode, axis=0), axis=0))
-        # distanceByOdx = np.einsum('ijk,ijl->jk', startsByMode, self.__toThroughDistance)
-        print(autoDemandInMeters / 1e6)
         microtypes.updateNumpyDemand(newData)
-        # weights = distanceByOdx[:, self.modeToIdx["auto"]]
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
 
         # for di, odi in self.keys():

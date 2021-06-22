@@ -6,7 +6,7 @@ import numpy as np
 from model import Model
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-model = Model(ROOT_DIR + "/../input-data-simpler")
+model = Model(ROOT_DIR + "/../input-data-simpler", nSubBins=2)
 model.scenarioData['populationGroups'].loc[
     model.scenarioData['populationGroups']['Mode'] == "bus", "BetaTravelTime"] = -0.02
 model.scenarioData['populationGroups'].loc[
@@ -14,7 +14,7 @@ model.scenarioData['populationGroups'].loc[
 model.readFiles()
 # Redo this
 fig, axs = plt.subplots(5, 4)
-demands = [180, 220, 260, 300]
+demands = [180, 240, 280, 340]
 # demands = [240, 260, 280, 300]
 # demands = [390, 400, 405, 410]
 totalTimesPlot = []
