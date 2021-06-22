@@ -13,7 +13,7 @@ from scipy.optimize import shgo, root
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand, CollectedTotalUserCosts, ODindex
+from utils.demand import Demand, CollectedTotalUserCosts, ODindex, modeSplitFromUtils
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
 from utils.network import CollectedNetworkStateData
@@ -481,7 +481,7 @@ class Model:
     def readFiles(self):
         self.__trips.importTrips(self.scenarioData["microtypeAssignment"])
         self.__population.importPopulation(self.scenarioData["populations"], self.scenarioData["populationGroups"])
-        self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"], nSubBins=2)
+        self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"], nSubBins=4)
         self.__distanceBins.importDistanceBins(self.scenarioData["distanceBins"])
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
                                                          self.scenarioData["distanceDistribution"])
@@ -500,7 +500,7 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration, self.__trips,
                                      self.microtypes, self.__distanceBins, self.__transitionMatrices,
-                                     self.__timePeriods, self.__currentTimePeriod, 2.0)
+                                     self.__timePeriods, self.__currentTimePeriod, 1.0)
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self, override=False):
@@ -511,22 +511,39 @@ class Model:
 
     # @profile
 
-    def supplySide(self, utilitiesArray):
-        self.demand.updateMFD(self.microtypes, utilitiesArray=utilitiesArray)
+    def fromVector(self, flatUtilitiesArray):
+        return np.reshape(flatUtilitiesArray, self.demand.currentUtilities().shape)
+
+    def supplySide(self, modeSplitArray):
+        self.demand.updateMFD(self.microtypes, modeSplitArray=modeSplitArray)
         choiceCharacteristicsArray = self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        print(choiceCharacteristicsArray[self.demand.validOD,:,1])
         return choiceCharacteristicsArray
 
     def demandSide(self, choiceCharacteristicsArray):
         utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray)
-        return utilitiesArray
+        modeSplitArray = modeSplitFromUtils(utilitiesArray)
+        return modeSplitArray
 
-    def f(self, utilitiesArray):
-        choiceCharacteristicsArray = self.supplySide(utilitiesArray)
-        output = self.demandSide(choiceCharacteristicsArray)
-        return output
+    def toObjectiveFunction(self, modeSplitArray):
+        return modeSplitArray[:,:,:-1].reshape(-1)
 
-    def g(self, utilitiesArray):
-        diff = self.f(utilitiesArray) - utilitiesArray
+    def fromObjectiveFunction(self, flatModeSplitArray):
+        modeSplitArray = np.zeros_like(self.demand.modeSplitData)
+        modeSplitArray[:, :, :-1] = flatModeSplitArray.reshape(list(self.demand.modeSplitData.shape[:-1]) + [-1]).clip(0, 1)
+        modeSplitArray[:, :, -1] = 1 - modeSplitArray.sum(axis=2)
+        return modeSplitArray
+
+    def f(self, flatModeSplitArray):
+        choiceCharacteristicsArray = self.supplySide(self.fromObjectiveFunction(flatModeSplitArray))
+        modeSplitArray = self.demandSide(choiceCharacteristicsArray)
+        justImportantModeSplits = modeSplitArray[:, self.demand.validOD,:]
+        print(justImportantModeSplits[0,:,:])
+        return self.toObjectiveFunction(modeSplitArray)
+
+    def g(self, flatModeSplitArray):
+        output = self.f(flatModeSplitArray)
+        diff = output - flatModeSplitArray
         diff[np.isnan(diff)] = 0.0
         return diff
 
@@ -542,26 +559,26 @@ class Model:
         Initial conditions
         """
 
-        self.demand.updateMFD(self.microtypes)
-        self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-        self.demand.updateModeSplit(self.choice, self.__originDestination)
+        # self.demand.updateMFD(self.microtypes)
+        # self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        # self.demand.updateModeSplit(self.choice, self.__originDestination)
 
         """
         Optimization loop
         """
 
-        startingPoint = self.demand.currentUtilities()
-        startingPoint[np.isnan(startingPoint)] = -1e6
-        startingPoint *= 0.0
-        startingPoint[:, :, self.modeToIdx['bus']] = -1.0
+        startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
+
         sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 50})
         print(sol.message, sol.nit, np.linalg.norm(sol.fun))
-        fixedPointUtilities = sol.x
+        fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
 
         """
         Finalize
         """
-        self.demand.updateMFD(self.microtypes, utilitiesArray=fixedPointUtilities)
+        self.demand.updateMFD(self.microtypes, modeSplitArray=fixedPointModeSplit)
+        self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        # self.demand.updateModeSplit(self.choice, self.__originDestination)
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
@@ -698,11 +715,15 @@ class Model:
             # plt.plot(x, y)
             return x, y
         elif type.lower() == "delay":
-            y1 = np.cumsum(np.concatenate(inflows))
-            y2 = np.cumsum(np.concatenate(outflows))
+            y1 = np.cumsum(np.concatenate(inflows, axis=0), axis=0)
+            y2 = np.cumsum(np.concatenate(outflows, axis=0), axis=0)
             x = np.concatenate(ts)
-            plt.plot(x, np.transpose(np.stack([y1, y2])))
-            return x, np.transpose(np.stack([y1, y2]))
+            # plt.plot(x, y1)
+            # plt.plot(x, y2, linestyle='--')
+            # colors = ['C0', 'C1','C2','C3','C0', 'C1','C2','C3']
+            # for i, j in enumerate(plt.gca().lines):
+            #     j.set_color(colors[i])
+            return x, (np.stack([y1, y2]))
         # elif type.lower() == "density":
         #     x = np.concatenate(ts)
         #     y = np.concatenate(reldensity)

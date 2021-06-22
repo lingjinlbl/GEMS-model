@@ -343,48 +343,75 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other, minspeed=0.005) -> np.ndarray:
-            n_eff = n + n_other
+        def v(n, v_0, n_0, n_other, queueLengths=0.0, minspeed=0.001) -> np.ndarray:
+            n_eff = n + n_other + queueLengths
             v = v_0 * (1. - n_eff / n_0)
             v[v < minspeed] = minspeed
             v[v > v_0] = v_0[v > v_0]
             return v
 
         def tripEndingRate(n, X, L, v_0, n_0, n_other) -> np.ndarray:
-            return (1 - np.sum(X, axis=0)) * v(n, v_0, n_0, n_other, 0.005) * n / L
+            return (1 - np.sum(X, axis=0)) * v(n, v_0, n_0, n_other, 0.001) * n / L
 
-        def outflow(n, L, v_0, n_0, n_other) -> np.ndarray:
-            return v(n, v_0, n_0, n_other, 0.005) * n / L
+        def outflow(n, L, v_0, n_0, n_other, queueLengths) -> np.ndarray:
+            return v(n, v_0, n_0, n_other, queueLengths, 0.001) * n / L
 
-        def inflow(n, X, L, v_0, n_0, n_other) -> np.ndarray:
-            os = X @ (v(n, v_0, n_0, n_other, 0.005) * n / L)
+        def inflow(n, X, L, v_0, n_0, n_other, queueLengths) -> np.ndarray:
+            os = X @ (v(n, v_0, n_0, n_other, queueLengths, 0.001) * n / L)
             return os
 
-        def spillback(n: np.ndarray, N_0: np.ndarray, demand: np.ndarray, inflow: np.ndarray, outflow: np.ndarray,
-                      dt: float, n_other=0.0, criticalDensity=0.9) -> np.ndarray:
-            requestedN = (demand + inflow - outflow) * dt + n
+        def stayInSame(n, X, L, v_0, n_0, n_other, queueLengths) -> np.ndarray:
+            os = np.diag(np.diag(X)) @ (v(n, v_0, n_0, n_other, queueLengths, 0.001) * n / L)
+            return os
+
+        def queueClearanceRate(q_t, L):
+            return np.clip(q_t / (L / 0.1), 0.0)
+
+        def spillback(n: np.ndarray, q_t: np.ndarray, N_0: np.ndarray, demand: np.ndarray, inflow: np.ndarray, outflow: np.ndarray,
+                      fromQueue: np.ndarray, dt: float, n_other=0.0, criticalDensity=0.9) -> (np.ndarray, np.ndarray):
+            requestedN = (demand + inflow - outflow + fromQueue) * dt + n
+
             criticalN = criticalDensity * (N_0 - n_other)
-            overLimit = requestedN > criticalN
-            counter = 0
-            while np.any(overLimit):
-                if np.all(overLimit):
-                    if counter == 0:
-                        vals = np.linspace(criticalDensity, 1.0, 5)
-                    if counter <= 1:
-                        criticalDensity = vals[counter]
-                        criticalN = criticalDensity * (N_0 - n_other)
-                        counter += 1
-                    else:
-                        return criticalN
-                before = np.sum(requestedN)
-                totalSpillback = np.sum(requestedN[overLimit] - criticalN[overLimit])
-                toBeLimited = inflow[~overLimit]
-                requestedN[~overLimit] += inflow[~overLimit] * totalSpillback / np.sum(
-                    toBeLimited)  # TODO: Matrix math here?
-                requestedN[overLimit] = criticalN[overLimit]
-                overLimit = (requestedN / N_0) > criticalN
-                after = np.sum(requestedN)
-            return requestedN
+            overLimit = requestedN - criticalN
+
+            toNetwork = np.clip(requestedN, None, criticalN)
+            toQueue = np.clip(overLimit, 0.0, None)
+
+
+            """
+            This is the new code
+            """
+
+
+            """
+            This works, trying something new above
+            """
+            # turnedBack = np.zeros_like(requestedN)
+            # overLimit = requestedN > criticalN
+            # counter = 0
+            # while np.any(overLimit):
+            #     if np.all(overLimit):
+            #         if counter == 0:
+            #             vals = np.linspace(criticalDensity, 1.0, 5)
+            #         if counter <= 1:
+            #             criticalDensity = vals[counter]
+            #             criticalN = criticalDensity * (N_0 - n_other)
+            #             counter += 1
+            #         else:
+            #             return criticalN
+            #     before = np.sum(requestedN)
+            #     totalSpillback = np.sum(requestedN[overLimit] - criticalN[overLimit])
+            #     toBeLimited = inflow[~overLimit]
+            #     turnedBack = np.zeros_like(inflow)
+            #     turnedBack[~overLimit] += inflow[~overLimit] * totalSpillback / np.sum(
+            #         toBeLimited)  # TODO: Matrix math here?
+            #     requestedN[~overLimit] += turnedBack[~overLimit]
+            #     requestedN[overLimit] = criticalN[overLimit]
+            #     overLimit = (requestedN / N_0) > criticalN
+            #     after = np.sum(requestedN)
+            # return requestedN, turnedBack
+
+            return toNetwork, toQueue
 
         def dn(n, demand, L, X, v_0, n_0, n_other, dt) -> np.ndarray:
             inflowval = inflow(n, X, L, v_0, n_0, n_other)
@@ -414,7 +441,7 @@ class MicrotypeCollection:
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
         dt = self.__timeStepInSeconds
-        if False:
+        if True:
 
             X = np.transpose(self.transitionMatrix.matrix.values)
 
@@ -423,15 +450,20 @@ class MicrotypeCollection:
             vs = np.zeros((len(self), np.size(ts)), dtype=float)
             inflows = np.zeros((len(self), np.size(ts)), dtype=float)
             outflows = np.zeros((len(self), np.size(ts)), dtype=float)
+            queueLengths = np.zeros((len(self), np.size(ts)), dtype=float)
             n_t = n_init.copy()
+            # Define queue of vehicles waiting to get into a given microtype
+            q_t = np.zeros_like(n_t)
 
             for i, ti in enumerate(ts):
                 # deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
                 # otherval = deltaN + n_t
                 # n_t += deltaN
-                infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
-                outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-                n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 1.0)  # CHANGE BACK TO n_other
+                infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other, q_t)
+                outfl = outflow(n_t, characteristicL, V_0, N_0, n_other, q_t)
+                fromQueue = queueClearanceRate(q_t, L_eff)
+                stay = stayInSame(n_t, X, characteristicL, V_0, N_0, n_other, q_t)
+                n_t, q_t = spillback(n_t, q_t, N_0, tripStartRate, infl, outfl, fromQueue, dt, n_other, 0.7)  # CHANGE BACK TO n_other
                 ends = tripEndingRate(n_t, X, characteristicL, V_0, N_0, n_other)
                 # print(otherval, n_t)
                 # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
@@ -439,8 +471,11 @@ class MicrotypeCollection:
                 pct = n_t / N_0
                 ns[:, i] = n_t
                 vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
-                inflows[:, i] = np.squeeze(tripStartRate * dt)
-                outflows[:, i] = np.squeeze(ends * dt)
+                inflows[:, i] = infl + turnedBack + tripStartRate - stay
+                outflows[:, i] = outfl - turnedBack - stay
+                # BELOW: This works
+                # inflows[:, i] = infl + turnedBack + tripStartRate - stay
+                # outflows[:, i] = outfl - turnedBack - stay
 
         else:
             ts = np.arange(0, durationInHours * 3600., dt)
@@ -448,6 +483,8 @@ class MicrotypeCollection:
             ns = doMatrixCalcs(ns, n_init, self.transitionMatrix.matrix.values, tripStartRate, characteristicL, V_0,
                                N_0, n_other, dt)
             vs = vectorV(ns, V_0, N_0, n_other)
+            inflows = vs.copy()
+            outflows = vs.copy()
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
         # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
@@ -458,6 +495,8 @@ class MicrotypeCollection:
         # print(tripStartRate, averageSpeeds, n_other, L_eff, n_init)
         # if np.any(np.isnan(averageSpeeds)):
         #     print('STOP')
+
+        print(averageSpeeds)
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)
@@ -471,8 +510,8 @@ class MicrotypeCollection:
                         networkStateData.finalAccumulation = ns[idx, -1]
                         networkStateData.finalSpeed = vs[idx, -1]
                         # networkStateData.averageSpeed = averageSpeeds[idx]
-                        # networkStateData.inflow = np.squeeze(inflows[idx, :])
-                        # networkStateData.outflow = np.squeeze(outflows[idx, :])
+                        networkStateData.inflow = np.squeeze(inflows[idx, :])
+                        networkStateData.outflow = np.squeeze(outflows[idx, :])
                         networkStateData.n = np.squeeze(ns[idx, :])
                         networkStateData.v = np.squeeze(vs[idx, :])
                         networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
@@ -528,7 +567,7 @@ class MicrotypeCollection:
 @njit
 def vectorV(N, v_0, n_0, n_other, minspeed=0.005):
     nTimeSteps = N.shape[1]
-    out = np.zeros(N.shape)
+    out = np.empty_like(N)
 
     def v(n, v_0, n_0, n_other, minspeed):
         n_eff = n + n_other

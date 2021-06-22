@@ -149,17 +149,14 @@ class Demand:
         self.__modes = list(scenarioData.modeToIdx.keys())
         self.__modeSplit = dict()
         self.__modeSplitData = np.ndarray(0)
-        self.__previousUtilityInput = np.ndarray(0)
-        self.__previousUtilityOutput = np.ndarray(0)
         self.__currentUtility = np.ndarray(0)
         self.__tripRate = np.ndarray(0)
+        self.__validOD = np.ndarray(0)
+        self.__validDI = np.ndarray(0)
         self.__toStarts = np.ndarray(0)
         self.__toEnds = np.ndarray(0)
-        self.__counter = 1
-        self.__highestUnjammedUtility = np.ndarray(0)
-        self.__lowestJammedUtiltiy = np.ndarray(0)
-        self.__highestUnjammedAutoCounts = 0
-        self.__lowestJammedAutoCounts = np.inf
+        self.__previousUtilityInput = np.ndarray(0)
+        self.__previousUtilityOutput = np.ndarray(0)
         self.__toThroughDistance = np.ndarray(0)
         self.__toThroughCounts = np.ndarray(0)
         self.__shape = tuple
@@ -192,10 +189,20 @@ class Demand:
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
 
+    @property
+    def validOD(self):
+        return self.__validOD
+
+    @property
+    def validDI(self):
+        return self.__validDI
+
     def updateTripStartRate(self, newTripStartRate):
-        tripRate = self.__tripRate
-        newTripRate = np.ones(np.shape(tripRate)) * newTripStartRate
-        np.copyto(self.__tripRate, newTripRate)
+        self.__tripRate[self.__tripRate > 0] = newTripStartRate
+        # nonZero = tripRate > 0
+        # tripRate[nonZero] = newTripStartRate
+        # newTripRate = np.ones(np.shape(tripRate)) * newTripStartRate
+        # np.copyto(self.__tripRate, newTripRate)
 
     def nModes(self):
         return len(self.__modes)
@@ -208,6 +215,10 @@ class Demand:
 
     def __setitem__(self, key: (DemandIndex, ODindex), value: ModeSplit):
         self.__modeSplit[key] = value
+
+    @property
+    def modeSplitData(self):
+        return self.__modeSplitData
 
     def __getitem__(self, item: (DemandIndex, ODindex)) -> ModeSplit:
         if item in self:
@@ -255,6 +266,11 @@ class Demand:
         self.__toEnds = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)), dtype=float)
         self.__toThroughDistance = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)),
                                             dtype=float)
+        self.__validOD = np.zeros(len(self.odiToIdx), dtype=bool)
+        self.__validDI = np.zeros(len(self.diToIdx), dtype=bool)
+        for odi, idx in self.odiToIdx.items():
+            self.__toThroughDistance[:, self.odiToIdx[odi], self.microtypeIdToIdx[odi.o]] += 0.5
+            self.__toThroughDistance[:, self.odiToIdx[odi], self.microtypeIdToIdx[odi.d]] += 0.5
         self.__toThroughCounts = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)),
                                           dtype=float)
 
@@ -293,13 +309,15 @@ class Demand:
                 currentPopIndex = self.diToIdx[demandIndex]
                 weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                self.__validOD[currentODindex] = True
+                self.__validDI[currentPopIndex] = True
                 self.__toStarts[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.o]] = 1.0
                 self.__toEnds[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.d]] = 1.0
                 # TODO: Expand through distance to have a mode dimension, then filter and reallocate
                 for mID, pct in trip.allocation:
                     # NOTE: THis doesn't actually need to be indexed by currentPopIndex
                     self.__toThroughDistance[
-                        currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[odi.distBin]
+                        :, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[odi.distBin]
                     self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
                 self[demandIndex, odi] = ModeSplit(demandForTrips=tripRatePerHour, demandForPMT=demandForPMT,
                                                    data=self.__modeSplitData[currentPopIndex, currentODindex, :],
@@ -318,9 +336,11 @@ class Demand:
         # self.__previousModeSplitInput = self.__modeSplitData.copy()
 
     # @profile
-    def updateMFD(self, microtypes: MicrotypeCollection, nIters=5, utilitiesArray=None):
+    def updateMFD(self, microtypes: MicrotypeCollection, nIters=5, utilitiesArray=None, modeSplitArray=None):
         if utilitiesArray is not None:
             np.copyto(self.__modeSplitData, modeSplitFromUtils(utilitiesArray))
+        if modeSplitArray is not None:
+            np.copyto(self.__modeSplitData, modeSplitArray)
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
         totalDemandForTrips = 0.0
@@ -331,9 +351,12 @@ class Demand:
         throughCountsByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughCounts)
         newData = np.stack([startsByOrigin, startsByDestination, throughCountsByMicrotype, distanceByMicrotype],
                            axis=-1)
+
+
         autoDemandInMeters = newData[:, self.modeToIdx['auto'], 3] * 3600 * self.timePeriodDuration
         # print(np.sum(np.sum(startsByMode, axis=0), axis=0))
         # distanceByOdx = np.einsum('ijk,ijl->jk', startsByMode, self.__toThroughDistance)
+        print(autoDemandInMeters / 1e6)
         microtypes.updateNumpyDemand(newData)
         # weights = distanceByOdx[:, self.modeToIdx["auto"]]
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
@@ -356,18 +379,37 @@ class Demand:
         #                     microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
         #                                                       self.__distanceBins[odi.distBin])
         # print(autoDemandInMeters / microtypes.collectedNetworkStateData.getAutoProduction())
+
+        """
+        Step one: Update transition matrix (depends only on mode split)
+        """
+
         otherMatrix = self.__transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
+
+        """
+        Step two: Start from uncongested networks with no blocked distance
+        """
 
         for microtypeID, microtype in microtypes:
             for modes, n in microtype.networks:
                 n.getNetworkStateData().resetBlockedDistance()
                 n.getNetworkStateData().resetNonAutoAccumulation()
+                n.resetSpeeds()
 
         for it in range(nIters):
             # for microtypeID, microtype in microtypes:
             #     microtype.updateNetworkSpeeds(1)
+            """
+            Step three: Update car average speeds at the microtype level, given blocked distance
+            """
+
+            # print([(a, b.blockedDistance, b.nonAutoAccumulation) for a, b in microtypes.collectedNetworkStateData if (b.nonAutoAccumulation > 0)])
             microtypes.transitionMatrixMFD(self.timePeriodDuration)
+
+            """
+            Step four: Update blocked distance, given average car speeds
+            """
             for microtypeID, microtype in microtypes:
                 microtype.updateNetworkSpeeds(1)
 

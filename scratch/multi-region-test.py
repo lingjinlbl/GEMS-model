@@ -1,0 +1,64 @@
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from model import Model
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+model = Model(ROOT_DIR + "/../input-data")
+
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "bus", "BetaTravelTime"] = -10000
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "walk", "BetaTravelTime"] = -0.02
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "bike", "BetaTravelTime"] = -0.05
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "rail", "BetaTravelTime"] = -10000
+model.readFiles()
+
+d = 960
+# model.updateTimePeriodDemand('2', d)
+# model.updateTimePeriodDemand('3', d)
+
+model.updateTimePeriodDemand('4', d)
+model.updateTimePeriodDemand('5', d)
+model.updateTimePeriodDemand('6', d)
+model.updateTimePeriodDemand('7', d)
+
+
+vectorUserCosts, utils = model.collectAllCharacteristics()
+# a.plotAllDynamicStats("N")
+x, y = model.plotAllDynamicStats("delay")
+
+colors = ['C0', 'C1', 'C2', 'C3', 'C0', 'C1', 'C2', 'C3']
+
+fig, axs = plt.subplots(4, 4)
+for ind, m in enumerate(model.microtypes):
+    y1 = y[0,:,ind]
+    y2 = y[1,:,ind]
+    axs[0, ind].plot(x, y1, color = "#800080")
+    axs[0, ind].plot(x, y2, color = "#00DBFF")
+    axs[1, ind].plot(x, y1 - y2, color="#E56717")
+    axs[2, ind].plot(x[:-1], np.interp(y1, y2, x)[:-1] / 60. - x[:-1] / 60., '#ED4337')
+    axs[0, ind].set_title("Microtype " + m[0])
+
+    axs[3, ind].clear()
+    # axs[2, ind].plot(x, y[:, 0] - y[:, 1])
+    axs[3, ind].step(np.arange(len(model.timePeriods()) + 1),
+                     np.vstack([model.getModeSplit('0')] + [model.getModeSplit(p) for p in model.timePeriods().keys()]))
+    axs[3, ind].set_ylim([0, 1])
+
+    axs[3, ind].lines[model.modeToIdx['auto']].set_color('#C21807')
+    axs[3, ind].lines[model.modeToIdx['bus']].set_color('#1338BE')
+    axs[3, ind].lines[model.modeToIdx['walk']].set_color('#3CB043')
+    axs[3, ind].lines[model.modeToIdx['rail']].set_color('white')
+    axs[3, ind].lines[model.modeToIdx['bike']].set_color('blue')
+
+axs[3, 0].legend(['bus', 'rail','walk','bike','auto'])
+axs[0, 0].set_ylabel('cumulative vehicles')
+axs[1, 0].set_ylabel('accumulation')
+axs[2, 0].set_ylabel('travel time')
+axs[3, 0].set_ylabel('mode split')
+print('DONE')

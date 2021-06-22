@@ -665,7 +665,7 @@ class BusMode(Mode):
             portionOfTimeStopped = min([meanTimePerStop * meanTimePerStop / self.headwayInSec, 1.0])
             # TODO: Think through this more fully. Is this the right way to scale up this time to distance?
             out = portionOfTimeStopped * network.avgLinkLength * self.getN(network)
-            out = min(out, self.getRouteLength(), (network.L - network.getBlockedDistance()) * 0.5)
+            out = min(out, numberOfStops * network.avgLinkLength / 100, (network.L - network.getBlockedDistance()) * 0.5)
             # portionOfRouteBlocked = out / self.routeLength
         else:
             out = 0
@@ -676,7 +676,7 @@ class BusMode(Mode):
             L_blocked = self.calculateBlockedDistance(n)
             self._L_blocked[n] = L_blocked
             n.L_blocked[self.name] = L_blocked  # * self.getRouteLength() / n.L
-            n.getNetworkStateData().blockedDistance += L_blocked
+            n.getNetworkStateData().blockedDistance = L_blocked # HACK: Only one mode can block distance at a time
             if n.getNetworkStateData().blockedDistance > self.getRouteLength():
                 print('HMMMMM')
 
@@ -699,7 +699,7 @@ class BusMode(Mode):
                 n.setVMT(self.name, self._VMT[n])
                 n.updateBaseSpeed()
                 self._speed[n] = self.getSubNetworkSpeed(n)
-                self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength, self.getRouteLength() * n.jamDensity)
+                self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength, self.getRouteLength() / n.avgLinkLength /100)
                 n.setN(self.name, self._N_eff[n])
                 n.getNetworkStateData().nonAutoAccumulation += self._N_eff[n]
             else:
@@ -1063,8 +1063,9 @@ class NetworkCollection:
             m.updateDemand(self.demands[m.name])
         for it in range(nIters):
             for modes, n in self:
-                n.getNetworkStateData().resetBlockedDistance()
+                # n.getNetworkStateData().resetBlockedDistance()
                 n.getNetworkStateData().resetNonAutoAccumulation()
+                # n.resetSpeeds()
             for m in self.modes.values():  # uniqueModes:
                 m.assignVmtToNetworks()
                 for n in m.networks:

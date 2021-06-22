@@ -17,3 +17,5 @@
 16,B,Bike,0,5,,BikePath,True,
 17,C,Bike,100,5,,BikePath,True,
 18,D,Bike,0,5,,BikePath,True,
+19,B,Rail,1000,25,,Subway,True,
+20,C,Rail,1000,30,,Subway,True,
