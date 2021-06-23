@@ -164,6 +164,7 @@ class Interact:
         self.model.collectAllCosts()
         self.updatePlots()
         self.__loadingWidget.value = "<center><b>Complete</b></center>"
+        self.__fig.show()
 
     def updatePlots(self, message=None):
         currentPlot = self.__plotStateWidget.value
@@ -197,4 +198,4 @@ class Interact:
                 handle.visible = True
             self.fig.layout.xaxis.title.text = "Time"
             self.fig.layout.yaxis.title.text = "Portion of trips"
-        self.fig.show()
+        self.__fig.show()
