@@ -14,11 +14,11 @@ from scipy.optimize import shgo, root
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand, CollectedTotalUserCosts, ODindex, modeSplitFromUtils
+from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
 from utils.network import CollectedNetworkStateData
 from utils.population import Population
-from utils.interact import Interact
 
 
 # from skopt import gp_minimize
@@ -524,11 +524,12 @@ class Model:
         return modeSplitArray
 
     def toObjectiveFunction(self, modeSplitArray):
-        return modeSplitArray[:,:,:-1].reshape(-1)
+        return modeSplitArray[:, :, :-1].reshape(-1)
 
     def fromObjectiveFunction(self, flatModeSplitArray):
         modeSplitArray = np.zeros_like(self.demand.modeSplitData)
-        modeSplitArray[:, :, :-1] = flatModeSplitArray.reshape(list(self.demand.modeSplitData.shape[:-1]) + [-1]).clip(0, 1)
+        modeSplitArray[:, :, :-1] = flatModeSplitArray.reshape(list(self.demand.modeSplitData.shape[:-1]) + [-1]).clip(
+            0, 1)
         modeSplitArray[:, :, -1] = 1 - modeSplitArray.sum(axis=2)
         return modeSplitArray
 
@@ -566,7 +567,7 @@ class Model:
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
         sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 50})
-        print(sol.message, sol.nit, np.linalg.norm(sol.fun))
+        # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
         fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
 
         """
@@ -585,7 +586,8 @@ class Model:
                     if microtypeID is None:
                         modeSplit += self.__microtypes[tp].throughDistanceByMode.sum(axis=0) * weight
                     else:
-                        modeSplit += self.__microtypes[tp].throughDistanceByMode[self.microtypeIdToIdx[microtypeID], :] * weight
+                        modeSplit += self.__microtypes[tp].throughDistanceByMode[self.microtypeIdToIdx[microtypeID],
+                                     :] * weight
         else:
             if microtypeID is None:
                 modeSplit = self.__microtypes[timePeriod].throughDistanceByMode.sum(axis=0)
@@ -708,18 +710,18 @@ class Model:
             ns.append(n)
         if type.lower() == "n":
             x = np.concatenate(ts)
-            y = np.concatenate(ns)
+            y = np.concatenate(ns)/3600.
             # plt.plot(x, y)
             return x, y
         elif type.lower() == "v":
-            x = np.concatenate(ts)
+            x = np.concatenate(ts) / 3600.
             y = np.concatenate(vs)
             # plt.plot(x, y)
             return x, y
         elif type.lower() == "delay":
             y1 = np.cumsum(np.concatenate(inflows, axis=0), axis=0)
             y2 = np.cumsum(np.concatenate(outflows, axis=0), axis=0)
-            x = np.concatenate(ts)
+            x = np.concatenate(ts) / 3600.
             # plt.plot(x, y1)
             # plt.plot(x, y2, linestyle='--')
             # colors = ['C0', 'C1','C2','C3','C0', 'C1','C2','C3']
@@ -731,6 +733,10 @@ class Model:
         #     y = np.concatenate(reldensity)
         #     # plt.plot(x, y)
         #     return x, y
+        elif type.lower() == "modes":
+            x = np.cumsum([0] + [val for val in self.timePeriods().values()])
+            y = np.vstack([self.getModeSplit('0')] + [self.getModeSplit(p) for p in self.timePeriods().keys()])
+            return x, y
         else:
             print('WTF')
         print('AA')
@@ -739,6 +745,7 @@ class Model:
 if __name__ == "__main__":
     model = Model("input-data")
     model.interact.updateCosts()
+    model.interact.grid[1, 1].value = 300
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
     ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")

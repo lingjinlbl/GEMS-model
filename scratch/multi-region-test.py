@@ -58,7 +58,6 @@ for ind, m in enumerate(model.microtypes):
     axs[0, ind].set_title("Microtype " + m[0])
 
     axs[3, ind].clear()
-    # axs[2, ind].plot(x, y[:, 0] - y[:, 1])
     axs[3, ind].step(np.arange(len(model.timePeriods()) + 1),
                      np.vstack([model.getModeSplit('0', microtypeID=m[0])] + [model.getModeSplit(p, microtypeID=m[0]) for p in model.timePeriods().keys()]))
     axs[3, ind].set_ylim([0, 1])

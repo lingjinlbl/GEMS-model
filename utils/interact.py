@@ -14,7 +14,9 @@ class Interact:
         self.__microtypeToMixedNetworkID = dict()
         self.__microtypeToBusNetworkID = dict()
         self.__microtypeToBusService = dict()
-
+        self.__widgetIDtoField = dict()
+        self.__plotStateWidget = None
+        self.__loadingWidget = None
         self.__grid = self.generateGridSpec()
 
     @property
@@ -39,11 +41,13 @@ class Interact:
 
     def addBlankPlots(self, fig: go.FigureWidget):
         for mID in self.model.scenarioData['microtypeIDs'].MicrotypeID:
-            fig.add_scatter(x=[],y=[],visible=True, name=mID)
+            fig.add_scatter(x=[], y=[], visible=True, name=mID)
             self.__microtypeToHandle[mID] = fig.data[-1]
         for mode in self.model.scenarioData['modeData'].keys():
             fig.add_scatter(x=[], y=[], visible=False, name=mode)
             self.__modeToHandle[mode] = fig.data[-1]
+            fig.data[-1].line = {"shape": 'hv'}
+        fig.update_layout(template='simple_white')
 
     def generateGridSpec(self):
         button = widgets.Button(description="Calculate Costs")
@@ -77,24 +81,53 @@ class Interact:
 
             gs[ind + 1, 0] = widgets.FloatSlider(value=0, min=0, max=1.0, step=0.02, description=mID)
             gs[ind + 1, 0].observe(self.response, names="value")
+            self.__widgetIDtoField[gs[ind + 1, 0].model_id] = ('dedicated', mID)
 
             gs[ind + 1, 1] = widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description=mID)
             gs[ind + 1, 1].observe(self.response, names="value")
+            self.__widgetIDtoField[gs[ind + 1, 1].model_id] = ('headway', mID)
 
             gs[ind + 1, 2] = widgets.FloatSlider(value=busServiceData.CoveragePortion, min=0.02, max=1.0, step=0.02,
                                                  description=mID)
             gs[ind + 1, 2].observe(self.response, names="value")
-        gs[-1, :] = button
+            self.__widgetIDtoField[gs[ind + 1, 2].model_id] = ('coverage', mID)
+
+        gs[-1, 2] = button
+        gs[-1, 1] = widgets.HTML(
+            value="<center><i>Model Running</i></center>"
+        )
+        self.__loadingWidget = gs[-1, 1]
+        gs[-1, 0] = widgets.Dropdown(
+            options=['Auto speed', 'Mode split', 'Auto accumulation'],
+            value='Auto speed',
+            description='Plot type:',
+            disabled=False,
+        )
+        self.__plotStateWidget = gs[-1, 0]
+        self.__plotStateWidget.observe(self.updatePlots, names="value")
         return gs
 
     def response(self, change, otherStuff=None):
-        print(change.owner)
-        print(otherStuff)
+        field = self.__widgetIDtoField[change.owner.model_id]
+        self.modifyModel(field, change)
 
-    def returnBusLaneRanges(self):
+    def modifyModel(self, changeType, value):
+        if changeType[0] == 'dedicated':
+            df = self.returnBusNetworkLengths(changeType[1])
+            totalLength = df.sum()
+            newDedicatedLength = totalLength * value.new
+            newMixedLength = totalLength * (1. - value.new)
+            self.model.scenarioData['subNetworkData'].loc[df.index[0], 'Length'] = newMixedLength
+            self.model.scenarioData['subNetworkData'].loc[df.index[1], 'Length'] = newDedicatedLength
+        if changeType[0] == 'headway':
+            self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'Headway'] = value.new
+        if changeType[0] == 'coverage':
+            self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = value.new
+
+    def returnBusNetworkLengths(self, mID):
         return self.model.scenarioData['subNetworkDataFull'].loc[
-            self.model.scenarioData['subNetworkDataFull'].ModesAllowed.str.contains('Auto'), ['MicrotypeID',
-                                                                                              'Length']].values
+            self.model.scenarioData['subNetworkDataFull'].ModesAllowed.str.contains('Bus') & (
+                        self.model.scenarioData['subNetworkDataFull'].MicrotypeID == mID), 'Length']
 
     def plotArray(self):
         x, y = self.model.plotAllDynamicStats("delay")
@@ -127,8 +160,40 @@ class Interact:
         axs[3, 0].set_ylabel('mode split')
 
     def updateCosts(self, message=None):
+        self.__loadingWidget.value = "<center><i>Model Running</i></center>"
         self.model.collectAllCosts()
-        time, spds = self.model.plotAllDynamicStats('v')
-        for ind, (mode, handle) in enumerate(self.__microtypeToHandle.items()):
-            handle.y = spds[:, ind]
-            handle.x = time
+        self.updatePlots()
+        self.__loadingWidget.value = "<center><b>Complete</b></center>"
+
+    def updatePlots(self, message=None):
+        currentPlot = self.__plotStateWidget.value
+        if currentPlot == 'Auto speed':
+            time, spds = self.model.plotAllDynamicStats('v')
+            for ind, (mode, handle) in enumerate(self.__microtypeToHandle.items()):
+                handle.y = spds[:, ind]
+                handle.x = time
+                handle.visible = True
+            for ind, (mode, handle) in enumerate(self.__modeToHandle.items()):
+                handle.visible = False
+            self.fig.layout.xaxis.title.text = "Time"
+            self.fig.layout.yaxis.title.text = "Speed (m/s)"
+        elif currentPlot == 'Auto accumulation':
+            time, spds = self.model.plotAllDynamicStats('n')
+            for ind, (mode, handle) in enumerate(self.__microtypeToHandle.items()):
+                handle.y = spds[:, ind]
+                handle.x = time
+                handle.visible = True
+            for ind, (mode, handle) in enumerate(self.__modeToHandle.items()):
+                handle.visible = False
+            self.fig.layout.xaxis.title.text = "Time"
+            self.fig.layout.yaxis.title.text = "Number of vehicles"
+        else:
+            time, splits = self.model.plotAllDynamicStats('modes')
+            for ind, (mode, handle) in enumerate(self.__microtypeToHandle.items()):
+                handle.visible = False
+            for ind, (mode, handle) in enumerate(self.__modeToHandle.items()):
+                handle.y = splits[:, ind]
+                handle.x = time
+                handle.visible = True
+            self.fig.layout.xaxis.title.text = "Time"
+            self.fig.layout.yaxis.title.text = "Portion of trips"
