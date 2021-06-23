@@ -164,7 +164,6 @@ class Interact:
         self.model.collectAllCosts()
         self.updatePlots()
         self.__loadingWidget.value = "<center><b>Complete</b></center>"
-        self.__fig.show()
 
     def updatePlots(self, message=None):
         currentPlot = self.__plotStateWidget.value
