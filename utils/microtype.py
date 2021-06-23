@@ -339,9 +339,9 @@ class MicrotypeCollection:
                 self[microtypeID] = Microtype(microtypeID, networkCollection)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeID])
 
-                print("|  Loaded ",
-                      len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
-                      " subNetworks in microtype ", microtypeID)
+                # print("|  Loaded ",
+                #       len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
+                #       " subNetworks in microtype ", microtypeID)
 
     def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):
         if collectedNetworkStateData is None:

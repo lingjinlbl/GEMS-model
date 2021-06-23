@@ -436,7 +436,7 @@ class TripGeneration:
             relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriodID]
             for row in relevantDemand.itertuples():
                 self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
-            print("|  Loaded ", len(relevantDemand), " demand classes")
+            # print("|  Loaded ", len(relevantDemand), " demand classes")
 
     def __iter__(self):
         return iter(self.tripClasses.items())
@@ -493,7 +493,7 @@ class OriginDestination:
     def initializeTimePeriod(self, timePeriod, timePeriodID):
         self.__currentTimePeriod = timePeriod
         if timePeriod not in self.__originDestination:
-            print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]), " distance bins")
+            # print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]), " distance bins")
             relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]
             merged = relevantODs.merge(self.__distances,
                                        on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
@@ -674,5 +674,5 @@ class TransitionMatrices:
             odi = ODindex(*key)
             self.__data[odi] = df  # TODO: Delete this
             self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
-        print("|  Loaded ", len(df), " transition probabilities")
+        print("|  Loaded ", str(matrices.size), " transition probabilities")
         print("-------------------------------")

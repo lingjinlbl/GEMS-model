@@ -18,6 +18,7 @@ from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
 from utils.network import CollectedNetworkStateData
 from utils.population import Population
+from utils.interact import Interact
 
 
 # from skopt import gp_minimize
@@ -419,6 +420,7 @@ class Model:
         self.__originDestination = OriginDestination()
         self.__transitionMatrices = TransitionMatrices(self.scenarioData)
         self.__networkStateData = dict()
+        self.interact = Interact(self)
         self.readFiles()
         self.initializeAllTimePeriods()
 
@@ -505,12 +507,8 @@ class Model:
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self, override=False):
-        # self.__transitionMatrices.adoptMicrotypes(self.scenarioData["microtypeIDs"])
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod, override)
-            print('Done Initializing')
-
-    # @profile
 
     def fromVector(self, flatUtilitiesArray):
         return np.reshape(flatUtilitiesArray, self.demand.currentUtilities().shape)
@@ -647,7 +645,7 @@ class Model:
             else:
                 self.microtypes.resetStateData()
 
-    def collectAllCosts(self):
+    def collectAllCosts(self, event=None):
         userCosts = CollectedTotalUserCosts()
         operatorCosts = CollectedTotalOperatorCosts()
         vectorUserCosts = 0.0
@@ -740,6 +738,7 @@ class Model:
 
 if __name__ == "__main__":
     model = Model("input-data")
+    model.interact.updateCosts()
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
     ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")
