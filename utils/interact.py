@@ -197,3 +197,4 @@ class Interact:
                 handle.visible = True
             self.fig.layout.xaxis.title.text = "Time"
             self.fig.layout.yaxis.title.text = "Portion of trips"
+        self.fig.show()
