@@ -165,6 +165,8 @@ class Demand:
         self.pop = 0.0
         self.timePeriodDuration = 0.0
         self.__population = None
+        self.__originDestination = None
+        self.__tripGeneration = None
         self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
         self.__transitionMatrices = None
@@ -242,6 +244,8 @@ class Demand:
         self.__trips = trips
         self.__distanceBins = distanceBins
         self.__transitionMatrices = transitionMatrices
+        self.__originDestination = originDestination
+        self.__tripGeneration = tripGeneration
         self.timePeriodDuration = timePeriods[currentTimePeriod]
 
         # newTransitionMatrix = microtypes.emptyTransitionMatrix()
@@ -281,30 +285,13 @@ class Demand:
 
             for odi, portion in od.items():
                 trip = trips[odi]
-                common_modes = [microtypes[trip.odIndex.o].mode_names, microtypes[trip.odIndex.d].mode_names]
-                # # Now we're switching over to only looking at origin and destination modes
-                # common_modes = []
-                # for microtypeID, allocation in trip.allocation:
-                #     if allocation > 0:
-                #         common_modes.append(microtypes[microtypeID].mode_names)
-                # modes = set.intersection(*common_modes)
                 tripRatePerHour = ratePerHourPerCapita * pop * portion
                 self.tripRate += tripRatePerHour
                 demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
-                # newTransitionMatrix.addAndMultiply(transitionMatrices[odi],
-                #                                    tripRatePerHour)  # += transitionMatrices[odi] * tripRatePerHour
 
                 self.demandForPMT += demandForPMT
                 self.pop += pop
-                # modeSplit = dict()
-                # for mode in modes:
-                #     if mode == "auto":
-                #         modeSplit[mode] = 1.0
-                #     else:
-                #         modeSplit[mode] = 0.0
-                # if odi not in self.odiToIdx:
-                #     self.odiToIdx[odi] = maxODindex
-                #     maxODindex += 1
+
                 currentODindex = self.odiToIdx[odi]
                 currentPopIndex = self.diToIdx[demandIndex]
                 weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
@@ -334,6 +321,33 @@ class Demand:
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
         # self.__previousModeSplitInput = self.__modeSplitData.copy()
+
+    def updateTripGeneration(self, microtypes: MicrotypeCollection, multiplier=1.0):
+        self.tripRate = 0.0
+        self.pop = 0.0
+        self.demandForPMT = 0.0
+        weights = np.zeros(len(self.odiToIdx), dtype=float)
+
+        for demandIndex, utilityParams in self.__population:
+            od = self.__originDestination[demandIndex]
+            ratePerHourPerCapita = self.__tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
+            pop = self.__population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
+
+            for odi, portion in od.items():
+                tripRatePerHour = ratePerHourPerCapita * pop * portion
+                self.tripRate += tripRatePerHour
+                demandForPMT = ratePerHourPerCapita * pop * portion * self.__distanceBins[odi.distBin]
+
+                self.demandForPMT += demandForPMT
+                self.pop += pop
+
+                currentODindex = self.odiToIdx[odi]
+                currentPopIndex = self.diToIdx[demandIndex]
+                weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
+                self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+
+        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
+        microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
     # @profile
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=5, utilitiesArray=None, modeSplitArray=None):

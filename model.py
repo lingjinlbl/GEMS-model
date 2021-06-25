@@ -4,6 +4,7 @@ import os
 from collections import OrderedDict
 from copy import deepcopy
 from itertools import product
+from sys import stdout
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -420,6 +421,7 @@ class Model:
         self.__originDestination = OriginDestination()
         self.__transitionMatrices = TransitionMatrices(self.scenarioData)
         self.__networkStateData = dict()
+        self.__printLoc = stdout
         self.interact = Interact(self)
         self.readFiles()
         self.initializeAllTimePeriods()
@@ -567,7 +569,7 @@ class Model:
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
         sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 50})
-        # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
+        print(sol.message, sol.nit, np.linalg.norm(sol.fun))
         fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
 
         """
@@ -666,6 +668,11 @@ class Model:
             # print(self.getModeSpeeds())
         return userCosts, operatorCosts, vectorUserCosts
 
+    def updatePopulation(self):
+        for timePeriod, durationInHours in self.__timePeriods:
+            self.setTimePeriod(timePeriod, init=False)
+            self.demand.updateTripGeneration(self.microtypes)
+
     def collectAllCharacteristics(self):
         vectorUserCosts = 0.0
         init = True
@@ -709,8 +716,8 @@ class Model:
             vs.append(v)
             ns.append(n)
         if type.lower() == "n":
-            x = np.concatenate(ts)
-            y = np.concatenate(ns)/3600.
+            x = np.concatenate(ts) / 3600
+            y = np.concatenate(ns)
             # plt.plot(x, y)
             return x, y
         elif type.lower() == "v":
