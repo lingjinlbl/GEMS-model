@@ -8,10 +8,15 @@ from utils.choiceCharacteristics import ModalChoiceCharacteristics
 
 
 class PopulationGroup:
-    def __init__(self, homeLocation: str, populationGroupType: str, population: float):
+    def __init__(self, homeLocation: str, populationGroupType: str, df: pd.DataFrame, idx:int):
         self.homeLocation = homeLocation
         self.populationGroupType = populationGroupType
-        self.population = population
+        self.__data = df
+        self.__idx = idx
+
+    @property
+    def population(self):
+        return self.__data.iloc[self.__idx].Population
 
 
 class DemandClass:
@@ -170,7 +175,7 @@ class Population:
             populationGroupType = row.PopulationGroupTypeID
             self.__populationGroups[homeMicrotypeID, populationGroupType] = PopulationGroup(homeMicrotypeID,
                                                                                             populationGroupType,
-                                                                                            row.Population)
+                                                                                            populations, row.Index)
             self.totalPopulation += row.Population
 
         data = populationGroups.set_index(['TripPurposeID', 'PopulationGroupTypeID', 'Mode']).unstack(-1)
