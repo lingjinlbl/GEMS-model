@@ -5,6 +5,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from itertools import product
 from sys import stdout
+from mock import Mock
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -785,14 +786,18 @@ class Model:
 
 if __name__ == "__main__":
     model = Model("input-data")
-    model.interact.updateCosts()
-    model.interact.grid[1, 1].value = 300
-    model.interact.updatePlots()
-    model.interact.copyCurrentToRef()
+    model.interact.init()
+
+
+
+    obj = Mock()
+    obj.value = 0.25
+
+    model.interact.modifyModel('dedication', obj)
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
     ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")
-    x, y = model.plotAllDynamicStats("costs")
+    x, y = model.plotAllDynamicStats("v")
     plt.plot(x, y)
     print(dict(zip(model.modeToIdx.keys(), ms)))
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))

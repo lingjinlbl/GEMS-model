@@ -539,7 +539,6 @@ class MicrotypeCollection:
     def getOperatorCosts(self) -> CollectedTotalOperatorCosts:
         operatorCosts = CollectedTotalOperatorCosts()
         for mID, microtype in self:
-            assert isinstance(microtype, Microtype)
             operatorCosts[mID] = microtype.networks.getModeOperatingCosts()
         return operatorCosts
 
