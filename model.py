@@ -427,6 +427,10 @@ class Model:
         self.initializeAllTimePeriods()
 
     @property
+    def nSubBins(self):
+        return self.__nSubBins
+
+    @property
     def diToIdx(self):
         return self.scenarioData.diToIdx
 
@@ -569,7 +573,7 @@ class Model:
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
         sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 50})
-        print(sol.message, sol.nit, np.linalg.norm(sol.fun))
+        # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
         fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
 
         """
@@ -635,7 +639,7 @@ class Model:
     def updateTimePeriodDemand(self, timePeriodId, newTripStartRate):
         self.__demand[timePeriodId].updateTripStartRate(newTripStartRate)
 
-    def setTimePeriod(self, timePeriod: str, init=False):
+    def setTimePeriod(self, timePeriod: str, init=False, preserve=False):
         """Note: Are we always going to go through them in order? Should maybe just store time periods
         as a dataframe and go by index. But, we're not keeping track of all accumulations so in that sense
         we always need to go in order."""
@@ -644,28 +648,21 @@ class Model:
         self.__originDestination.setTimePeriod(timePeriod)
         self.__tripGeneration.setTimePeriod(timePeriod)
         if networkStateData:
-            if not init:
-                self.microtypes.importPreviousStateData(networkStateData)
-            else:
-                self.microtypes.resetStateData()
+            if not preserve:
+                if not init:
+                    self.microtypes.importPreviousStateData(networkStateData)
+                else:
+                    self.microtypes.resetStateData()
 
     def collectAllCosts(self, event=None):
         userCosts = CollectedTotalUserCosts()
         operatorCosts = CollectedTotalOperatorCosts()
         vectorUserCosts = 0.0
-        init = True
         for timePeriod, durationInHours in self.__timePeriods:
-            self.setTimePeriod(timePeriod, init)
-            self.microtypes.updateNetworkData()
-            init = False
-            self.findEquilibrium()
+            self.setTimePeriod(timePeriod, preserve=True)
             matCosts = self.getMatrixUserCosts() * durationInHours
             vectorUserCosts += matCosts
-            # userCosts += self.getUserCosts() * durationInHours
             operatorCosts += self.getOperatorCosts() * durationInHours
-            self.__networkStateData[timePeriod] = self.microtypes.getStateData()
-            # print(self.getModeSplit(self.__currentTimePeriod))
-            # print(self.getModeSpeeds())
         return userCosts, operatorCosts, vectorUserCosts
 
     def updatePopulation(self):
@@ -686,8 +683,6 @@ class Model:
             vectorUserCosts += matCosts
             self.__networkStateData[timePeriod] = self.microtypes.getStateData()
             utilities.append(self.demand.utility(self.choice))
-            print(self.getModeSplit(self.__currentTimePeriod))
-            print(self.getModeSpeeds())
         return vectorUserCosts, np.stack(utilities)
 
     def getModeSpeeds(self, timePeriod=None):
@@ -744,19 +739,60 @@ class Model:
             x = np.cumsum([0] + [val for val in self.timePeriods().values()])
             y = np.vstack([self.getModeSplit('0')] + [self.getModeSplit(p) for p in self.timePeriods().keys()])
             return x, y
+        elif type.lower() == "modespeeds":
+            x = np.cumsum([0] + [val for val in self.timePeriods().values()])
+            y = pd.concat([self.getModeSpeeds('0').stack()] + [self.getModeSpeeds(val).stack() for val in self.timePeriods().keys()], axis=1)
+            return x, y.transpose()
+        elif type.lower() == "costs":
+            userCosts, operatorCosts, vectorUserCosts = self.collectAllCosts()
+            x = list(self.microtypeIdToIdx.keys())
+            userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(level='homeMicrotype').sum(axis=0)
+            operatorCostsByMicrotype = operatorCosts.toDataFrame().sum(axis=1)
+            laneDedicationCostsByMicrotype = self.getDedicationCostByMicrotype()
+            y = pd.concat({'User': -userCostsByMicrotype, 'Operator': operatorCostsByMicrotype, 'Lane Dedication': laneDedicationCostsByMicrotype['cost']}).unstack()
+            return x, y
         else:
             print('WTF')
         print('AA')
+
+    def diTuples(self):
+        return [(di.homeMicrotype, di.populationGroupType, di.tripPurpose) for di in self.diToIdx.keys()]
+
+    def odiTuples(self):
+        return [(odi.o, odi.d, odi.distBin) for odi in self.odiToIdx.keys()]
+
+    def userCostDataFrame(self, userCostMatrix):
+        dfs = {}
+        for mode, idx in self.modeToIdx.items():
+            data = userCostMatrix[:, :, idx]
+            df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(), names=['homeMicrotype', 'populationGroupType', 'tripPurpose']),
+                              columns=pd.MultiIndex.from_tuples(self.odiTuples(), names=['originMicrotype', 'destinationMicrotype', 'distanceBin']))
+            dfs[mode] = df
+        return pd.concat(dfs)
+
+    def getDedicationCostByMicrotype(self):
+        updatedNetworkData = self.scenarioData["subNetworkData"].merge(self.scenarioData["subNetworkDataFull"][['Dedicated', 'ModesAllowed', 'MicrotypeID']], left_index=True, right_index=True)
+        dedicationCosts = self.scenarioData["laneDedicationCost"]
+        dedicationCostsByMicrotype = pd.DataFrame(0, index=list(self.microtypeIdToIdx.keys()), columns=['cost'])
+        for row in updatedNetworkData.itertuples():
+            if row.Dedicated:
+                if (row.MicrotypeID, row.ModesAllowed) in dedicationCosts.index:
+                    dedicationCostsByMicrotype.loc[row.MicrotypeID, 'cost'] += row.Length * dedicationCosts.loc[(row.MicrotypeID, row.ModesAllowed),'CostPerMeter']
+        return dedicationCostsByMicrotype
+
+
 
 
 if __name__ == "__main__":
     model = Model("input-data")
     model.interact.updateCosts()
     model.interact.grid[1, 1].value = 300
+    model.interact.updatePlots()
+    model.interact.copyCurrentToRef()
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
     ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")
-    x, y = model.plotAllDynamicStats("v")
+    x, y = model.plotAllDynamicStats("costs")
     plt.plot(x, y)
     print(dict(zip(model.modeToIdx.keys(), ms)))
     # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))

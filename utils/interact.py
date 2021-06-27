@@ -1,23 +1,59 @@
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.express.colors as col
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 class Interact:
     def __init__(self, model):
         self.__model = model
-        self.__fig = go.FigureWidget()
+        self.__colors = self.generateColorDict()
+        self.__fig = go.FigureWidget(
+            make_subplots(rows=4, cols=2, shared_yaxes=True, column_titles=['Current', 'Reference']))
         self.__modeToHandle = dict()
-        self.__microtypeToHandle = dict()
+        self.__dataToHandle = dict()
         self.addBlankPlots(self.__fig)
+        self.copyCurrentToRef()
         self.__microtypeToMixedNetworkID = dict()
         self.__microtypeToBusNetworkID = dict()
         self.__microtypeToBusService = dict()
         self.__widgetIDtoField = dict()
         self.__plotStateWidget = None
         self.__loadingWidget = None
+        self.__out = None  # print(*a, file = sys.stdout)
         self.__grid = self.generateGridSpec()
+
+    def generateColorDict(self):
+        modes = col.qualitative.Bold
+        microtypes = col.qualitative.Safe
+        costs = col.qualitative.Vivid
+        out = {'bus': modes[0],
+               'auto': modes[1],
+               'walk': modes[5],
+               'bike': modes[3],
+               'rail': modes[4],
+               'A': microtypes[0],
+               'B': microtypes[1],
+               'C': microtypes[2],
+               'D': microtypes[3],
+               '1': microtypes[0],
+               '2': microtypes[1],
+               '3': microtypes[2],
+               '4': microtypes[3],
+               '5': microtypes[4],
+               '6': microtypes[5],
+               '7': microtypes[6],
+               '8': microtypes[7],
+               'user': costs[1],
+               'system': costs[1],
+               'dedication': costs[1]}
+        return out
+
+    @property
+    def colors(self):
+        return self.__colors
 
     @property
     def model(self):
@@ -39,31 +75,80 @@ class Interact:
     def grid(self):
         return self.__grid
 
+    @property
+    def out(self):
+        return self.__out
+
     def addBlankPlots(self, fig: go.FigureWidget):
+        fig.update_layout(
+            autosize=False,
+            width=800,
+            height=1000, )
+        nMicrotypes = len(self.model.scenarioData['microtypeIDs'].MicrotypeID)
+        self.__dataToHandle['speed'] = {'current': dict(), 'ref': dict()}
+        self.__dataToHandle['modeSplit'] = {'current': dict(), 'ref': dict()}
+        self.__dataToHandle['modeSpeed'] = {'current': dict(), 'ref': dict()}
+        self.__dataToHandle['cost'] = {'current': dict(), 'ref': dict()}
         for mID in self.model.scenarioData['microtypeIDs'].MicrotypeID:
-            fig.add_scatter(x=[], y=[], visible=True, name=mID)
-            self.__microtypeToHandle[mID] = fig.data[-1]
+            fig.add_scatter(x=[], y=[], visible=True, name='Microtype ' + mID, row=1, col=1, legendgroup="Speed",
+                            mode='lines')
+            self.__dataToHandle['speed']['current'][mID] = fig.data[-1]
+            fig.data[-1].line = {"color": self.colors[mID]}
+            fig.add_scatter(x=[], y=[], visible=True, name='Microtype ' + mID, row=1, col=2, legendgroup="Speed",
+                            mode='lines', showlegend=False)
+            self.__dataToHandle['speed']['ref'][mID] = fig.data[-1]
+            fig.data[-1].line = {"color": self.colors[mID]}
         for mode in self.model.scenarioData['modeData'].keys():
-            fig.add_scatter(x=[], y=[], visible=False, name=mode)
-            self.__modeToHandle[mode] = fig.data[-1]
-            fig.data[-1].line = {"shape": 'hv'}
+            fig.add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=1, legendgroup="Mode Split", mode='lines')
+            self.__dataToHandle['modeSplit']['current'][mode] = fig.data[-1]
+            fig.data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+            fig.add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=2, legendgroup="Mode Split", mode='lines',
+                            showlegend=False)
+            self.__dataToHandle['modeSplit']['ref'][mode] = fig.data[-1]
+            fig.data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+        for mode in self.model.scenarioData['modeData'].keys():
+            self.__dataToHandle['modeSpeed']['current'][mode] = dict()
+            self.__dataToHandle['modeSpeed']['ref'][mode] = dict()
+            showLegend = True
+            for mID in self.model.scenarioData['microtypeIDs'].MicrotypeID:
+                fig.add_scatter(x=[], y=[], visible=True, name=mode, row=3, col=1, legendgroup=mode, mode='lines',
+                                hovertext="Microtype " + mID + " " + mode, hoverinfo="text", showlegend=showLegend)
+                self.__dataToHandle['modeSpeed']['current'][mode][mID] = fig.data[-1]
+                fig.data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                fig.add_scatter(x=[], y=[], visible=True, name=mode, row=3, col=2, legendgroup=mode, mode='lines',
+                                showlegend=False, hovertext="Microtype " + mID + " " + mode, hoverinfo="text")
+                self.__dataToHandle['modeSpeed']['ref'][mode][mID] = fig.data[-1]
+                fig.data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                showLegend = False
+        for mID in self.model.scenarioData['microtypeIDs'].MicrotypeID:
+            fig.add_bar(x=['User', 'Operator', 'Lane dedication'], y=[0.] * nMicrotypes, visible=True, row=4, col=1,
+                        name='Microtype ' + mID, legendgroup="Costs")
+            self.__dataToHandle['cost']['current'][mID] = fig.data[-1]
+            fig.data[-1].marker.color = self.colors[mID]
+            fig.add_bar(x=['User', 'Operator', 'Lane dedication'], y=[0.] * nMicrotypes, visible=True, row=4, col=2,
+                        name='Microtype ' + mID, legendgroup="Costs", showlegend=False)
+            self.__dataToHandle['cost']['ref'][mID] = fig.data[-1]
+            fig.data[-1].marker.color = self.colors[mID]
         fig.update_layout(template='simple_white')
+        fig['layout']['xaxis']['title'] = 'Time (hr)'
+        fig['layout']['yaxis']['title'] = 'Auto speed (m/s)'
+        fig['layout']['xaxis2']['title'] = 'Time (hr)'
+        fig['layout']['xaxis3']['title'] = 'Time (hr)'
+        fig['layout']['yaxis3']['title'] = 'Mode split'
+        fig['layout']['xaxis4']['title'] = 'Time (hr)'
+        fig['layout']['yaxis5']['title'] = 'Mode speed (m/s)'
+        fig['layout']['xaxis6']['title'] = 'Time (hr)'
+        fig['layout']['yaxis7']['title'] = 'Cost'
 
     def generateGridSpec(self):
-        button = widgets.Button(description="Calculate Costs")
-        button.on_click(self.updateCosts)
+        rerunModel = widgets.Button(description="Calculate Costs")
+        rerunModel.on_click(self.updateCosts)
 
-        gs = widgets.GridspecLayout(6, 4)
+        setRef = widgets.Button(description="Update reference")
+        setRef.on_click(self.copyCurrentToRef)
 
-        gs[0, 0] = widgets.HTML(
-            value="<center>Bus lane coverage</center>"
-        )
-        gs[0, 1] = widgets.HTML(
-            value="<center>Bus headway </center>"
-        )
-        gs[0, 2] = widgets.HTML(
-            value="<center>Bus route density </center>"
-        )
+        dedicatedStack = []
+
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             initialAutoData = self.model.scenarioData['subNetworkDataFull'].loc[
                               self.model.scenarioData['subNetworkDataFull'].ModesAllowed.str.contains('Auto') &
@@ -76,35 +161,55 @@ class Interact:
                              self.model.scenarioData['subNetworkDataFull'].Dedicated, :]
             self.__microtypeToBusNetworkID[mID] = initialBusData
 
+            dedicatedStack.append(widgets.FloatSlider(value=0, min=0, max=1.0, step=0.02, description=mID))
+            dedicatedStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[dedicatedStack[-1].model_id] = ('dedicated', mID)
+
+        headwayStack = []
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             busServiceData = self.model.scenarioData['modeData']['bus'].loc[mID]
-            self.__microtypeToBusService = busServiceData
+            self.__microtypeToBusService[mID] = busServiceData
+            headwayStack.append(widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description=mID))
+            headwayStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[headwayStack[-1].model_id] = ('headway', mID)
 
-            gs[ind + 1, 0] = widgets.FloatSlider(value=0, min=0, max=1.0, step=0.02, description=mID)
-            gs[ind + 1, 0].observe(self.response, names="value")
-            self.__widgetIDtoField[gs[ind + 1, 0].model_id] = ('dedicated', mID)
+        coverageStack = []
 
-            gs[ind + 1, 1] = widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description=mID)
-            gs[ind + 1, 1].observe(self.response, names="value")
-            self.__widgetIDtoField[gs[ind + 1, 1].model_id] = ('headway', mID)
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            busServiceData = self.__microtypeToBusService[mID]
+            coverageStack.append(widgets.FloatSlider(value=busServiceData.CoveragePortion, min=0.02, max=1.0, step=0.02,
+                                                     description=mID))
+            coverageStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[coverageStack[-1].model_id] = ('headway', mID)
 
-            gs[ind + 1, 2] = widgets.FloatSlider(value=busServiceData.CoveragePortion, min=0.02, max=1.0, step=0.02,
-                                                 description=mID)
-            gs[ind + 1, 2].observe(self.response, names="value")
-            self.__widgetIDtoField[gs[ind + 1, 2].model_id] = ('coverage', mID)
+        accordionChildren = [widgets.VBox(dedicatedStack), widgets.VBox(headwayStack), widgets.VBox(coverageStack)]
 
-        gs[-1, 2] = button
-        gs[-1, 1] = widgets.HTML(
+        accordion = widgets.Accordion(children=accordionChildren)
+
+        for ind, title in enumerate(('Bus lane dedication', 'Bus headways (s)', 'Bus service area')):
+            accordion.set_title(ind, title)
+
+        gs = widgets.GridspecLayout(4, 2)
+
+        self.__loadingWidget = widgets.HTML(
             value="<center><i>Model Running</i></center>"
         )
-        self.__loadingWidget = gs[-1, 1]
-        gs[-1, 0] = widgets.Dropdown(
+
+        self.__plotStateWidget = widgets.Dropdown(
             options=['Auto speed', 'Mode split', 'Auto accumulation'],
             value='Auto speed',
             description='Plot type:',
             disabled=False,
         )
-        self.__plotStateWidget = gs[-1, 0]
         self.__plotStateWidget.observe(self.updatePlots, names="value")
+
+        gs[:, 0] = accordion
+        gs[0, 1] = rerunModel
+        gs[2, 1] = self.__loadingWidget
+        self.__out = widgets.Output(layout={'border': '1px solid black'})
+        gs[1, 1] = setRef
+        gs[3, 1] = self.__out
         return gs
 
     def response(self, change, otherStuff=None):
@@ -127,7 +232,7 @@ class Interact:
     def returnBusNetworkLengths(self, mID):
         return self.model.scenarioData['subNetworkDataFull'].loc[
             self.model.scenarioData['subNetworkDataFull'].ModesAllowed.str.contains('Bus') & (
-                        self.model.scenarioData['subNetworkDataFull'].MicrotypeID == mID), 'Length']
+                    self.model.scenarioData['subNetworkDataFull'].MicrotypeID == mID), 'Length']
 
     def plotArray(self):
         x, y = self.model.plotAllDynamicStats("delay")
@@ -161,39 +266,42 @@ class Interact:
 
     def updateCosts(self, message=None):
         self.__loadingWidget.value = "<center><i>Model Running</i></center>"
-        self.model.collectAllCosts()
+        self.model.collectAllCharacteristics()
         self.updatePlots()
         self.__loadingWidget.value = "<center><b>Complete</b></center>"
 
     def updatePlots(self, message=None):
-        currentPlot = self.__plotStateWidget.value
-        if currentPlot == 'Auto speed':
-            time, spds = self.model.plotAllDynamicStats('v')
-            for ind, (mode, handle) in enumerate(self.__microtypeToHandle.items()):
-                handle.y = spds[:, ind]
+        time, spds = self.model.plotAllDynamicStats('v')
+        for ind, (mode, handle) in enumerate(self.__dataToHandle['speed']['current'].items()):
+            handle.y = spds[:, ind]
+            handle.x = time
+            handle.visible = True
+
+        time, splits = self.model.plotAllDynamicStats('modes')
+        for ind, (mode, handle) in enumerate(self.__dataToHandle['modeSplit']['current'].items()):
+            handle.y = splits[:, ind]
+            handle.x = time
+            handle.visible = True
+
+        time, modeSpeeds = self.model.plotAllDynamicStats('modeSpeeds')
+        for mode, group in self.__dataToHandle['modeSpeed']['current'].items():
+            for mID, handle in group.items():
+                handle.y = modeSpeeds[(mID, mode)].values
                 handle.x = time
                 handle.visible = True
-            for ind, (mode, handle) in enumerate(self.__modeToHandle.items()):
-                handle.visible = False
-            self.fig.layout.xaxis.title.text = "Time"
-            self.fig.layout.yaxis.title.text = "Speed (m/s)"
-        elif currentPlot == 'Auto accumulation':
-            time, spds = self.model.plotAllDynamicStats('n')
-            for ind, (mode, handle) in enumerate(self.__microtypeToHandle.items()):
-                handle.y = spds[:, ind]
-                handle.x = time
-                handle.visible = True
-            for ind, (mode, handle) in enumerate(self.__modeToHandle.items()):
-                handle.visible = False
-            self.fig.layout.xaxis.title.text = "Time"
-            self.fig.layout.yaxis.title.text = "Number of vehicles"
-        else:
-            time, splits = self.model.plotAllDynamicStats('modes')
-            for ind, (mode, handle) in enumerate(self.__microtypeToHandle.items()):
-                handle.visible = False
-            for ind, (mode, handle) in enumerate(self.__modeToHandle.items()):
-                handle.y = splits[:, ind]
-                handle.x = time
-                handle.visible = True
-            self.fig.layout.xaxis.title.text = "Time"
-            self.fig.layout.yaxis.title.text = "Portion of trips"
+
+        mIDs, costs = self.model.plotAllDynamicStats('costs')
+        for ind, (mID, handle) in enumerate(self.__dataToHandle['cost']['current'].items()):
+            handle.y = costs[mID].values
+
+    def copyCurrentToRef(self, message=None):
+        for plotType, plots in self.__dataToHandle.items():
+            if plotType == "modeSpeed":
+                for mode, group in plots['current'].items():
+                    for line, value in group.items():
+                        plots['ref'][mode][line].y = value.y
+                        plots['ref'][mode][line].x = value.x
+            else:
+                for line, value in plots['current'].items():
+                    plots['ref'][line].y = value.y
+                    plots['ref'][line].x = value.x

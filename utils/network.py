@@ -1233,8 +1233,8 @@ class CollectedNetworkStateData:
                 if ts is None:
                     ts = val.t[:-1]
                 labels.append((mID, modes))
-        return ts, np.stack(speeds, axis=-1), np.stack(ns, axis=-1), np.stack(inflows, axis=-1), np.stack(outflows,
-                                                                                                          axis=-1), labels
+        return ts, np.stack(
+            speeds, axis=-1), np.stack(ns, axis=-1), np.stack(inflows, axis=-1), np.stack(outflows, axis=-1), labels
 
     def __bool__(self):
         return len(self.__data) > 0

@@ -30,50 +30,50 @@ class DemandClass:
         else:
             return 0.0
 
-    def updateModeSplit(self, mcc: ModalChoiceCharacteristics) -> Dict[str, float]:
-        k = 1.0
-        modes = mcc.modes()
-        utils = np.zeros(len(modes), dtype=float)
-        for idx, mode in enumerate(modes):
-            util = 0.
-            util += self[mode, "Intercept"]
-            util += (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"]
-            util += (mcc[mode].wait_time * 60.0) * self[mode, "BetaWaitTime"]
-            util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
-            util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
-            util += mcc[mode].cost * self[mode, "VOM"]
-            if mode == "bike":
-                util -= (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"] * self[
-                    mode, "ProtectedPreference"] * (mcc[mode].protected_distance / mcc.distanceInMiles)
-            utils[idx] = util
-            # utils = np.append(utils, util)
-        exp_utils = np.exp(utils * k)
-        probabilities = exp_utils / np.sum(exp_utils)
-        mode_split = dict()
-        for ind in range(np.size(probabilities)):
-            mode_split[modes[ind]] = probabilities[ind]
-        return mode_split
+    # def updateModeSplit(self, mcc: ModalChoiceCharacteristics) -> Dict[str, float]:
+    #     k = 1.0
+    #     modes = mcc.modes()
+    #     utils = np.zeros(len(modes), dtype=float)
+    #     for idx, mode in enumerate(modes):
+    #         util = 0.
+    #         util += self[mode, "Intercept"]
+    #         util += (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"]
+    #         util += (mcc[mode].wait_time * 60.0) * self[mode, "BetaWaitTime"]
+    #         util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
+    #         util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
+    #         util += mcc[mode].cost * self[mode, "VOM"]
+    #         if mode == "bike":
+    #             util -= (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"] * self[
+    #                 mode, "ProtectedPreference"] * (mcc[mode].protected_distance / mcc.distanceInMiles)
+    #         utils[idx] = util
+    #         # utils = np.append(utils, util)
+    #     exp_utils = np.exp(utils * k)
+    #     probabilities = exp_utils / np.sum(exp_utils)
+    #     mode_split = dict()
+    #     for ind in range(np.size(probabilities)):
+    #         mode_split[modes[ind]] = probabilities[ind]
+    #     return mode_split
 
-    def numpyModeSplit(self, mcc: ModalChoiceCharacteristics) -> np.ndarray:
-        k = 1.0
-        modes = mcc.modes()
-        utils = np.zeros(len(modes), dtype=float)
-        for idx, mode in enumerate(modes):
-            util = 0.
-            util += self[mode, "Intercept"]
-            util += (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"]
-            util += (mcc[mode].wait_time * 60.0) * self[mode, "BetaWaitTime"]
-            util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
-            util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
-            util += mcc[mode].cost * self[mode, "VOM"]
-            if mode == "bike":
-                util -= (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"] * self[
-                    mode, "ProtectedPreference"] * (mcc[mode].protected_distance / mcc.distanceInMiles)
-            utils[idx] = util
-            # utils = np.append(utils, util)
-        exp_utils = np.exp(utils * k)
-        probabilities = exp_utils / np.sum(exp_utils)
-        return probabilities
+    # def numpyModeSplit(self, mcc: ModalChoiceCharacteristics) -> np.ndarray:
+    #     k = 1.0
+    #     modes = mcc.modes()
+    #     utils = np.zeros(len(modes), dtype=float)
+    #     for idx, mode in enumerate(modes):
+    #         util = 0.
+    #         util += self[mode, "Intercept"]
+    #         util += (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"]
+    #         util += (mcc[mode].wait_time * 60.0) * self[mode, "BetaWaitTime"]
+    #         util += (mcc[mode].wait_time * 60.0) ** 2.0 * self[mode, "BetaWaitTimeSquared"]
+    #         util += (mcc[mode].access_time * 60.0) * self[mode, "BetaAccessTime"]
+    #         util += mcc[mode].cost * self[mode, "VOM"]
+    #         if mode == "bike":
+    #             util -= (mcc[mode].travel_time * 60.0) * self[mode, "BetaTravelTime"] * self[
+    #                 mode, "ProtectedPreference"] * (mcc[mode].protected_distance / mcc.distanceInMiles)
+    #         utils[idx] = util
+    #         # utils = np.append(utils, util)
+    #     exp_utils = np.exp(utils * k)
+    #     probabilities = exp_utils / np.sum(exp_utils)
+    #     return probabilities
 
     def getModeCostPerTrip(self, mcc: ModalChoiceCharacteristics, mode, params=None):
         if mode not in mcc:

@@ -497,8 +497,8 @@ class MicrotypeCollection:
             outflows = vs.copy()
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
-        # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
-        averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
+        # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
         # averageSpeeds = np.min(vs, axis=1)
         # print('----new iter---')
@@ -520,8 +520,8 @@ class MicrotypeCollection:
                         networkStateData.finalAccumulation = ns[idx, -1]
                         networkStateData.finalSpeed = vs[idx, -1]
                         # networkStateData.averageSpeed = averageSpeeds[idx]
-                        networkStateData.inflow = np.squeeze(inflows[idx, :])
-                        networkStateData.outflow = np.squeeze(outflows[idx, :])
+                        networkStateData.inflow = np.squeeze(inflows[idx, :]) * dt
+                        networkStateData.outflow = np.squeeze(outflows[idx, :]) * dt
                         networkStateData.n = np.squeeze(ns[idx, :])
                         networkStateData.v = np.squeeze(vs[idx, :])
                         networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
