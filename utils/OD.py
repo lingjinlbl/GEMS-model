@@ -387,7 +387,7 @@ class TripCollection:
                         odi = ODindex(fromId, toId, dId)
                         self[odi] = self.addEmpty(odi)
         print("-------------------------------")
-        print("|  Loaded ", len(df), " trips")
+        print("|  Loaded ", len(df), " unique trip types")
 
     def __iter__(self):
         return iter(self.__trips.items())
@@ -503,8 +503,8 @@ class OriginDestination:
                 grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
                 tot = np.sum(grouped["tot"])
                 grouped["tot"] = grouped["tot"] / tot
-                if abs(tot - 1) > 0.1:  # TODO: FIX
-                    print(f"Oops, totals for {tripClass} add up to {tot}")
+                # if abs(tot - 1) > 0.1:  # TODO: FIX
+                #     print(f"Oops, totals for {tripClass} add up to {tot}")
                 distribution = dict()
                 for row in grouped.itertuples():
                     distribution[

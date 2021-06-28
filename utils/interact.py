@@ -1,6 +1,7 @@
 from math import floor, log10
 
 import ipywidgets as widgets
+from ipywidgets import Layout
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.express.colors as col
@@ -13,7 +14,7 @@ class Interact:
         self.__model = model
         self.__colors = self.generateColorDict()
         self.__fig = go.FigureWidget(
-            make_subplots(rows=5, cols=2, shared_yaxes=True, column_titles=['Current', 'Reference']))
+            make_subplots(rows=7, cols=2, shared_yaxes=False, column_titles=['Current', 'Reference']))
         self.__modeToHandle = dict()
         self.__dataToHandle = dict()
         self.addBlankPlots(self.__fig)
@@ -85,13 +86,15 @@ class Interact:
         fig.update_layout(
             autosize=False,
             width=900,
-            height=1100, )
+            height=1500, )
         nMicrotypes = len(self.model.scenarioData['microtypeIDs'].MicrotypeID)
         self.__dataToHandle['speed'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['modeSplit'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['modeSpeed'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['cost'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['costDiff'] = dict()
+        self.__dataToHandle['modeSplitDiff'] = dict()
+        self.__dataToHandle['speedDiff'] = dict()
         for mID in self.model.scenarioData['microtypeIDs'].MicrotypeID:
             fig.add_scatter(x=[], y=[], visible=True, name='Microtype ' + mID, row=1, col=1, legendgroup="Speed",
                             mode='lines')
@@ -101,6 +104,10 @@ class Interact:
                             mode='lines', showlegend=False)
             self.__dataToHandle['speed']['ref'][mID] = fig.data[-1]
             fig.data[-1].line = {"color": self.colors[mID]}
+            fig.add_scatter(x=[], y=[], visible=True, name='Microtype ' + mID, row=5, col=1, legendgroup="Speed",
+                            mode='lines', showlegend=False)
+            self.__dataToHandle['speedDiff'][mID] = fig.data[-1]
+            fig.data[-1].line = {"color": self.colors[mID]}
         for mode in self.model.scenarioData['modeData'].keys():
             fig.add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=1, legendgroup="Mode Split", mode='lines')
             self.__dataToHandle['modeSplit']['current'][mode] = fig.data[-1]
@@ -108,6 +115,10 @@ class Interact:
             fig.add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=2, legendgroup="Mode Split", mode='lines',
                             showlegend=False)
             self.__dataToHandle['modeSplit']['ref'][mode] = fig.data[-1]
+            fig.data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+            fig.add_scatter(x=[], y=[], visible=True, name=mode, row=6, col=1, legendgroup="Mode Split", mode='lines',
+                            showlegend=False)
+            self.__dataToHandle['modeSplitDiff'][mode] = fig.data[-1]
             fig.data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
         for mode in self.model.scenarioData['modeData'].keys():
             self.__dataToHandle['modeSpeed']['current'][mode] = dict()
@@ -132,7 +143,7 @@ class Interact:
                         name='Microtype ' + mID, legendgroup="Costs", showlegend=False)
             self.__dataToHandle['cost']['ref'][mID] = fig.data[-1]
             fig.data[-1].marker.color = self.colors[mID]
-            fig.add_bar(x=['User', 'Operator', 'Lane dedication'], y=[0.] * 3, visible=True, row=5, col=1,
+            fig.add_bar(x=['User', 'Operator', 'Lane dedication'], y=[0.] * 3, visible=True, row=7, col=1,
                         name='Microtype ' + mID, legendgroup="Costs", showlegend=False)
             self.__dataToHandle['costDiff'][mID] = fig.data[-1]
             fig.data[-1].marker.color = self.colors[mID]
@@ -147,13 +158,21 @@ class Interact:
         fig['layout']['yaxis5']['title'] = 'Mode speed (m/s)'
         fig['layout']['xaxis6']['title'] = 'Time (hr)'
         fig['layout']['yaxis7']['title'] = 'Cost'
-        fig['layout']['yaxis9']['title'] = 'Difference in cost'
+        fig['layout']['yaxis9']['title'] = 'Difference in auto speed'
+        fig['layout']['xaxis9']['title'] = 'Time (hr)'
+        fig['layout']['yaxis11']['title'] = 'Difference in mode split'
+        fig['layout']['xaxis11']['title'] = 'Time (hr)'
+        fig['layout']['yaxis13']['title'] = 'Difference in cost'
 
     def generateGridSpec(self):
-        rerunModel = widgets.Button(description="Calculate Costs")
+        rerunModel = widgets.Button(description="Calculate Costs",
+                                    tooltip="Click to run the model with your given inputs",
+                                    layout=Layout(width='100%', height='80%', justify_content='center'))
         rerunModel.on_click(self.updateCosts)
 
-        setRef = widgets.Button(description="Update reference")
+        setRef = widgets.Button(description="Update reference",
+                                tooltip='Click to update reference plots on right',
+                                layout=Layout(width='100%', height='80%'))
         setRef.on_click(self.copyCurrentToRef)
 
         populationStack = []
@@ -190,7 +209,8 @@ class Interact:
                              self.model.scenarioData['subNetworkDataFull'].Dedicated, :]
             self.__microtypeToBusNetworkID[mID] = initialBusData
 
-            dedicatedStack.append(widgets.FloatSlider(value=0, min=0, max=1.0, step=0.02, description=mID))
+            dedicatedStack.append(
+                widgets.FloatSlider(value=0, min=0, max=1.0, step=0.02, description="Microtype " + mID))
             dedicatedStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[dedicatedStack[-1].model_id] = ('dedicated', mID)
 
@@ -199,7 +219,7 @@ class Interact:
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             busServiceData = self.model.scenarioData['modeData']['bus'].loc[mID]
             self.__microtypeToBusService[mID] = busServiceData
-            headwayStack.append(widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description=mID))
+            headwayStack.append(widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description="Microtype " + mID))
             headwayStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[headwayStack[-1].model_id] = ('headway', mID)
 
@@ -208,7 +228,7 @@ class Interact:
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             busServiceData = self.__microtypeToBusService[mID]
             coverageStack.append(widgets.FloatSlider(value=busServiceData.CoveragePortion, min=0.02, max=1.0, step=0.02,
-                                                     description=mID))
+                                                     description="Microtype " + mID))
             coverageStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[coverageStack[-1].model_id] = ('headway', mID)
 
@@ -235,7 +255,9 @@ class Interact:
         )
         self.__plotStateWidget.observe(self.updatePlots, names="value")
 
-        hardReset = widgets.Button(description="Reset to defaults")
+        hardReset = widgets.Button(description="Reset model state",
+                                   tooltip="Click if everything is broken",
+                                   layout=Layout(width='100%', height='80%'))
         hardReset.on_click(self.hardReset)
 
         gs[:, 0] = accordion
@@ -262,9 +284,10 @@ class Interact:
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'Headway'] = value.new
         if changeType[0] == 'coverage':
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = value.new
+            self.model.readFiles()
         if changeType[0] == 'population':
             mask = (self.model.scenarioData['populations']['MicrotypeID'] == changeType[1][0]) & (
-                        self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])
+                    self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])
             if sum(mask) == 1:
                 self.model.scenarioData['populations'].loc[mask, 'Population'] = value.new
                 self.model.updatePopulation()
@@ -337,18 +360,38 @@ class Interact:
         for mID, plot in self.__dataToHandle['costDiff'].items():
             yRef = np.array(self.__dataToHandle['cost']['ref'][mID].y)
             yCurrent = np.array(self.__dataToHandle['cost']['current'][mID].y)
-            plot.y = yCurrent - yRef
+            if len(yRef) == 0:
+                plot.y = yCurrent * 0.0
+            else:
+                plot.y = yCurrent - yRef
 
+        for mode, plot in self.__dataToHandle['modeSplitDiff'].items():
+            yRef = np.array(self.__dataToHandle['modeSplit']['ref'][mode].y)
+            yCurrent = np.array(self.__dataToHandle['modeSplit']['current'][mode].y)
+            if len(yRef) == 0:
+                plot.y = yCurrent * 0.0
+            else:
+                plot.y = yCurrent - yRef
+            plot.x = self.__dataToHandle['modeSplit']['current'][mode].x
+
+        for mID, plot in self.__dataToHandle['speedDiff'].items():
+            yRef = np.array(self.__dataToHandle['speed']['ref'][mID].y)
+            yCurrent = np.array(self.__dataToHandle['speed']['current'][mID].y)
+            if len(yRef) == 0:
+                plot.y = yCurrent * 0.0
+            else:
+                plot.y = yCurrent - yRef
+            plot.x = self.__dataToHandle['speed']['current'][mID].x
 
     def copyCurrentToRef(self, message=None):
         for plotType, plots in self.__dataToHandle.items():
-            if plotType == "modeSpeed":
+            if plotType.endswith("Diff"):
+                continue
+            elif plotType == "modeSpeed":
                 for mode, group in plots['current'].items():
                     for line, value in group.items():
                         plots['ref'][mode][line].y = value.y
                         plots['ref'][mode][line].x = value.x
-            elif plotType == "costDiff":
-                continue
             else:
                 for line, value in plots['current'].items():
                     plots['ref'][line].y = value.y
@@ -359,12 +402,26 @@ class Interact:
                     # yRef = np.array(self.__dataToHandle['cost']['ref'][line].y)
                     # yCurrent = np.array(self.__dataToHandle['cost']['current'][line].y)
                     self.__dataToHandle['costDiff'][line].y = [0] * len(self.__dataToHandle['cost']['current'][line].y)
+            if plotType == "modeSplitDiff":
+                for line in plots.keys():
+                    # yRef = np.array(self.__dataToHandle['cost']['ref'][line].y)
+                    # yCurrent = np.array(self.__dataToHandle['cost']['current'][line].y)
+                    self.__dataToHandle['modeSplitDiff'][line].y = [0] * len(
+                        self.__dataToHandle['modeSplit']['current'][line].y)
+            if plotType == "speedDiff":
+                for line in plots.keys():
+                    # yRef = np.array(self.__dataToHandle['cost']['ref'][line].y)
+                    # yCurrent = np.array(self.__dataToHandle['cost']['current'][line].y)
+                    self.__dataToHandle['speedDiff'][line].y = [0] * len(
+                        self.__dataToHandle['speed']['current'][line].y)
 
     def init(self):
         self.updateCosts()
         self.copyCurrentToRef()
 
-    def hardReset(self):
+    def hardReset(self, message=None):
         self.model.scenarioData.loadData()
         self.model.scenarioData.loadModeData()
+        self.model.resetNetworks()
         self.model.readFiles()
+        self.updateCosts()

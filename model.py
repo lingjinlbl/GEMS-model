@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, Bounds
 from scipy.optimize import shgo, root
+import ipywidgets as widgets
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -502,9 +503,9 @@ class Model:
 
     def initializeTimePeriod(self, timePeriod: str, override=False):
         self.__currentTimePeriod = timePeriod
-        if timePeriod not in self.__microtypes:
-            print("-------------------------------")
-            print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
+        # if timePeriod not in self.__microtypes:
+        #     print("-------------------------------")
+        #     print("|  Loading time period ", timePeriod, " ", self.__timePeriods.getTimePeriodName(timePeriod))
         self.microtypes.importMicrotypes(override)
         self.__originDestination.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
@@ -668,7 +669,7 @@ class Model:
 
     def updatePopulation(self):
         for timePeriod, durationInHours in self.__timePeriods:
-            self.setTimePeriod(timePeriod, init=False)
+            self.setTimePeriod(timePeriod, preserve=True)
             self.demand.updateTripGeneration(self.microtypes)
 
     def collectAllCharacteristics(self):
@@ -782,13 +783,23 @@ class Model:
         return dedicationCostsByMicrotype
 
 
+def startBar():
+    modelInput = widgets.Dropdown(
+                    options=['One microtype toy model', '4 microtype toy model', 'Geotype A', 'Geotype B'],
+                    value='4 microtype toy model',
+                    description='Input data:',
+                    disabled=False,
+                    )
+    lookup = {'One microtype toy model':'input-data-simpler',
+              '4 microtype toy model':'input-data',
+              'Geotype A':'input-data-geotype-A',
+              'Geotype B':'input-data-geotype-B'}
+    return modelInput, lookup
 
 
 if __name__ == "__main__":
     model = Model("input-data")
     model.interact.init()
-
-
 
     obj = Mock()
     obj.value = 0.25

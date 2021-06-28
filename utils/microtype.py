@@ -362,7 +362,7 @@ class MicrotypeCollection:
                 minimumProduction = criticalV * criticalDensity
                 v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
             if np.any(v_out > v_0):
-                print("WHY TOO FASST?")
+                print("WHY TOO FAST?")
                 v_out[v_out > v_0] = v_0[v_out > v_0]
             return v_out
 
@@ -381,7 +381,7 @@ class MicrotypeCollection:
             return os
 
         def spillback(n: np.ndarray, demand: np.ndarray, inflow: np.ndarray, outflow: np.ndarray,
-                      dt: float) -> (np.ndarray, np.ndarray):
+                      dt: float):
 
             # criticalN = criticalDensity * (N_0 - n_other)
             # overLimit = requestedN - criticalN
@@ -453,7 +453,7 @@ class MicrotypeCollection:
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
         dt = self.__timeStepInSeconds
-        if True:
+        if False:
 
             X = np.transpose(self.transitionMatrix.matrix.values)
 
@@ -599,47 +599,35 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, n
 
     N[:, 0] = n_init
 
-    def v(n, v_0, n_0, n_other, minspeed=0.005):
+    def v(n, v_0, n_0, n_other, criticalDensity=0.9):
         n_eff = n + n_other
-        vOut = v_0 * (1. - n_eff / n_0)
-        vOut[vOut < minspeed] = minspeed
-        vOut[vOut > v_0] = v_0[vOut > v_0]
-        return vOut
+        density = n_eff / n_0
+        v_out = v_0 * (1. - n_eff / n_0)
+        if np.any(density > criticalDensity):
+            criticalV = v_0[density > criticalDensity] * (1. - criticalDensity)
+            minimumProduction = criticalV * criticalDensity
+            v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
+        if np.any(v_out > v_0):
+            print("WHY TOO FAST?")
+            v_out[v_out > v_0] = v_0[v_out > v_0]
+        return v_out
 
     def outflow(n, L, v_0, n_0, n_other):
-        return v(n, v_0, n_0, n_other, 0.005) * n / L
+        return v(n, v_0, n_0, n_other) * n / L
 
     def inflow(n, X, L, v_0, n_0, n_other):
-        os = X @ (v(n, v_0, n_0, n_other, 0.005) * n / L)
+        os = X @ (v(n, v_0, n_0, n_other) * n / L)
         return os
 
-    def spillback(n, N_0, demand, inflow, outflow, dt, n_other=0.0, criticalDensity=0.9):
+    def spillback(n, N_0, demand, inflow, outflow, dt):
         requestedN = (demand + inflow - outflow) * dt + n
-        criticalN = criticalDensity * (N_0 - n_other)
-        overLimit = requestedN > criticalN
-        counter = 0
-        vals = np.linspace(criticalDensity, 1.0, 5)
-        while np.any(overLimit):
-            if np.all(overLimit):
-                if counter <= 1:
-                    criticalDensity = vals[counter]
-                    criticalN = criticalDensity * (N_0 - n_other)
-                    counter += 1
-                else:
-                    return criticalN
-            totalSpillback = np.sum(requestedN[overLimit] - criticalN[overLimit])
-            toBeLimited = inflow[~overLimit]
-            requestedN[~overLimit] += inflow[~overLimit] * totalSpillback / np.sum(
-                toBeLimited)  # TODO: Matrix math here?
-            requestedN[overLimit] = criticalN[overLimit]
-            overLimit = (requestedN / N_0) > criticalN
         return requestedN
 
     for t in np.arange(nTimeSteps - 1):
         n_t = N[:, t]
         infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
         outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-        n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt, n_other, 1.0)  # CHANGE BACK TO n_other
+        n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt)  # CHANGE BACK TO n_other
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
 
