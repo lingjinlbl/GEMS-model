@@ -19,7 +19,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,Type,vMax,avgLinkLength,d
 52,4,Bus-Bike,True,0.0,Road,16.0,50.0,0.145
 53,4,Rail,True,1113444.3548718079,Rail,20.0,50.0,0.145
 54,4,Walk,True,425945185.2106269,Sidewalk,1.4,50.0,0.145
-55,5,Auto-Bus-Bike,False,30912246.32004745,Road,19.0,50.0,0.145
+55,5,Auto-Bus-Bike,False,30912246.32004745,Road,21.0,50.0,0.18
 56,5,Bike,True,0.0,BikeLane,4.2,50.0,0.145
 57,5,Bus-Bike,True,0.0,Road,16.0,50.0,0.145
 58,5,Rail,True,64645.062053125286,Rail,20.0,50.0,0.145

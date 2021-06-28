@@ -574,7 +574,7 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        sol = root(self.g, startingPoint, method='df-sane', tol=0.00001, options={'maxiter': 150})
+        sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 100})
         # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
         fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
 
@@ -810,7 +810,7 @@ def startBar():
     lookup = {'One microtype toy model': 'input-data-simpler',
               '4 microtype toy model': 'input-data',
               'Geotype A': 'input-data-geotype-A',
-              'Geotype A': 'input-data-geotype-B',
+              'Geotype B': 'input-data-geotype-B',
               'Geotype C': 'input-data-geotype-C'}
     return modelInput, lookup
 
