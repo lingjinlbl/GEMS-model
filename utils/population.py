@@ -166,7 +166,6 @@ class Population:
         if (homeMicrotypeID, populationGroupType) in self.__populationGroups:
             return self.__populationGroups[homeMicrotypeID, populationGroupType].population
         else:
-            print("OH NO, no population group ", populationGroupType, " in microtype ", homeMicrotypeID)
             return 0
 
     def importPopulation(self, populations: pd.DataFrame, populationGroups: pd.DataFrame):

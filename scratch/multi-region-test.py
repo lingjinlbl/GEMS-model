@@ -13,32 +13,23 @@ model.scenarioData['populationGroups'].loc[
 model.scenarioData['populationGroups'].loc[
     model.scenarioData['populationGroups']['Mode'] == "walk", "BetaTravelTime"] = -0.05
 model.scenarioData['populationGroups'].loc[
-    model.scenarioData['populationGroups']['Mode'] == "bike", "BetaTravelTime"] = -0.05
+    model.scenarioData['populationGroups']['Mode'] == "bike", "BetaTravelTime"] = -0.08
 model.scenarioData['populationGroups'].loc[
     model.scenarioData['populationGroups']['Mode'] == "rail", "BetaTravelTime"] = -0.03
 model.readFiles()
 
 
 initialDistance = model.scenarioData['subNetworkData'].loc[1, "Length"]
-busLaneDistance = 7500
+busLaneDistance = 0
 
 model.scenarioData['subNetworkData'].at[9, "Length"] = busLaneDistance
 model.scenarioData['subNetworkData'].at[1, "Length"] = initialDistance - busLaneDistance
 
 initialDistance = model.scenarioData['subNetworkData'].loc[4, "Length"]
-busLaneDistance = 2000
+busLaneDistance = 0
 
 model.scenarioData['subNetworkData'].at[12, "Length"] = busLaneDistance
 model.scenarioData['subNetworkData'].at[4, "Length"] = initialDistance - busLaneDistance
-
-d = 1000
-# model.updateTimePeriodDemand('2', d)
-# model.updateTimePeriodDemand('3', d)
-
-model.updateTimePeriodDemand('4', d)
-model.updateTimePeriodDemand('5', d)
-model.updateTimePeriodDemand('6', d)
-model.updateTimePeriodDemand('7', d)
 
 
 vectorUserCosts, utils = model.collectAllCharacteristics()
@@ -54,7 +45,7 @@ for ind, m in enumerate(model.microtypes):
     axs[0, ind].plot(x, y1, color = "#800080")
     axs[0, ind].plot(x, y2, color = "#00DBFF")
     axs[1, ind].plot(x, y1 - y2, color="#E56717")
-    axs[2, ind].plot(x[:-1], np.interp(y1, y2, x)[:-1] / 60. - x[:-1] / 60., '#ED4337')
+    axs[2, ind].plot(x[:-1], np.interp(y1, y2, x)[:-1] * 60. - x[:-1] * 60., '#ED4337')
     axs[0, ind].set_title("Microtype " + m[0])
 
     axs[3, ind].clear()

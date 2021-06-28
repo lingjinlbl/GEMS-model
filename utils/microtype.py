@@ -353,7 +353,7 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other, criticalDensity=0.9) -> np.ndarray:
+        def v(n, v_0, n_0, n_other, criticalDensity=0.97) -> np.ndarray:
             n_eff = n + n_other
             density = n_eff / n_0
             v_out = v_0 * (1. - n_eff / n_0)
@@ -497,8 +497,8 @@ class MicrotypeCollection:
             outflows = vs.copy()
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
-        averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
-        # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
+        averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
         # averageSpeeds = np.min(vs, axis=1)
         # print('----new iter---')

@@ -5,14 +5,14 @@ from collections import OrderedDict
 from copy import deepcopy
 from itertools import product
 from sys import stdout
-from mock import Mock
 
+import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from mock import Mock
 from scipy.optimize import minimize, Bounds
 from scipy.optimize import shgo, root
-import ipywidgets as widgets
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -574,7 +574,7 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 50})
+        sol = root(self.g, startingPoint, method='df-sane', tol=0.00001, options={'maxiter': 150})
         # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
         fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
 
@@ -692,7 +692,7 @@ class Model:
             timePeriod = self.__currentTimePeriod
         return pd.DataFrame(self.__microtypes[timePeriod].getModeSpeeds())
 
-    def plotAllDynamicStats(self, type):
+    def plotAllDynamicStats(self, type, microtype=None):
         ts = []
         vs = []
         ns = []
@@ -738,20 +738,30 @@ class Model:
         #     # plt.plot(x, y)
         #     return x, y
         elif type.lower() == "modes":
-            x = np.cumsum([0] + [val for val in self.timePeriods().values()])
-            y = np.vstack([self.getModeSplit('0')] + [self.getModeSplit(p) for p in self.timePeriods().keys()])
-            return x, y
+            if microtype is None:
+                x = np.cumsum([0] + [val for val in self.timePeriods().values()])
+                y = np.vstack([self.getModeSplit('0')] + [self.getModeSplit(p) for p in self.timePeriods().keys()])
+                return x, y
+            else:
+                x = np.cumsum([0] + [val for val in self.timePeriods().values()])
+                y = np.vstack(
+                    [self.getModeSplit('0', microtypeID=microtype)] + [self.getModeSplit(p, microtypeID=microtype) for p
+                                                                       in self.timePeriods().keys()])
+                return x, y
         elif type.lower() == "modespeeds":
             x = np.cumsum([0] + [val for val in self.timePeriods().values()])
-            y = pd.concat([self.getModeSpeeds('0').stack()] + [self.getModeSpeeds(val).stack() for val in self.timePeriods().keys()], axis=1)
+            y = pd.concat([self.getModeSpeeds('0').stack()] + [self.getModeSpeeds(val).stack() for val in
+                                                               self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
             userCosts, operatorCosts, vectorUserCosts = self.collectAllCosts()
             x = list(self.microtypeIdToIdx.keys())
-            userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(level='homeMicrotype').sum(axis=0)
+            userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
+                level='homeMicrotype').sum(axis=0)
             operatorCostsByMicrotype = operatorCosts.toDataFrame().sum(axis=1)
             laneDedicationCostsByMicrotype = self.getDedicationCostByMicrotype()
-            y = pd.concat({'User': -userCostsByMicrotype, 'Operator': operatorCostsByMicrotype, 'Lane Dedication': laneDedicationCostsByMicrotype['cost']}).unstack()
+            y = pd.concat({'User': -userCostsByMicrotype, 'Operator': operatorCostsByMicrotype,
+                           'Lane Dedication': laneDedicationCostsByMicrotype['cost']}).unstack()
             return x, y
         else:
             print('WTF')
@@ -767,33 +777,41 @@ class Model:
         dfs = {}
         for mode, idx in self.modeToIdx.items():
             data = userCostMatrix[:, :, idx]
-            df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(), names=['homeMicrotype', 'populationGroupType', 'tripPurpose']),
-                              columns=pd.MultiIndex.from_tuples(self.odiTuples(), names=['originMicrotype', 'destinationMicrotype', 'distanceBin']))
+            df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(),
+                                                                    names=['homeMicrotype', 'populationGroupType',
+                                                                           'tripPurpose']),
+                              columns=pd.MultiIndex.from_tuples(self.odiTuples(),
+                                                                names=['originMicrotype', 'destinationMicrotype',
+                                                                       'distanceBin']))
             dfs[mode] = df
         return pd.concat(dfs)
 
     def getDedicationCostByMicrotype(self):
-        updatedNetworkData = self.scenarioData["subNetworkData"].merge(self.scenarioData["subNetworkDataFull"][['Dedicated', 'ModesAllowed', 'MicrotypeID']], left_index=True, right_index=True)
+        updatedNetworkData = self.scenarioData["subNetworkData"].merge(
+            self.scenarioData["subNetworkDataFull"][['Dedicated', 'ModesAllowed', 'MicrotypeID']], left_index=True,
+            right_index=True)
         dedicationCosts = self.scenarioData["laneDedicationCost"]
         dedicationCostsByMicrotype = pd.DataFrame(0, index=list(self.microtypeIdToIdx.keys()), columns=['cost'])
         for row in updatedNetworkData.itertuples():
             if row.Dedicated:
                 if (row.MicrotypeID, row.ModesAllowed) in dedicationCosts.index:
-                    dedicationCostsByMicrotype.loc[row.MicrotypeID, 'cost'] += row.Length * dedicationCosts.loc[(row.MicrotypeID, row.ModesAllowed),'CostPerMeter']
+                    dedicationCostsByMicrotype.loc[row.MicrotypeID, 'cost'] += row.Length * dedicationCosts.loc[
+                        (row.MicrotypeID, row.ModesAllowed), 'CostPerMeter']
         return dedicationCostsByMicrotype
 
 
 def startBar():
     modelInput = widgets.Dropdown(
-                    options=['One microtype toy model', '4 microtype toy model', 'Geotype A', 'Geotype B'],
-                    value='4 microtype toy model',
-                    description='Input data:',
-                    disabled=False,
-                    )
-    lookup = {'One microtype toy model':'input-data-simpler',
-              '4 microtype toy model':'input-data',
-              'Geotype A':'input-data-geotype-A',
-              'Geotype B':'input-data-geotype-B'}
+        options=['One microtype toy model', '4 microtype toy model', 'Geotype A', 'Geotype B', 'Geotype C'],
+        value='4 microtype toy model',
+        description='Input data:',
+        disabled=False,
+    )
+    lookup = {'One microtype toy model': 'input-data-simpler',
+              '4 microtype toy model': 'input-data',
+              'Geotype A': 'input-data-geotype-A',
+              'Geotype A': 'input-data-geotype-B',
+              'Geotype C': 'input-data-geotype-C'}
     return modelInput, lookup
 
 

@@ -190,7 +190,6 @@ class CollectedChoiceCharacteristics:
             modes = set.intersection(*common_modes)
             for mode in self.modes:
                 if mode not in modes:
-                    print("Excluding mode ", mode, "in ODI", odIndex)
                     self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
             self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
                                                        data=self.__numpy[self.odiToIdx[odIndex], :, :])
