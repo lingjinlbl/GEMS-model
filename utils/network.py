@@ -702,8 +702,6 @@ class BusMode(Mode):
                 self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength, self.getRouteLength() / n.avgLinkLength /100)
                 n.setN(self.name, self._N_eff[n])
                 n.getNetworkStateData().nonAutoAccumulation += self._N_eff[n]
-            else:
-                print("BAD WHY IS THIS SPEED NEGATIVE")
         self.updateCommercialSpeed()
 
     def updateCommercialSpeed(self):
