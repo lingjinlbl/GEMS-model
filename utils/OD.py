@@ -280,11 +280,12 @@ class DemandIndex:
         self.homeMicrotype = homeMicrotypeID
         self.populationGroupType = populationGroupTypeID
         self.tripPurpose = tripPurposeID
-        self.__hash = hash((self.homeMicrotype, self.populationGroupType, self.tripPurpose))
+        self.__hash = hash((self.homeMicrotype.lower(), self.populationGroupType.lower(), self.tripPurpose.lower()))
 
     def __eq__(self, other):
-        if (self.homeMicrotype == other.homeMicrotype) & (self.populationGroupType == other.populationGroupType) & (
-                self.tripPurpose == other.tripPurpose):
+        if (self.homeMicrotype.lower() == other.homeMicrotype.lower()) & (
+                self.populationGroupType.lower() == other.populationGroupType.lower()) & (
+                self.tripPurpose.lower() == other.tripPurpose.lower()):
             return True
         else:
             return False

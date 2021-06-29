@@ -168,6 +168,41 @@ class Population:
         else:
             return 0
 
+    def getUtilityParam(self, param: str, populationGroupTypeID: str, tripPurposeID: str, mode: str, mID=None):
+        if mID is None:
+            mIDs = self.__scenarioData.microtypeIds
+        else:
+            mIDs = [mID]
+        vals = []
+        out = []
+
+        for mID in mIDs:
+            di = DemandIndex(mID, populationGroupTypeID, tripPurposeID)
+            if di in self.diToIdx:
+                vals.append(mID)
+                out.append(self.__numpy[self.diToIdx[di], self.modeToIdx[mode], self.paramToIdx[param]])
+        return vals, out
+
+    def setUtilityParam(self, value: float, param: str, populationGroupTypeID=None, tripPurposeID=None, mode=None):
+        if populationGroupTypeID is None:
+            populationGroupTypeIDs = self.__scenarioData['populationGroups'].PopulationGroupTypeID.unique()
+        else:
+            populationGroupTypeIDs = [populationGroupTypeID]
+        if tripPurposeID is None:
+            tripPurposeIDs = self.__scenarioData['populationGroups'].TripPurposeID.unique()
+        else:
+            tripPurposeIDs = [tripPurposeID]
+        if mode is None:
+            modes = list(self.__scenarioData.modeToIdx.keys())
+        else:
+            modes = [mode]
+        for mID in self.__scenarioData.microtypeIds:
+            for popGroup in populationGroupTypeIDs:
+                for tp in tripPurposeIDs:
+                    for mode in modes:
+                        di = DemandIndex(mID, popGroup, tp)
+                        self.__numpy[self.diToIdx[di], self.modeToIdx[mode], self.paramToIdx[param]] = value
+
     def importPopulation(self, populations: pd.DataFrame, populationGroups: pd.DataFrame):
         for row in populations.itertuples():
             homeMicrotypeID = row.MicrotypeID

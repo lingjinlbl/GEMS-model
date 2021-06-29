@@ -245,6 +245,10 @@ class ScenarioData:
     def microtypeIdToIdx(self):
         return self.__microtypeIdToIdx
 
+    @property
+    def microtypeIds(self):
+        return list(self.__microtypeIdToIdx.keys())
+
     def __setitem__(self, key: str, value):
         self.data[key] = value
 
@@ -799,6 +803,12 @@ class Model:
                         (row.MicrotypeID, row.ModesAllowed), 'CostPerMeter']
         return dedicationCostsByMicrotype
 
+    def updateUtilityParam(self, value: float, param: str, populationGroupTypeID=None, tripPurposeID=None, mode=None):
+        self.__population.setUtilityParam(value, param, populationGroupTypeID, tripPurposeID, mode)
+
+    def getUtilityParam(self, param: str, populationGroupTypeID: str, tripPurposeID: str, mode: str, mID=None):
+        return self.__population.getUtilityParam(param, populationGroupTypeID, tripPurposeID, mode, mID)
+
 
 def startBar():
     modelInput = widgets.Dropdown(
@@ -818,6 +828,7 @@ def startBar():
 if __name__ == "__main__":
     model = Model("input-data")
     model.interact.init()
+    model.updateUtilityParam(-0.3, "travel_time")
 
     obj = Mock()
     obj.value = 0.25

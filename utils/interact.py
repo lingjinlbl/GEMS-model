@@ -13,6 +13,7 @@ class Interact:
     def __init__(self, model):
         self.__model = model
         self.__colors = self.generateColorDict()
+        self.__paramNames = self.generateParamDict()
         self.__fig = widgets.Accordion(children=[])  # widgets.VBox([])
         self.__modeToHandle = dict()
         self.__dataToHandle = dict()
@@ -23,10 +24,19 @@ class Interact:
         self.__microtypeToBusService = dict()
         self.__widgetIDtoSubNetwork = dict()
         self.__widgetIDtoField = dict()
+        self.__utilDropdownStatus = dict()
+        self.__widgetIDtoUtil = dict()
         self.__plotStateWidget = None
         self.__loadingWidget = None
         self.__out = None  # print(*a, file = sys.stdout)
         self.__grid = self.generateGridSpec()
+
+    def generateParamDict(self):
+        out = {'Constant': 'intercept',
+               'Wait time': 'wait_time',
+               'In vehicle time': 'travel_time',
+               'Access time': 'access_time'}
+        return out
 
     def generateColorDict(self):
         modes = col.qualitative.Bold
@@ -245,6 +255,53 @@ class Interact:
             microtypePopulations.append(widgets.VBox(popVBox))
             populationStack.append(widgets.HBox(microtypePopulations))
 
+        utilStack = []
+        allTripTypes = self.model.scenarioData['populationGroups'].TripPurposeID.unique()
+        modes = list(self.model.modeToIdx.keys())
+        for groupID in self.model.scenarioData['populationGroups'].PopulationGroupTypeID.unique():
+            self.__utilDropdownStatus[groupID] = dict()
+            label = widgets.HTML(
+                value="<center><b>Population group</b><br>" + groupID + "</center>"
+            )
+            tripTypeDropdown = widgets.Dropdown(
+                options=allTripTypes,
+                value=allTripTypes[0],
+                description='Trip purpose:',
+                disabled=False,
+                layout={'vertical_align': 'middle', 'width': '2.8in'},
+                style={'description_width': '1.25in'}
+            )
+            self.__utilDropdownStatus[groupID]['tripType'] = tripTypeDropdown
+            self.__widgetIDtoUtil[tripTypeDropdown.model_id] = ('tripType', groupID)
+            tripTypeDropdown.observe(self.changeUtilDropdown)
+            modeDropdown = widgets.Dropdown(
+                options=modes,
+                value=modes[0],
+                description='Mode:',
+                layout={'vertical_align': 'middle', 'width': '2.8in'},
+                style={'description_width': '1.25in'}
+            )
+            self.__utilDropdownStatus[groupID]['mode'] = modeDropdown
+            self.__widgetIDtoUtil[modeDropdown.model_id] = ('mode', groupID)
+            modeDropdown.observe(self.changeUtilDropdown)
+            paramDropdown = widgets.Dropdown(
+                options=['Constant', 'Wait time', 'In vehicle time', 'Access time'],
+                value='Constant',
+                description='Utility param:',
+                layout={'vertical_align': 'middle', 'width': '2.8in'},
+                style={'description_width': '1.25in'}
+            )
+            self.__utilDropdownStatus[groupID]['param'] = paramDropdown
+            self.__widgetIDtoUtil[paramDropdown.model_id] = ('param', groupID)
+            paramDropdown.observe(self.changeUtilDropdown)
+            valueBox = widgets.FloatText(value=0.0, step=0.05, description="Value: ", disabled=False,
+                                         layout={'vertical_align': 'middle', 'width': '1.8in'})
+            self.__utilDropdownStatus[groupID]['value'] = valueBox
+            self.__widgetIDtoUtil[valueBox.model_id] = ('value', groupID)
+            valueBox.observe(self.changeUtilValue)
+            utilStack.append(
+                widgets.HBox([label, widgets.VBox([tripTypeDropdown, modeDropdown, paramDropdown]), valueBox]))
+
         MFDstack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             initialAutoData = self.model.scenarioData['subNetworkDataFull'].loc[
@@ -314,8 +371,9 @@ class Interact:
             coverageStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[coverageStack[-1].model_id] = ('headway', mID)
 
-        dataAccordion = widgets.Accordion([widgets.VBox(populationStack), widgets.VBox(MFDstack)])
-        for ind, title in enumerate(('Population', 'MFD Parameters')):
+        dataAccordion = widgets.Accordion(
+            [widgets.VBox(populationStack), widgets.VBox(utilStack), widgets.VBox(MFDstack)])
+        for ind, title in enumerate(('Population', 'Utility parameters', 'MFD parameters')):
             dataAccordion.set_title(ind, title)
 
         scenarioAccordion = widgets.Accordion(
@@ -349,17 +407,17 @@ class Interact:
         )
         self.__plotStateWidget.observe(self.updatePlots, names="value")
 
-        hardReset = widgets.Button(description="Reset model state",
-                                   tooltip="Click if everything is broken",
-                                   layout=Layout(width='100%', height='0.5in'))
-        hardReset.on_click(self.hardReset)
+        # hardReset = widgets.Button(description="Reset model state",
+        #                            tooltip="Click if everything is broken",
+        #                            layout=Layout(width='100%', height='0.5in'))
+        # hardReset.on_click(self.hardReset)
 
         gs[:, :2] = accordion
         # gs[0, 2] = rerunModel
         gs[0, 2] = self.__loadingWidget
         self.__out = widgets.Output(layout={'border': '1px solid black'})
         # gs[1, 2] = setRef
-        gs[1, 2] = widgets.VBox([rerunModel, setRef, hardReset])
+        gs[1, 2] = widgets.VBox([rerunModel, setRef])
         return gs
 
     def response(self, change, otherStuff=None):
@@ -440,17 +498,13 @@ class Interact:
 
         microtypeModeSplits = dict()
         for mID in self.model.microtypeIdToIdx.keys():
-            time, microtypeModeSplits[mID] = self.model.plotAllDynamicStats('modes')
+            time, microtypeModeSplits[mID] = self.model.plotAllDynamicStats('modes', microtype=mID)
 
         for modeID, (mode, group) in enumerate(self.__dataToHandle['modeSplit']['current'].items()):
             for mID, handle in group.items():
                 handle.y = microtypeModeSplits[mID][:, modeID]
                 handle.x = time
                 handle.visible = True
-        # for ind, (mode, handle) in enumerate(self.__dataToHandle['modeSplit']['current'].items()):
-        #     handle.y = splits[:, ind]
-        #     handle.x = time
-        #     handle.visible = True
 
         time, modeSpeeds = self.model.plotAllDynamicStats('modeSpeeds')
         for mode, group in self.__dataToHandle['modeSpeed']['current'].items():
@@ -522,6 +576,28 @@ class Interact:
                     # yCurrent = np.array(self.__dataToHandle['cost']['current'][line].y)
                     self.__dataToHandle['speedDiff'][line].y = [0] * len(
                         self.__dataToHandle['speed']['current'][line].y)
+
+    def changeUtilDropdown(self, message=None):
+        menu, popGroup = self.__widgetIDtoUtil[message.owner.model_id]
+        tripPurpose = self.__utilDropdownStatus[popGroup]['tripType'].value
+        mode = self.__utilDropdownStatus[popGroup]['mode'].value
+        param = self.__paramNames[self.__utilDropdownStatus[popGroup]['param'].value]
+        mIDs, vals = self.model.getUtilityParam(param, popGroup, tripPurpose, mode)
+        self.__utilDropdownStatus[popGroup]['value'].value = vals[0]
+
+    def changeUtilValue(self, message=None):
+        menu, popGroup = self.__widgetIDtoUtil[message.owner.model_id]
+        tripPurpose = self.__utilDropdownStatus[popGroup]['tripType'].value
+        mode = self.__utilDropdownStatus[popGroup]['mode'].value
+        param = self.__paramNames[self.__utilDropdownStatus[popGroup]['param'].value]
+        if isinstance(message.new, dict):
+            if 'value' in message.new:
+                val = message.new['value']
+                self.model.updateUtilityParam(val, param, popGroup, tripPurpose, mode)
+        elif type(message.new) == int or float:
+            val = message.new
+            self.model.updateUtilityParam(val, param, popGroup, tripPurpose, mode)
+
 
     def init(self):
         self.updateCosts()
