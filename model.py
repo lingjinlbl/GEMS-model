@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from mock import Mock
-from scipy.optimize import minimize, Bounds
-from scipy.optimize import shgo, root
+from scipy.optimize import minimize, Bounds, shgo, root
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -111,6 +110,7 @@ class Optimizer:
         print(userCosts.total, operatorCosts.total, dedicationCosts)
         return np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts
 
+    """
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
             upperBoundsROW = list(
@@ -131,12 +131,15 @@ class Optimizer:
             return bounds
         else:
             return Bounds(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway)
+    """
 
     def x0(self) -> np.ndarray:
         network = [10.0] * self.nSubNetworks()
         headways = [300.0] * self.nModes()
         return np.array(network + headways)
 
+    """
+    This method not used
     def minimize(self):
         if self.__method == "shgo":
             return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
@@ -152,6 +155,7 @@ class Optimizer:
         # return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
         #                 options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
 
+    """
 
 class TransitScheduleModification:
     def __init__(self, headways: np.ndarray, modesAndMicrotypes: list):

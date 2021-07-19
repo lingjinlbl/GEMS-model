@@ -186,13 +186,15 @@ class CollectedChoiceCharacteristics:
         self.__distanceBins = distanceBins
         self.__numpy[:, :, self.paramToIdx['intercept']] = 1
         for odIndex, trip in trips:
-            common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
-            modes = set.intersection(*common_modes)
-            for mode in self.modes:
-                if mode not in modes:
-                    self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
-            self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
-                                                       data=self.__numpy[self.odiToIdx[odIndex], :, :])
+            if odIndex.d != 'None' and odIndex.o != 'None':
+                common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
+                modes = set.intersection(*common_modes)
+                for mode in self.modes:
+                    if mode not in modes:
+                        #print("Excluding mode ", mode, "in ODI", odIndex)
+                        self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
+                self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
+                                                           data=self.__numpy[self.odiToIdx[odIndex], :, :])
 
     def resetChoiceCharacteristics(self):
         self.__numpy[~np.isnan(self.__numpy)] *= 0.0
@@ -204,11 +206,12 @@ class CollectedChoiceCharacteristics:
         self.__broken = broken
 
         for odIndex, trip in trips:
-            common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
-            modes = set.intersection(*common_modes)
-            for mode in modes:
-                microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
-                microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
+            if odIndex.d != 'None' and odIndex.o != 'None':
+                common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
+                modes = set.intersection(*common_modes)
+                for mode in modes:
+                    microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
+                    microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
         #         newAllocation = microtypes.filterAllocation(mode, trip.allocation)
         #         for microtypeID, allocation in newAllocation.items():
         #             microtypes[microtypeID].addThroughTimeCostWait(mode,

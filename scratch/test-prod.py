@@ -22,13 +22,15 @@ for factor in range(0,105,5):
     dist = factor * original / 100.
     string = str(factor) + "pctbuslane.csv"
 
-    for timePeriod in ['morning_rush','other_time','evening_rush']:
-        a.initializeTimePeriod(timePeriod)
-        a.scenarioData['subNetworkData'].at[3, "Length"] = dist
+    #TODO - get this value from timePeriod df
+    #index of timePeriod
+    for timePeriod in [0, 1, 2, 3, 4]:
+        a.initializeTimePeriod(timePeriod) # why we are re-initialising?
+        a.scenarioData['subNetworkData'].at[3, "Length"] = dist              #
         a.scenarioData['subNetworkData'].at[1, "Length"] = original - dist
         a.findEquilibrium()
         spds[timePeriod] = a.getModeSpeeds()
-        modesplits[timePeriod] = pd.DataFrame(a.getModeSplit().toDict(), index=["Aggregate"])
+        modesplits[timePeriod] = pd.DataFrame([a.getModeSplit()], index=["Aggregate"])
         userCosts[timePeriod] = a.getModeUserCosts()
         operatorCosts[timePeriod] = a.getOperatorCosts().toDataFrame()
 
@@ -48,17 +50,17 @@ for factor in range(0,105,5):
     allModeSplits = dict()
     for timePeriod in a.scenarioData["timePeriods"].TimePeriodID.values:
         for popGroup in popGroups:
-            allModeSplits[popGroup + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, userClass=popGroup).toDict(),index=["popGroup"])
+            allModeSplits[popGroup + '_' + timePeriod] = pd.DataFrame([a.getModeSplit(timePeriod=timePeriod, userClass=popGroup)],index=["popGroup"])
 
     for timePeriod in a.scenarioData["timePeriods"].TimePeriodID.values:
         for microtype in microtypes:
-            allModeSplits[microtype + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, microtypeID=microtype).toDict(), index=["microtype"])
+            allModeSplits[microtype + '_' + timePeriod] = pd.DataFrame([a.getModeSplit(timePeriod=timePeriod, microtypeID=microtype)], index=["microtype"])
             for popGroup in popGroups:
-                allModeSplits[popGroup + '_' + microtype + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, userClass=popGroup,microtypeID=microtype).toDict(), index=["popGroupMicrotype"])
+                allModeSplits[popGroup + '_' + microtype + '_' + timePeriod] = pd.DataFrame([a.getModeSplit(timePeriod=timePeriod, userClass=popGroup,microtypeID=microtype)], index=["popGroupMicrotype"])
 
     for timePeriod in a.scenarioData["timePeriods"].TimePeriodID.values:
         for dbin in dbins:
-            allModeSplits[dbin + '_' + timePeriod] = pd.DataFrame(a.getModeSplit(timePeriod=timePeriod, distanceBin=dbin).toDict(), index=["dbin"])
+            allModeSplits[dbin + '_' + timePeriod] = pd.DataFrame([a.getModeSplit(timePeriod=timePeriod, distanceBin=dbin)], index=["dbin"])
 
     joined = pd.concat(allModeSplits)
     joined.to_csv("out/A_groupModeSplits-"+string)
