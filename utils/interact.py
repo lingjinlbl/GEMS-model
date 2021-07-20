@@ -607,9 +607,9 @@ class Interact:
         if not os.path.exists('temp'):
             os.makedirs('temp')
         modeSplit, speed, utility = self.model.toPandas()
-        modeSplit.to_csv('temp/modeSplitOutput.csv')
-        speed.to_csv('temp/speedOutput.csv')
-        utility.to_csv('temp/utilityOutput.csv')
+        modeSplit.to_csv('temp/modeSplitOutput.csv.gz')
+        speed.to_csv('temp/speedOutput.csv.gz')
+        utility.to_csv('temp/utilityOutput.csv.gz')
 
         # create a ZipFile object
         zipObj = ZipFile('temp/sample.zip', 'w')
