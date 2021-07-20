@@ -257,6 +257,18 @@ class MicrotypeCollection:
     def tripEndRateByMode(self):
         return self.__numpyDemand[:, :, 1]
 
+    def throughDistanceByModeDataFrame(self):
+        return pd.DataFrame(self.throughDistanceByMode.flatten(),
+                            index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))
+
+    def tripStartRateByModeDataFrame(self):
+        return pd.DataFrame(self.tripStartRateByMode.flatten(),
+                            index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))
+
+    def tripEndRateByModeDataFrame(self):
+        return pd.DataFrame(self.tripEndRateByMode.flatten(),
+                            index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))
+
     def updateNumpyDemand(self, data):
         np.copyto(self.__numpyDemand, data)
 
@@ -353,7 +365,7 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other, criticalDensity=0.97) -> np.ndarray:
+        def v(n, v_0, n_0, n_other, criticalDensity=0.9) -> np.ndarray:
             n_eff = n + n_other
             density = n_eff / n_0
             v_out = v_0 * (1. - n_eff / n_0)
@@ -372,9 +384,10 @@ class MicrotypeCollection:
         def outflow(n, L, v_0, n_0, n_other) -> np.ndarray:
             return v(n, v_0, n_0, n_other) * n / L
 
-        def inflow(n, X, L, v_0, n_0, n_other) -> np.ndarray:
+        def inflow(n, X, L, v_0, n_0, n_other) -> (np.ndarray, np.ndarray):
             os = X @ (v(n, v_0, n_0, n_other) * n / L)
-            return os
+            flows = X * (v(n, v_0, n_0, n_other) * n / L)  # flows.sum(axis=1) = os
+            return os, flows
 
         def stayInSame(n, X, L, v_0, n_0, n_other) -> np.ndarray:
             os = np.diag(np.diag(X)) @ (v(n, v_0, n_0, n_other) * n / L)
@@ -451,7 +464,7 @@ class MicrotypeCollection:
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
         dt = self.__timeStepInSeconds
-        if False:
+        if True:
 
             X = np.transpose(self.transitionMatrix.matrix.values)
 
@@ -460,6 +473,7 @@ class MicrotypeCollection:
             vs = np.zeros((len(self), np.size(ts)), dtype=float)
             inflows = np.zeros((len(self), np.size(ts)), dtype=float)
             outflows = np.zeros((len(self), np.size(ts)), dtype=float)
+            flowMats = np.zeros((len(self), len(self), np.size(ts)), dtype=float)
             n_t = n_init.copy()
             # Define queue of vehicles waiting to get into a given microtype
             q_t = np.zeros_like(n_t)
@@ -468,7 +482,7 @@ class MicrotypeCollection:
                 # deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
                 # otherval = deltaN + n_t
                 # n_t += deltaN
-                infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
+                infl, flowMatrix = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
                 outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
                 stay = stayInSame(n_t, X, characteristicL, V_0, N_0, n_other)
                 n_t = spillback(n_t, tripStartRate, infl, outfl, dt)  # CHANGE BACK TO n_other
@@ -476,11 +490,12 @@ class MicrotypeCollection:
                 # print(otherval, n_t)
                 # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
                 n_t[n_t < 0] = 0.0
-                #pct = n_t / N_0
+                # pct = n_t / N_0
                 ns[:, i] = n_t
                 vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
                 inflows[:, i] = infl + tripStartRate - stay
                 outflows[:, i] = outfl - stay
+                flowMats[:, :, i] = flowMatrix
                 # BELOW: This works
                 # inflows[:, i] = infl + turnedBack + tripStartRate - stay
                 # outflows[:, i] = outfl - turnedBack - stay
@@ -493,6 +508,7 @@ class MicrotypeCollection:
             vs = vectorV(ns, V_0, N_0, n_other)
             inflows = vs.copy()
             outflows = vs.copy()
+            flowMats = np.zeros((len(self), len(self), np.size(ts)), dtype=float)
 
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
         # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
@@ -520,6 +536,7 @@ class MicrotypeCollection:
                         # networkStateData.averageSpeed = averageSpeeds[idx]
                         networkStateData.inflow = np.squeeze(inflows[idx, :]) * dt
                         networkStateData.outflow = np.squeeze(outflows[idx, :]) * dt
+                        networkStateData.flowMatrix = np.squeeze(flowMats[idx, :, :]) * dt
                         networkStateData.n = np.squeeze(ns[idx, :])
                         networkStateData.v = np.squeeze(vs[idx, :])
                         networkStateData.t = np.squeeze(ts) + networkStateData.initialTime

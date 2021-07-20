@@ -299,6 +299,9 @@ class DemandIndex:
     def toTupleWith(self, other):
         return (self.homeMicrotype, self.populationGroupType, self.tripPurpose) + tuple([other])
 
+    def toTuple(self):
+        return self.homeMicrotype, self.populationGroupType, self.tripPurpose
+
     def toIndex(self):
         return pd.MultiIndex.from_tuples([(self.homeMicrotype, self.populationGroupType, self.tripPurpose)],
                                          names=('homeMicrotype', 'populationGroupType', 'tripPurpose'))
@@ -331,6 +334,13 @@ class ODindex:
 
     def __str__(self):
         return str(self.distBin) + " trip from " + self.o + " to " + self.d
+
+    def toTuple(self):
+        return self.o, self.d, self.distBin
+
+    def toIndex(self):
+        return pd.MultiIndex.from_tuples([(self.o, self.d, self.distBin)],
+                                         names=('originMicrotype', 'destinationMicrotype', 'distanceBin'))
 
 
 class Trip:

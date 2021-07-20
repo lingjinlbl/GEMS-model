@@ -199,6 +199,21 @@ class Demand:
     def validDI(self):
         return self.__validDI
 
+    def modeSplitDataFrame(self):
+        dis = pd.MultiIndex.from_tuples([di.toTuple() for di in self.diToIdx.keys()],
+                                        names=('homeMicrotype', 'populationGroupType', 'tripPurpose'))
+        odis = pd.MultiIndex.from_tuples([odi.toTuple() for odi in self.odiToIdx.keys()],
+                                         names=('originMicrotype', 'destinationMicrotype', 'distanceBin'))
+        modes = list(self.modeToIdx.keys())
+        tuples = [(a, b, c, d, e, f, g) for (a, b, c), (d, e, f), g in product(dis, odis, modes)]
+        mi = pd.MultiIndex.from_tuples(tuples, names=(
+        'homeMicrotype', 'populationGroupType', 'tripPurpose', 'originMicrotype', 'destinationMicrotype', 'distanceBin',
+        'mode'))
+        return pd.DataFrame({'Mode split': self.__modeSplitData.flatten(),
+                             'Utility': self.__currentUtility.flatten(),
+                             'Trips': np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData).flatten()},
+                            index=mi)
+
     def updateTripStartRate(self, newTripStartRate):
         self.__tripRate[self.__tripRate > 0] = newTripStartRate
         # nonZero = tripRate > 0
@@ -304,7 +319,7 @@ class Demand:
                 for mID, pct in trip.allocation:
                     # NOTE: THis doesn't actually need to be indexed by currentPopIndex
                     self.__toThroughDistance[
-                        :, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[odi.distBin]
+                    :, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[odi.distBin]
                     self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
                 self[demandIndex, odi] = ModeSplit(demandForTrips=tripRatePerHour, demandForPMT=demandForPMT,
                                                    data=self.__modeSplitData[currentPopIndex, currentODindex, :],
@@ -330,7 +345,8 @@ class Demand:
 
         for demandIndex, utilityParams in self.__population:
             od = self.__originDestination[demandIndex]
-            ratePerHourPerCapita = self.__tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
+            ratePerHourPerCapita = self.__tripGeneration[
+                                       demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
             pop = self.__population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
 
             for odi, portion in od.items():
@@ -353,6 +369,7 @@ class Demand:
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=5, utilitiesArray=None, modeSplitArray=None):
         if utilitiesArray is not None:
             np.copyto(self.__modeSplitData, modeSplitFromUtils(utilitiesArray))
+            np.copyto(self.__currentUtility, utilitiesArray)
         if modeSplitArray is not None:
             np.copyto(self.__modeSplitData, modeSplitArray)
         for microtypeID, microtype in microtypes:
@@ -475,6 +492,10 @@ class Demand:
 
     def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray) -> np.ndarray:
         newUtilities = utils(self.__population.numpy, choiceCharacteristicsArray)
+        if self.__currentUtility.size > 0:
+            np.copyto(self.__currentUtility, newUtilities)
+        else:
+            self.__currentUtility = newUtilities
         return newUtilities
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:

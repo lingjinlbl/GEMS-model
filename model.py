@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from mock import Mock
-from scipy.optimize import minimize, Bounds, shgo, root
+from scipy.optimize import root
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -156,6 +156,7 @@ class Optimizer:
         #                 options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
 
     """
+
 
 class TransitScheduleModification:
     def __init__(self, headways: np.ndarray, modesAndMicrotypes: list):
@@ -707,23 +708,30 @@ class Model:
         prods = []
         inflows = []
         outflows = []
+        matrices = []
         runningTotal = 0.0
         for id, dur in self.__timePeriods:
             # out = self.getMicrotypeCollection(id).transitionMatrixMFD(dur, self.getNetworkStateData(id),
             #                                                           self.getMicrotypeCollection(
             #                                                               id).getModeStartRatePerSecond("auto"))
             sd = self.getNetworkStateData(id)
-            t, v, n, inflow, outflow, label = sd.getAutoSpeeds()
+            t, v, n, inflow, outflow, matrix, label = sd.getAutoSpeeds()
             prods.append(sd.getAutoProduction())
             inflows.append(inflow)
             outflows.append(outflow)
             ts.append(t)
             vs.append(v)
             ns.append(n)
+            matrices.append(matrix)
+
         if type.lower() == "n":
             x = np.concatenate(ts) / 3600
             y = np.concatenate(ns)
             # plt.plot(x, y)
+            return x, y
+        elif type.lower().startswith('mat'):
+            x = np.concatenate(ts) / 3600
+            y = np.swapaxes(np.concatenate(matrices, axis=1), 0, 1)
             return x, y
         elif type.lower() == "v":
             x = np.concatenate(ts) / 3600.
@@ -839,6 +847,7 @@ if __name__ == "__main__":
 
     model.interact.modifyModel('dedication', obj)
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
+    out = model.demand.modeSplitDataFrame()
     ms = model.getModeSplit()
     # a.plotAllDynamicStats("N")
     x, y = model.plotAllDynamicStats("v")

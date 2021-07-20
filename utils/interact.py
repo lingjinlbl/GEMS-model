@@ -598,7 +598,6 @@ class Interact:
             val = message.new
             self.model.updateUtilityParam(val, param, popGroup, tripPurpose, mode)
 
-
     def init(self):
         self.updateCosts()
         self.copyCurrentToRef()
