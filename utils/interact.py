@@ -1,18 +1,14 @@
 import base64
 import os
-from urllib.request import urlopen
 from math import floor, log10
 
 import ipywidgets as widgets
-from IPython.core.display import display
-from IPython.display import FileLink
 from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.express.colors as col
 import plotly.graph_objects as go
 from ipywidgets import Layout
-from base64 import b64encode
 from plotly.subplots import make_subplots
 
 
