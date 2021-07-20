@@ -696,6 +696,34 @@ class Model:
             utilities.append(self.demand.utility(self.choice))
         return vectorUserCosts, np.stack(utilities)
 
+    def toPandas(self):
+        modeSplitData = dict()
+        speedData = dict()
+        utilityData = dict()
+        for timePeriod, durationInHours in self.__timePeriods:
+            msd = self.__demand[timePeriod].modeSplitDataFrame()
+            modeSplitData[timePeriod] = msd
+
+            sd = self.__microtypes[timePeriod].dataByModeDataFrame()
+            sd['TotalTripStarts'] = sd['TripStartsPerHour'] * durationInHours / self.nSubBins
+            sd['TotalTripEnds'] = sd['TripEndsPerHour'] * durationInHours / self.nSubBins
+            sd['TotalThroughDistance'] = sd['ThroughDistancePerHour'] * durationInHours / self.nSubBins
+            speedData[timePeriod] = sd
+
+            ud = self.__choice[timePeriod].toDataFrame()
+            utilityData[timePeriod] = ud
+
+        modeSplitData = pd.concat(modeSplitData, axis=1)
+        speedData = pd.concat(speedData, axis=1)
+        utilityData = pd.concat(utilityData, axis=1)
+
+        modeSplitData.columns.set_names(['Time Period', 'Value'], inplace=True)
+        speedData.columns.set_names(['Time Period', 'Value'], inplace=True)
+        utilityData.columns.set_names(['Time Period', 'Value','Parameter'], inplace=True)
+
+        return modeSplitData, speedData, utilityData
+
+
     def getModeSpeeds(self, timePeriod=None):
         if timePeriod is None:
             timePeriod = self.__currentTimePeriod
@@ -847,8 +875,9 @@ if __name__ == "__main__":
 
     model.interact.modifyModel('dedication', obj)
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
-    out = model.demand.modeSplitDataFrame()
+    a, b, c = model.toPandas()
     ms = model.getModeSplit()
+
     # a.plotAllDynamicStats("N")
     x, y = model.plotAllDynamicStats("v")
     plt.plot(x, y)

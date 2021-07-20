@@ -257,8 +257,12 @@ class MicrotypeCollection:
     def tripEndRateByMode(self):
         return self.__numpyDemand[:, :, 1]
 
-    def throughDistanceByModeDataFrame(self):
-        return pd.DataFrame(self.throughDistanceByMode.flatten(),
+    def dataByModeDataFrame(self):
+        out = {'TripStartsPerHour': self.tripStartRateByMode.flatten(),
+               'TripEndsPerHour': self.tripEndRateByMode.flatten(),
+               'ThroughDistancePerHour': self.throughDistanceByMode.flatten(),
+               'Speed': self.__numpySpeed.flatten()}
+        return pd.DataFrame(out,
                             index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))
 
     def tripStartRateByModeDataFrame(self):

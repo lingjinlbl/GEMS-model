@@ -1,6 +1,8 @@
 # from .microtype import MicrotypeCollection
-import numpy as np
+from itertools import product
 
+import numpy as np
+import pandas as pd
 from .misc import DistanceBins
 
 
@@ -181,6 +183,15 @@ class CollectedChoiceCharacteristics:
 
     def __getitem__(self, item) -> ModalChoiceCharacteristics:
         return self.__choiceCharacteristics[item]
+
+    def toDataFrame(self):
+        odis = [odi.toTuple() for odi in self.odiToIdx.keys()]
+        modes = self.modeToIdx.keys()
+        params = self.paramToIdx.keys()
+        tuples = [(a, b, c, d, e) for (a, b, c), d, e in product(odis, modes, params)]
+        mi = pd.MultiIndex.from_tuples(tuples, names=(
+            'originMicrotype', 'destinationMicrotype', 'distanceBin', 'mode', 'parameter'))
+        return pd.DataFrame({"Value": self.__numpy.flatten()}, index=mi).unstack()
 
     def initializeChoiceCharacteristics(self, trips, microtypes, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
