@@ -36,6 +36,7 @@ class Interact:
         self.__plotStateWidget = None
         self.__loadingWidget = None
         self.__downloadWidget = None
+        self.__downloadHTML = None
         self.__out = None  # print(*a, file = sys.stdout)
         self.__grid = self.generateGridSpec()
 
@@ -235,36 +236,27 @@ class Interact:
     def generateGridSpec(self):
         rerunModel = widgets.Button(description="Calculate Costs",
                                     tooltip="Click to run the model with your given inputs",
-                                    layout=Layout(width='100%', height='0.5in', justify_content='center'))
+                                    layout=Layout(width='95%', height='0.5in', justify_content='center'))
         rerunModel.on_click(self.updateCosts)
 
         setRef = widgets.Button(description="Update reference",
                                 tooltip='Click to update reference plots on right',
-                                layout=Layout(width='100%', height='0.5in'))
+                                layout=Layout(width='95%', height='0.5in'))
         setRef.on_click(self.copyCurrentToRef)
 
-        html_buttons = '''<html>
-        <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        </head>
+        self.__downloadHTML = '''
+        <html>
         <body>
-        <a download="{filename}" href="data:text/csv;base64,{payload}" download>
-        <button class="p-Widget jupyter-widgets jupyter-button widget-button mod-warning">Download File</button>
+        <a download="output-results.zip" href="data:text/csv;base64,{payload}" download>
+        <button class="p-Widget jupyter-widgets jupyter-button widget-button mod-info">Download File</button>
         </a>
         </body>
         </html>
         '''
 
-        filename = 'output-results.zip'
-        with open("temp/sample.zip", "rb") as f:
-            bytes = f.read()
-            b64 = base64.b64encode(bytes)
-        # b64 = b64encode(res.encode())
-        payload = b64.decode()
+        html_button = self.__downloadHTML.format(payload="")
 
-        html_button = html_buttons.format(payload=payload, filename=filename)
-
-        downloadButton = widgets.HTML(html_button)
+        downloadButton = widgets.HTML(html_button, layout=Layout(width='95%', height='0.5in'))
 
         self.__downloadWidget = downloadButton
 
@@ -277,7 +269,8 @@ class Interact:
                   :]
             upperBound = sub.Population.max() * 1.5
             upperBound = round(upperBound, 3 - int(floor(log10(
-                abs(upperBound)))) - 1)  # https://www.kite.com/python/answers/how-to-round-a-number-to-significant-digits-in-python
+                abs(
+                    upperBound)))) - 1)  # https://www.kite.com/python/answers/how-to-round-a-number-to-significant-digits-in-python
             popVBox = []
             for row in sub.itertuples():
                 popVBox.append(widgets.IntSlider(row.Population, 0, upperBound, upperBound / 100,
@@ -426,7 +419,7 @@ class Interact:
         #          'Bus service area')):
         #     accordion.set_title(ind, title)
 
-        gs = widgets.GridspecLayout(2, 3)
+        gs = widgets.GridspecLayout(3, 3)
 
         self.__loadingWidget = widgets.HTML(
             value="<center><i>Model Running</i></center>"
@@ -450,7 +443,8 @@ class Interact:
         gs[0, 2] = self.__loadingWidget
         self.__out = widgets.Output(layout={'border': '1px solid black'})
         # gs[1, 2] = setRef
-        gs[1, 2] = widgets.VBox([rerunModel, setRef, downloadButton])
+        gs[1, 2] = widgets.VBox([rerunModel, setRef])
+        gs[2, 2] = downloadButton
 
         # self.createDownloadLink()
         return gs
@@ -629,6 +623,16 @@ class Interact:
         zipObj.write('temp/utilityOutput.csv')
         # close the Zip File
         zipObj.close()
+
+        with open("temp/sample.zip", "rb") as f:
+            bytes = f.read()
+            b64 = base64.b64encode(bytes)
+
+        payload = b64.decode()
+
+        html_button = self.__downloadHTML.format(payload=payload)
+
+        self.__downloadWidget.value = html_button
         #
         # out = FileLink(r'temp/sample.zip')
         # # urlopen(out)
@@ -661,7 +665,6 @@ class Interact:
     def init(self):
         self.updateCosts()
         self.copyCurrentToRef()
-
 
     def hardReset(self, message=None):
         self.model.scenarioData.loadData()
