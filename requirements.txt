@@ -7,3 +7,4 @@ ipywidgets>=7.6.3
 plotly>=4.14.3
 numba>=0.53.1
 mock~=4.0.3
+ipython~=7.16.1

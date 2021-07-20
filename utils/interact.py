@@ -1,11 +1,18 @@
+import base64
+import os
+from urllib.request import urlopen
 from math import floor, log10
 
 import ipywidgets as widgets
+from IPython.core.display import display
+from IPython.display import FileLink
+from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.express.colors as col
 import plotly.graph_objects as go
 from ipywidgets import Layout
+from base64 import b64encode
 from plotly.subplots import make_subplots
 
 
@@ -28,6 +35,7 @@ class Interact:
         self.__widgetIDtoUtil = dict()
         self.__plotStateWidget = None
         self.__loadingWidget = None
+        self.__downloadWidget = None
         self.__out = None  # print(*a, file = sys.stdout)
         self.__grid = self.generateGridSpec()
 
@@ -235,6 +243,31 @@ class Interact:
                                 layout=Layout(width='100%', height='0.5in'))
         setRef.on_click(self.copyCurrentToRef)
 
+        html_buttons = '''<html>
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body>
+        <a download="{filename}" href="data:text/csv;base64,{payload}" download>
+        <button class="p-Widget jupyter-widgets jupyter-button widget-button mod-warning">Download File</button>
+        </a>
+        </body>
+        </html>
+        '''
+
+        filename = 'output-results.zip'
+        with open("temp/sample.zip", "rb") as f:
+            bytes = f.read()
+            b64 = base64.b64encode(bytes)
+        # b64 = b64encode(res.encode())
+        payload = b64.decode()
+
+        html_button = html_buttons.format(payload=payload, filename=filename)
+
+        downloadButton = widgets.HTML(html_button)
+
+        self.__downloadWidget = downloadButton
+
         populationStack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             microtypePopulations = [widgets.HTML(
@@ -417,7 +450,9 @@ class Interact:
         gs[0, 2] = self.__loadingWidget
         self.__out = widgets.Output(layout={'border': '1px solid black'})
         # gs[1, 2] = setRef
-        gs[1, 2] = widgets.VBox([rerunModel, setRef])
+        gs[1, 2] = widgets.VBox([rerunModel, setRef, downloadButton])
+
+        # self.createDownloadLink()
         return gs
 
     def response(self, change, otherStuff=None):
@@ -487,6 +522,7 @@ class Interact:
         self.__loadingWidget.value = "<center><i>Model Running</i></center>"
         self.model.collectAllCharacteristics()
         self.updatePlots()
+        self.createDownloadLink()
         self.__loadingWidget.value = "<center><b>Complete</b></center>"
 
     def updatePlots(self, message=None):
@@ -577,6 +613,30 @@ class Interact:
                     self.__dataToHandle['speedDiff'][line].y = [0] * len(
                         self.__dataToHandle['speed']['current'][line].y)
 
+    def createDownloadLink(self, message=None):
+        if not os.path.exists('temp'):
+            os.makedirs('temp')
+        modeSplit, speed, utility = self.model.toPandas()
+        modeSplit.to_csv('temp/modeSplitOutput.csv')
+        speed.to_csv('temp/speedOutput.csv')
+        utility.to_csv('temp/utilityOutput.csv')
+
+        # create a ZipFile object
+        zipObj = ZipFile('temp/sample.zip', 'w')
+        # Add multiple files to the zip
+        zipObj.write('temp/modeSplitOutput.csv')
+        zipObj.write('temp/speedOutput.csv')
+        zipObj.write('temp/utilityOutput.csv')
+        # close the Zip File
+        zipObj.close()
+        #
+        # out = FileLink(r'temp/sample.zip')
+        # # urlopen(out)
+        # display(out)
+        #
+        #
+        # print('BOO')
+
     def changeUtilDropdown(self, message=None):
         menu, popGroup = self.__widgetIDtoUtil[message.owner.model_id]
         tripPurpose = self.__utilDropdownStatus[popGroup]['tripType'].value
@@ -601,6 +661,7 @@ class Interact:
     def init(self):
         self.updateCosts()
         self.copyCurrentToRef()
+
 
     def hardReset(self, message=None):
         self.model.scenarioData.loadData()

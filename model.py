@@ -875,6 +875,7 @@ if __name__ == "__main__":
 
     model.interact.modifyModel('dedication', obj)
     userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
+    model.interact.createDownloadLink()
     a, b, c = model.toPandas()
     ms = model.getModeSplit()
 
