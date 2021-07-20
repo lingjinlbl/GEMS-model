@@ -614,9 +614,9 @@ class Interact:
         # create a ZipFile object
         zipObj = ZipFile('temp/sample.zip', 'w')
         # Add multiple files to the zip
-        zipObj.write('temp/modeSplitOutput.csv')
-        zipObj.write('temp/speedOutput.csv')
-        zipObj.write('temp/utilityOutput.csv')
+        zipObj.write('temp/modeSplitOutput.csv.gz')
+        zipObj.write('temp/speedOutput.csv.gz')
+        zipObj.write('temp/utilityOutput.csv.gz')
         # close the Zip File
         zipObj.close()
 
