@@ -369,7 +369,7 @@ class MicrotypeCollection:
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
 
-        def v(n, v_0, n_0, n_other, criticalDensity=0.9) -> np.ndarray:
+        def v(n, v_0, n_0, n_other, criticalDensity=0.97) -> np.ndarray:
             n_eff = n + n_other
             density = n_eff / n_0
             v_out = v_0 * (1. - n_eff / n_0)
@@ -468,7 +468,7 @@ class MicrotypeCollection:
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
         dt = self.__timeStepInSeconds
-        if False:
+        if True:
 
             X = np.transpose(self.transitionMatrix.matrix.values)
 
