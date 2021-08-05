@@ -1,6 +1,9 @@
+import base64
+import os
 from math import floor, log10
 
 import ipywidgets as widgets
+from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.express.colors as col
@@ -28,6 +31,8 @@ class Interact:
         self.__widgetIDtoUtil = dict()
         self.__plotStateWidget = None
         self.__loadingWidget = None
+        self.__downloadWidget = None
+        self.__downloadHTML = None
         self.__out = None  # print(*a, file = sys.stdout)
         self.__grid = self.generateGridSpec()
 
@@ -227,13 +232,29 @@ class Interact:
     def generateGridSpec(self):
         rerunModel = widgets.Button(description="Calculate Costs",
                                     tooltip="Click to run the model with your given inputs",
-                                    layout=Layout(width='100%', height='0.5in', justify_content='center'))
+                                    layout=Layout(width='95%', height='0.5in', justify_content='center'))
         rerunModel.on_click(self.updateCosts)
 
         setRef = widgets.Button(description="Update reference",
                                 tooltip='Click to update reference plots on right',
-                                layout=Layout(width='100%', height='0.5in'))
+                                layout=Layout(width='95%', height='0.5in'))
         setRef.on_click(self.copyCurrentToRef)
+
+        self.__downloadHTML = '''
+        <html>
+        <body>
+        <a download="output-results.zip" href="data:text/csv;base64,{payload}" download>
+        <button class="p-Widget jupyter-widgets jupyter-button widget-button mod-info">Download File</button>
+        </a>
+        </body>
+        </html>
+        '''
+
+        html_button = self.__downloadHTML.format(payload="")
+
+        downloadButton = widgets.HTML(html_button, layout=Layout(width='95%', height='0.5in'))
+
+        self.__downloadWidget = downloadButton
 
         populationStack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -244,7 +265,8 @@ class Interact:
                   :]
             upperBound = sub.Population.max() * 1.5
             upperBound = round(upperBound, 3 - int(floor(log10(
-                abs(upperBound)))) - 1)  # https://www.kite.com/python/answers/how-to-round-a-number-to-significant-digits-in-python
+                abs(
+                    upperBound)))) - 1)  # https://www.kite.com/python/answers/how-to-round-a-number-to-significant-digits-in-python
             popVBox = []
             for row in sub.itertuples():
                 popVBox.append(widgets.IntSlider(row.Population, 0, upperBound, upperBound / 100,
@@ -393,7 +415,7 @@ class Interact:
         #          'Bus service area')):
         #     accordion.set_title(ind, title)
 
-        gs = widgets.GridspecLayout(2, 3)
+        gs = widgets.GridspecLayout(3, 3)
 
         self.__loadingWidget = widgets.HTML(
             value="<center><i>Model Running</i></center>"
@@ -418,6 +440,9 @@ class Interact:
         self.__out = widgets.Output(layout={'border': '1px solid black'})
         # gs[1, 2] = setRef
         gs[1, 2] = widgets.VBox([rerunModel, setRef])
+        gs[2, 2] = downloadButton
+
+        # self.createDownloadLink()
         return gs
 
     def response(self, change, otherStuff=None):
@@ -487,6 +512,7 @@ class Interact:
         self.__loadingWidget.value = "<center><i>Model Running</i></center>"
         self.model.collectAllCharacteristics()
         self.updatePlots()
+        self.createDownloadLink()
         self.__loadingWidget.value = "<center><b>Complete</b></center>"
 
     def updatePlots(self, message=None):
@@ -577,6 +603,40 @@ class Interact:
                     self.__dataToHandle['speedDiff'][line].y = [0] * len(
                         self.__dataToHandle['speed']['current'][line].y)
 
+    def createDownloadLink(self, message=None):
+        if not os.path.exists('temp'):
+            os.makedirs('temp')
+        modeSplit, speed, utility = self.model.toPandas()
+        modeSplit.to_csv('temp/modeSplitOutput.csv.gz')
+        speed.to_csv('temp/speedOutput.csv.gz')
+        utility.to_csv('temp/utilityOutput.csv.gz')
+
+        # create a ZipFile object
+        zipObj = ZipFile('temp/sample.zip', 'w')
+        # Add multiple files to the zip
+        zipObj.write('temp/modeSplitOutput.csv.gz')
+        zipObj.write('temp/speedOutput.csv.gz')
+        zipObj.write('temp/utilityOutput.csv.gz')
+        # close the Zip File
+        zipObj.close()
+
+        with open("temp/sample.zip", "rb") as f:
+            bytes = f.read()
+            b64 = base64.b64encode(bytes)
+
+        payload = b64.decode()
+
+        html_button = self.__downloadHTML.format(payload=payload)
+
+        self.__downloadWidget.value = html_button
+        #
+        # out = FileLink(r'temp/sample.zip')
+        # # urlopen(out)
+        # display(out)
+        #
+        #
+        # print('BOO')
+
     def changeUtilDropdown(self, message=None):
         menu, popGroup = self.__widgetIDtoUtil[message.owner.model_id]
         tripPurpose = self.__utilDropdownStatus[popGroup]['tripType'].value
@@ -597,7 +657,6 @@ class Interact:
         elif type(message.new) == int or float:
             val = message.new
             self.model.updateUtilityParam(val, param, popGroup, tripPurpose, mode)
-
 
     def init(self):
         self.updateCosts()

@@ -1,5 +1,3 @@
-from typing import Dict
-
 import numpy as np
 import pandas as pd
 
@@ -8,7 +6,7 @@ from utils.choiceCharacteristics import ModalChoiceCharacteristics
 
 
 class PopulationGroup:
-    def __init__(self, homeLocation: str, populationGroupType: str, df: pd.DataFrame, idx:int):
+    def __init__(self, homeLocation: str, populationGroupType: str, df: pd.DataFrame, idx: int):
         self.homeLocation = homeLocation
         self.populationGroupType = populationGroupType
         self.__data = df

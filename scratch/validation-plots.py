@@ -84,10 +84,115 @@ def gatherOutputs(model: Model):
                                                           model.timePeriods().keys()])
     output['modeSplit'] = np.squeeze(modeSplit)
 
+    x, y = model.plotAllDynamicStats("Matrix")
+    output['flowMatrices'] = y
+
     return output
 
 
 scenarios = dict()
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+model = Model(ROOT_DIR + "/../input-data", nSubBins=nSubBins)
+
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "auto", "BetaTravelTime"] = -0.04
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "bus", "BetaTravelTime"] = -10000.
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "walk", "BetaTravelTime"] = -10000.
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "bike", "BetaTravelTime"] = -10000.
+model.scenarioData['populationGroups'].loc[
+    model.scenarioData['populationGroups']['Mode'] == "rail", "BetaTravelTime"] = -10000.
+model.readFiles()
+
+basePopulation = model.scenarioData['populations'].Population.values.copy()
+
+popMultipliers = [0.7, 0.75, 0.77, 0.8]
+
+for ind, pop in enumerate(popMultipliers):
+    scenario = '4-microtype-pop-' + str(pop)
+
+    model.scenarioData['populations'].Population = basePopulation * pop
+    model.updatePopulation()
+
+    scenarios[scenario] = gatherOutputs(model)
+
+scenarioNames = ['4-microtype-pop-0.7', '4-microtype-pop-0.75', '4-microtype-pop-0.77', '4-microtype-pop-0.8']
+titles = ['Population - 30%', 'Population -25%', 'Population -23%', 'Population -20%']
+
+
+figs = []
+axs = []
+for i in range(4):
+    fig, ax = plt.subplots(len(model.microtypes), len(scenarioNames), figsize=(12, 11), sharex=True, sharey=True)
+    figs.append(fig)
+    axs.append(ax)
+
+for ind, scenario in enumerate(scenarioNames):
+    title = titles[ind]
+    fig = figs[0]
+    ax = axs[0]
+
+    for mID, idx in model.microtypeIdToIdx.items():
+        ax[idx, ind].step(scenarios[scenario]['t_timePeriod'], scenarios[scenario]['autoSpeed_timePeriod'][:, idx], color='C4',
+                     label='Averaged auto')
+        ax[idx, ind].plot(scenarios[scenario]['time'], scenarios[scenario]['autoSpeed'][:, idx], color='C4',
+                     label='Instantaneous auto',
+                     linestyle='dashed')
+        if idx == 0:
+            ax[idx, ind].set_title(title)
+            if ind == len(scenarioNames) - 1:
+                ax[idx, ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        if ind == 0:
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' speed (m/s)')
+
+    fig = figs[1]
+    ax = axs[1]
+    for mID, idx in model.microtypeIdToIdx.items():
+        ax[idx, ind].plot(scenarios[scenario]['time'], scenarios[scenario]['flowMatrices'][:, :, idx])
+        # ax[idx, ind].lines[model.modeToIdx['auto']].set_color(colors['autoSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['bus']].set_color(colors['transitSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['walk']].set_color(colors['walkSplit'])
+        if idx == 0:
+            ax[idx, ind].set_title(title)
+            if ind == len(scenarioNames) - 1:
+                ax[idx, ind].legend(list(model.microtypeIdToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left', title="Inflow source")
+        if ind == 0:
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' inflow')
+
+    fig = figs[2]
+    ax = axs[2]
+    for mID, idx in model.microtypeIdToIdx.items():
+        ax[idx, ind].plot(scenarios[scenario]['time'], scenarios[scenario]['flowMatrices'][:, idx, :])
+        # ax[idx, ind].lines[model.modeToIdx['auto']].set_color(colors['autoSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['bus']].set_color(colors['transitSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['walk']].set_color(colors['walkSplit'])
+        if idx == 0:
+            ax[idx, ind].set_title(title)
+            if ind == len(scenarioNames) - 1:
+                ax[idx, ind].legend(list(model.microtypeIdToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left', title="Outflow destination")
+        if ind == 0:
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' outflow')
+
+groupName = 'validationForQR/4-microtype-auto-'
+
+figs[0].savefig(groupName + 'speed.pdf', bbox_inches='tight')
+figs[1].savefig(groupName + 'microtypeInflows.pdf', bbox_inches='tight')
+figs[2].savefig(groupName + 'microtypeOutflows.pdf', bbox_inches='tight')
+
+
+
+
+
+
+
+
+
+
+
+
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 model = Model(ROOT_DIR + "/../input-data", nSubBins=nSubBins)
@@ -106,7 +211,7 @@ model.readFiles()
 
 basePopulation = model.scenarioData['populations'].Population.values.copy()
 
-popMultipliers = [1.0, 1.3, 1.45, 1.5]
+popMultipliers = [1.0, 1.3, 1.5, 1.51]
 
 for ind, pop in enumerate(popMultipliers):
     scenario = '4-microtype-pop-' + str(pop)
@@ -116,8 +221,8 @@ for ind, pop in enumerate(popMultipliers):
 
     scenarios[scenario] = gatherOutputs(model)
 
-scenarioNames = ['4-microtype-pop-1.0', '4-microtype-pop-1.3', '4-microtype-pop-1.45', '4-microtype-pop-1.5']
-titles = ['Base population', 'Population +30%', 'Population +45%', 'Population +50%']
+scenarioNames = ['4-microtype-pop-1.0', '4-microtype-pop-1.3', '4-microtype-pop-1.5', '4-microtype-pop-1.51']
+titles = ['Base population', 'Population +30%', 'Population +50%', 'Population +51%']
 
 mColors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8']
 
@@ -137,7 +242,7 @@ for ind, scenario in enumerate(scenarioNames):
                      label='Microtype ' + mID + ' arrivals')
         ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['outflow'][:, idx], color=mColors[idx],
                      label='Microtype ' + mID + ' departures', linestyle='dashed')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
@@ -153,12 +258,13 @@ for ind, scenario in enumerate(scenarioNames):
         ax[ind].plot(scenarios[scenario]['time'][1:], np.diff(scenarios[scenario]['outflow'][:, idx], axis=0),
                      color=mColors[idx],
                      linestyle='dashed')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[2]
     ax = axs[2]
@@ -169,19 +275,20 @@ for ind, scenario in enumerate(scenarioNames):
         ax[ind].plot(scenarios[scenario]['outflow'][1:, idx], np.diff(scenarios[scenario]['outflow'][:, idx], axis=0),
                      color=mColors[idx],
                      linestyle='dashed')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Number of vehicles')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[3]
     ax = axs[3]
     for mID, idx in model.microtypeIdToIdx.items():
         ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['accumulation'][:, idx], color=mColors[idx], label="Microtype "+mID)
     ax[ind].set_xlabel('Time (h)')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     if ind == 0:
         ax[ind].set_ylabel('Vehicles')
@@ -196,7 +303,7 @@ figs[3].savefig(groupName + 'accumulation.pdf', bbox_inches='tight')
 
 figs = []
 axs = []
-for i in range(2):
+for i in range(4):
     fig, ax = plt.subplots(len(model.microtypes), len(scenarioNames), figsize=(12, 11), sharex=True, sharey=True)
     figs.append(fig)
     axs.append(ax)
@@ -221,7 +328,7 @@ for ind, scenario in enumerate(scenarioNames):
             if ind == len(scenarioNames) - 1:
                 ax[idx, ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         if ind == 0:
-            ax[idx, ind].set_ylabel('Speed (m/s)')
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' speed (m/s)')
 
     fig = figs[1]
     ax = axs[1]
@@ -235,10 +342,40 @@ for ind, scenario in enumerate(scenarioNames):
             if ind == len(scenarioNames) - 1:
                 ax[idx, ind].legend(list(model.modeToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left')
         if ind == 0:
-            ax[idx, ind].set_ylabel('Mode split')
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' mode split')
+
+    fig = figs[2]
+    ax = axs[2]
+    for mID, idx in model.microtypeIdToIdx.items():
+        ax[idx, ind].plot(scenarios[scenario]['time'], scenarios[scenario]['flowMatrices'][:, :, idx])
+        # ax[idx, ind].lines[model.modeToIdx['auto']].set_color(colors['autoSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['bus']].set_color(colors['transitSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['walk']].set_color(colors['walkSplit'])
+        if idx == 0:
+            ax[idx, ind].set_title(title)
+            if ind == len(scenarioNames) - 1:
+                ax[idx, ind].legend(list(model.microtypeIdToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left', title="Inflow source")
+        if ind == 0:
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' inflow')
+
+    fig = figs[3]
+    ax = axs[3]
+    for mID, idx in model.microtypeIdToIdx.items():
+        ax[idx, ind].plot(scenarios[scenario]['time'], scenarios[scenario]['flowMatrices'][:, idx, :])
+        # ax[idx, ind].lines[model.modeToIdx['auto']].set_color(colors['autoSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['bus']].set_color(colors['transitSplit'])
+        # ax[idx, ind].lines[model.modeToIdx['walk']].set_color(colors['walkSplit'])
+        if idx == 0:
+            ax[idx, ind].set_title(title)
+            if ind == len(scenarioNames) - 1:
+                ax[idx, ind].legend(list(model.microtypeIdToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left', title="Outflow destination")
+        if ind == 0:
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' outflow')
 
 figs[0].savefig(groupName + 'speed.pdf', bbox_inches='tight')
 figs[1].savefig(groupName + 'modeSplit.pdf', bbox_inches='tight')
+figs[2].savefig(groupName + 'microtypeInflows.pdf', bbox_inches='tight')
+figs[3].savefig(groupName + 'microtypeOutflows.pdf', bbox_inches='tight')
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 model = Model(ROOT_DIR + "/../input-data", nSubBins=nSubBins)
@@ -255,10 +392,10 @@ model.scenarioData['populationGroups'].loc[
     model.scenarioData['populationGroups']['Mode'] == "rail", "BetaTravelTime"] = -0.03
 model.readFiles()
 
-model.scenarioData['populations'].Population = basePopulation * 1.4
+model.scenarioData['populations'].Population = basePopulation * 1.3
 model.updatePopulation()
 
-busLanes = [0.0, 0.1, 0.15, 0.2]
+busLanes = [0.0, 0.15, 0.25, 0.28]
 
 for ind, portionDedicated in enumerate(busLanes):
     scenario = '4-microtype-dedicated-' + str(portionDedicated)
@@ -281,8 +418,8 @@ for ind, portionDedicated in enumerate(busLanes):
 
     scenarios[scenario] = gatherOutputs(model)
 
-scenarioNames = ['4-microtype-dedicated-0.0', '4-microtype-dedicated-0.1', '4-microtype-dedicated-0.15', '4-microtype-dedicated-0.2']
-titles = ['No bus lanes', '10% dedicated', '15% dedicated', '20% dedicated']
+scenarioNames = ['4-microtype-dedicated-0.0', '4-microtype-dedicated-0.15', '4-microtype-dedicated-0.25', '4-microtype-dedicated-0.28']
+titles = ['No bus lanes', '15% dedicated', '25% dedicated', '28% dedicated']
 
 figs = []
 axs = []
@@ -300,7 +437,7 @@ for ind, scenario in enumerate(scenarioNames):
                      label='Microtype ' + mID + ' arrivals')
         ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['outflow'][:, idx], color=mColors[idx],
                      label='Microtype ' + mID + ' departures', linestyle='dashed')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
@@ -316,12 +453,13 @@ for ind, scenario in enumerate(scenarioNames):
         ax[ind].plot(scenarios[scenario]['time'][1:], np.diff(scenarios[scenario]['outflow'][:, idx], axis=0),
                      color=mColors[idx],
                      linestyle='dashed')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[2]
     ax = axs[2]
@@ -332,19 +470,20 @@ for ind, scenario in enumerate(scenarioNames):
         ax[ind].plot(scenarios[scenario]['outflow'][1:, idx], np.diff(scenarios[scenario]['outflow'][:, idx], axis=0),
                      color=mColors[idx],
                      linestyle='dashed')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Number of vehicles')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[3]
     ax = axs[3]
     for mID, idx in model.microtypeIdToIdx.items():
         ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['accumulation'][:, idx], color=mColors[idx], label="Microtype "+ mID)
     ax[ind].set_xlabel('Time (h)')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     if ind == 0:
         ax[ind].set_ylabel('Vehicles')
@@ -359,7 +498,7 @@ figs[3].savefig(groupName + 'accumulation.pdf', bbox_inches='tight')
 
 figs = []
 axs = []
-for i in range(2):
+for i in range(4):
     fig, ax = plt.subplots(len(model.microtypes), len(scenarioNames), figsize=(12, 11), sharex=True, sharey=True)
     figs.append(fig)
     axs.append(ax)
@@ -384,7 +523,7 @@ for ind, scenario in enumerate(scenarioNames):
             if ind == len(scenarioNames) - 1:
                 ax[idx, ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         if ind == 0:
-            ax[idx, ind].set_ylabel('Speed (m/s)')
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' speed (m/s)')
 
     fig = figs[1]
     ax = axs[1]
@@ -398,18 +537,49 @@ for ind, scenario in enumerate(scenarioNames):
             if ind == len(scenarioNames) - 1:
                 ax[idx, ind].legend(list(model.modeToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left')
         if ind == 0:
-            ax[idx, ind].set_ylabel('Mode split')
+            ax[idx, ind].set_ylabel('Microtype ' + mID + ' mode split')
 
-figs[0].savefig(groupName + 'speed.pdf', bbox_inches='tight')
-figs[1].savefig(groupName + 'modeSplit.pdf', bbox_inches='tight')
+        fig = figs[2]
+        ax = axs[2]
+        for mID, idx in model.microtypeIdToIdx.items():
+            ax[idx, ind].plot(scenarios[scenario]['time'], scenarios[scenario]['flowMatrices'][:, :, idx])
+            # ax[idx, ind].lines[model.modeToIdx['auto']].set_color(colors['autoSplit'])
+            # ax[idx, ind].lines[model.modeToIdx['bus']].set_color(colors['transitSplit'])
+            # ax[idx, ind].lines[model.modeToIdx['walk']].set_color(colors['walkSplit'])
+            if idx == 0:
+                ax[idx, ind].set_title(title)
+                if ind == len(scenarioNames) - 1:
+                    ax[idx, ind].legend(list(model.microtypeIdToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left',
+                                        title="Inflow source")
+            if ind == 0:
+                ax[idx, ind].set_ylabel('Microtype ' + mID + ' inflow')
+
+        fig = figs[3]
+        ax = axs[3]
+        for mID, idx in model.microtypeIdToIdx.items():
+            ax[idx, ind].plot(scenarios[scenario]['time'], scenarios[scenario]['flowMatrices'][:, idx, :])
+            # ax[idx, ind].lines[model.modeToIdx['auto']].set_color(colors['autoSplit'])
+            # ax[idx, ind].lines[model.modeToIdx['bus']].set_color(colors['transitSplit'])
+            # ax[idx, ind].lines[model.modeToIdx['walk']].set_color(colors['walkSplit'])
+            if idx == 0:
+                ax[idx, ind].set_title(title)
+                if ind == len(scenarioNames) - 1:
+                    ax[idx, ind].legend(list(model.microtypeIdToIdx.keys()), bbox_to_anchor=(1.05, 1), loc='upper left',
+                                        title="Outflow destination")
+            if ind == 0:
+                ax[idx, ind].set_ylabel('Microtype ' + mID + ' outflow')
+
+    figs[0].savefig(groupName + 'speed.pdf', bbox_inches='tight')
+    figs[1].savefig(groupName + 'modeSplit.pdf', bbox_inches='tight')
+    figs[2].savefig(groupName + 'microtypeInflows.pdf', bbox_inches='tight')
+    figs[3].savefig(groupName + 'microtypeOutflows.pdf', bbox_inches='tight')
 
 
 
 
 
 
-# %%
-nSubBins = 4
+
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 model = Model(ROOT_DIR + "/../input-data-simpler", nSubBins=nSubBins)
@@ -450,7 +620,7 @@ for ind, scenario in enumerate(scenarioNames):
                  label='Arrivals')
     ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['outflow'], color=colors['arrivals'],
                  label='Departures')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
@@ -465,12 +635,13 @@ for ind, scenario in enumerate(scenarioNames):
     ax[ind].plot(scenarios[scenario]['time'][1:], np.diff(scenarios[scenario]['outflow'], axis=0),
                  color=colors['arrivals'],
                  label='Departures')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[2]
     ax = axs[2]
@@ -480,12 +651,13 @@ for ind, scenario in enumerate(scenarioNames):
     ax[ind].plot(scenarios[scenario]['outflow'][1:], np.diff(scenarios[scenario]['outflow'], axis=0),
                  color=colors['arrivals'],
                  label='Departures')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Number of vehicles')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[3]
     ax = axs[3]
@@ -500,7 +672,7 @@ for ind, scenario in enumerate(scenarioNames):
     ax[ind].step(scenarios[scenario]['t_timePeriod'], scenarios[scenario]['autoSpeed_timePeriod'], color='C4',
                  label='Averaged')
     ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['autoSpeed'], color='C5', label='Instantaneous')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
@@ -513,7 +685,7 @@ for ind, scenario in enumerate(scenarioNames):
                  color=colors['autoTime'], label='Averaged')
     ax[ind].plot(scenarios[scenario]['time'][1:], scenarios[scenario]['autoTravelTime'], color='C6',
                  label='Instantaneous')
-    if ind == len(scenarios) - 1:
+    if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
@@ -594,6 +766,7 @@ for ind, scenario in enumerate(scenarioNames):
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[2]
     ax = axs[2]
@@ -609,6 +782,7 @@ for ind, scenario in enumerate(scenarioNames):
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[3]
     ax = axs[3]
@@ -741,9 +915,9 @@ for ind, scenario in enumerate(scenarioNames):
     ax = axs[0]
 
     ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['inflow'], color=colors['departures'],
-                 label='Departures')
-    ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['outflow'], color=colors['arrivals'],
                  label='Arrivals')
+    ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['outflow'], color=colors['arrivals'],
+                 label='Departures')
     if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
@@ -756,31 +930,33 @@ for ind, scenario in enumerate(scenarioNames):
     ax = axs[1]
     ax[ind].plot(scenarios[scenario]['time'][1:], np.diff(scenarios[scenario]['inflow'], axis=0),
                  color=colors['departures'],
-                 label='Departures')
+                 label='Arrivals')
     ax[ind].plot(scenarios[scenario]['time'][1:], np.diff(scenarios[scenario]['outflow'], axis=0),
                  color=colors['arrivals'],
-                 label='Arrivals')
+                 label='Departures')
     if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[2]
     ax = axs[2]
     ax[ind].plot(scenarios[scenario]['inflow'][1:], np.diff(scenarios[scenario]['inflow'], axis=0),
                  color=colors['departures'],
-                 label='Departures')
+                 label='Arrivals')
     ax[ind].plot(scenarios[scenario]['outflow'][1:], np.diff(scenarios[scenario]['outflow'], axis=0),
                  color=colors['arrivals'],
-                 label='Arrivals')
+                 label='Departures')
     if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Number of vehicles')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[3]
     ax = axs[3]
@@ -896,9 +1072,9 @@ for ind, scenario in enumerate(scenarioNames):
     ax = axs[0]
 
     ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['inflow'], color=colors['departures'],
-                 label='Departures')
-    ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['outflow'], color=colors['arrivals'],
                  label='Arrivals')
+    ax[ind].plot(scenarios[scenario]['time'], scenarios[scenario]['outflow'], color=colors['arrivals'],
+                 label='Departures')
     if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
@@ -911,31 +1087,33 @@ for ind, scenario in enumerate(scenarioNames):
     ax = axs[1]
     ax[ind].plot(scenarios[scenario]['time'][1:], np.diff(scenarios[scenario]['inflow'], axis=0),
                  color=colors['departures'],
-                 label='Departures')
+                 label='Arrivals')
     ax[ind].plot(scenarios[scenario]['time'][1:], np.diff(scenarios[scenario]['outflow'], axis=0),
                  color=colors['arrivals'],
-                 label='Arrivals')
+                 label='Departures')
     if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Time (h)')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[2]
     ax = axs[2]
     ax[ind].plot(scenarios[scenario]['inflow'][1:], np.diff(scenarios[scenario]['inflow'], axis=0),
                  color=colors['departures'],
-                 label='Departures')
+                 label='Arrivals')
     ax[ind].plot(scenarios[scenario]['outflow'][1:], np.diff(scenarios[scenario]['outflow'], axis=0),
                  color=colors['arrivals'],
-                 label='Arrivals')
+                 label='Departures')
     if ind == len(scenarioNames) - 1:
         ax[ind].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax[ind].set_xlabel('Number of vehicles')
     if ind == 0:
         ax[ind].set_ylabel('Number of vehicles per second')
     ax[ind].set_title(title)
+    # ax[ind].set_ylim(bottom=0)
 
     fig = figs[3]
     ax = axs[3]
