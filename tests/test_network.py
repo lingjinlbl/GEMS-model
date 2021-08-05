@@ -19,18 +19,21 @@ def model() -> Model:
 
 
 def test_mfd(model):
-    demands = [235, 255, 265]
+    model.scenarioData['populationGroups'].loc[
+        model.scenarioData['populationGroups']['Mode'] == "bus", "BetaTravelTime"] = -1e6
+
+    demands = [235, 800, 1200]
     totalTimesPlot = []
     totalTimesSpeed = []
     carSpeeds = []
     for ind, d in enumerate(demands):
-        model.updateTimePeriodDemand(1, d)
-        vectorUserCosts = model.collectAllCharacteristics()
+        model.updateTimePeriodDemand('1', d)
+        vectorUserCosts, _ = model.collectAllCharacteristics()
         x, y = model.plotAllDynamicStats("delay")
         totalTimesPlot.append(np.sum(y[:,0] - y[:,1]))
         totalTimesSpeed.append(vectorUserCosts[2,1]*60)
-        carSpeeds.append(model.getModeSpeeds()['auto'][0])
-    assert(totalTimesPlot[-1] > totalTimesPlot[0])
+        carSpeeds.append(model.getModeSpeeds('1')['auto'][0])
+    assert(totalTimesSpeed[-1] > totalTimesSpeed[0])
     print(np.abs((totalTimesPlot[0] - totalTimesSpeed[0]) / totalTimesPlot[0]))
     # assert(np.abs((totalTimesPlot[0] - totalTimesSpeed[0]) / totalTimesPlot[0]) < 0.025)
     print('Done')
