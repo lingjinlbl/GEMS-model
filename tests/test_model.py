@@ -10,7 +10,7 @@ from model import Model
 def test_find_equilibrium():
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     a = Model(ROOT_DIR + "/../input-data")
-    a.initializeTimePeriod(1)
+    a.initializeTimePeriod('1')
     a.findEquilibrium()
     busLaneDistance = np.arange(50, 3950, 100)
     busSpeed = []
@@ -30,7 +30,7 @@ def test_find_equilibrium():
         a.scenarioData['subNetworkData'].at[2, "Length"] = initialDistance - dist
         a.microtypes.updateNetworkData()
         a.findEquilibrium()
-        ms = a.getModeSplit(1)
+        ms = a.getModeSplit('1')
 
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
         busSpeed.append(speeds.loc["B", "bus"])
@@ -85,7 +85,7 @@ def test_find_equilibrium():
     #    assert busSpeed[-1] / busSpeed[0] > 1.005  # bus lanes speed up bus traffic by a real amount
 
     a = Model(ROOT_DIR + "/../input-data")
-    a.initializeTimePeriod(1)
+    a.initializeTimePeriod('1')
     a.findEquilibrium()
     headways = np.arange(60, 900, 60)
     busSpeed = []
@@ -101,7 +101,7 @@ def test_find_equilibrium():
         a.scenarioData["modeData"]["bus"].loc["A", "Headway"] = hw
         a.microtypes.updateNetworkData()
         a.findEquilibrium()
-        ms = a.getModeSplit(1)
+        ms = a.getModeSplit('1')
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
         busSpeed.append(speeds.loc["B", "bus"])
         carSpeedA.append(speeds.loc["A", "auto"])
