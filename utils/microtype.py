@@ -468,7 +468,7 @@ class MicrotypeCollection:
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
 
         dt = self.__timeStepInSeconds
-        if True:
+        if False:
 
             X = np.transpose(self.transitionMatrix.matrix.values)
 

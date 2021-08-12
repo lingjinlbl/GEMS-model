@@ -13,15 +13,20 @@ from plotly.subplots import make_subplots
 
 
 class Interact:
-    def __init__(self, model):
+    def __init__(self, model, figure=False):
         self.__model = model
         self.__colors = self.generateColorDict()
         self.__paramNames = self.generateParamDict()
-        self.__fig = widgets.Accordion(children=[])  # widgets.VBox([])
+        self.__showFigure = figure
+        if figure:
+            self.__fig = widgets.Accordion(children=[])  # widgets.VBox([])
+        else:
+            self.__fig = None
         self.__modeToHandle = dict()
         self.__dataToHandle = dict()
-        self.addBlankPlots(self.__fig)
-        self.copyCurrentToRef()
+        if figure:
+            self.addBlankPlots(self.__fig)
+            self.copyCurrentToRef()
         self.__microtypeToMixedNetworkID = dict()
         self.__microtypeToBusNetworkID = dict()
         self.__microtypeToBusService = dict()
@@ -34,7 +39,8 @@ class Interact:
         self.__downloadWidget = None
         self.__downloadHTML = None
         self.__out = None  # print(*a, file = sys.stdout)
-        self.__grid = self.generateGridSpec()
+        if figure:
+            self.__grid = self.generateGridSpec()
 
     def generateParamDict(self):
         out = {'Constant': 'intercept',
@@ -450,28 +456,35 @@ class Interact:
         self.modifyModel(field, change)
 
     def modifyModel(self, changeType, value):
+        if hasattr(value, 'new'):
+            newValue = value.new
+        elif isinstance(value, int) | isinstance(value, float):
+            newValue = value
+        else:
+            print("BAD INPUT")
+            return
         if changeType[0] == 'dedicated':
             df = self.returnBusNetworkLengths(changeType[1])
             totalLength = df.sum()
-            newDedicatedLength = totalLength * value.new
-            newMixedLength = totalLength * (1. - value.new)
+            newDedicatedLength = totalLength * newValue
+            newMixedLength = totalLength * (1. - newValue)
             self.model.scenarioData['subNetworkData'].loc[df.index[0], 'Length'] = newMixedLength
             self.model.scenarioData['subNetworkData'].loc[df.index[1], 'Length'] = newDedicatedLength
         if changeType[0] == 'headway':
-            self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'Headway'] = value.new
+            self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'Headway'] = newValue
         if changeType[0] == 'coverage':
-            self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = value.new
+            self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
             self.model.readFiles()
         if changeType[0] == 'population':
             mask = (self.model.scenarioData['populations']['MicrotypeID'] == changeType[1][0]) & (
                     self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])
             if sum(mask) == 1:
-                self.model.scenarioData['populations'].loc[mask, 'Population'] = value.new
+                self.model.scenarioData['populations'].loc[mask, 'Population'] = newValue
                 self.model.updatePopulation()
         if changeType[0] == 'vMax':
-            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'vMax'] = value.new
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'vMax'] = newValue
         if changeType[0] == 'densityMax':
-            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'densityMax'] = value.new
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'densityMax'] = newValue
 
     def returnBusNetworkLengths(self, mID):
         return self.model.scenarioData['subNetworkDataFull'].loc[
@@ -509,11 +522,13 @@ class Interact:
         axs[3, 0].set_ylabel('mode split')
 
     def updateCosts(self, message=None):
-        self.__loadingWidget.value = "<center><i>Model Running</i></center>"
+        if self.__showFigure:
+            self.__loadingWidget.value = "<center><i>Model Running</i></center>"
         self.model.collectAllCharacteristics()
-        self.updatePlots()
-        self.createDownloadLink()
-        self.__loadingWidget.value = "<center><b>Complete</b></center>"
+        if self.__showFigure:
+            self.updatePlots()
+            self.createDownloadLink()
+            self.__loadingWidget.value = "<center><b>Complete</b></center>"
 
     def updatePlots(self, message=None):
         time, spds = self.model.plotAllDynamicStats('v')
