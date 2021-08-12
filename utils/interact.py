@@ -1,4 +1,5 @@
 import base64
+import numpy
 import os
 from math import floor, log10
 
@@ -458,7 +459,7 @@ class Interact:
     def modifyModel(self, changeType, value):
         if hasattr(value, 'new'):
             newValue = value.new
-        elif isinstance(value, int) | isinstance(value, float):
+        elif np.issubdtype(type(value), np.number):
             newValue = value
         else:
             print("BAD INPUT")

@@ -507,7 +507,7 @@ class Model:
         originalScenarioData = self.__initialScenarioData.copy()
         if networkModification is not None:
             for ((microtypeID, modeName), laneDistance) in networkModification:
-                self.interact.modifyModel(changeType=('dedication', microtypeID), value=laneDistance)
+                self.interact.modifyModel(changeType=('dedicated', microtypeID), value=laneDistance)
                 # oldFromLaneDistance = originalScenarioData["subNetworkData"].loc[fromNetwork, "Length"]
                 # self.scenarioData["subNetworkData"].loc[fromNetwork, "Length"] = oldFromLaneDistance - laneDistance
                 # oldToLaneDistance = originalScenarioData["subNetworkData"].loc[toNetwork, "Length"]
@@ -540,7 +540,6 @@ class Model:
                     self.microtypes.resetStateData()
 
     def collectAllCosts(self, event=None):
-        userCosts = CollectedTotalUserCosts()
         operatorCosts = CollectedTotalOperatorCosts()
         vectorUserCosts = 0.0
         for timePeriod, durationInHours in self.__timePeriods:
@@ -548,7 +547,7 @@ class Model:
             matCosts = self.getMatrixUserCosts() * durationInHours
             vectorUserCosts += matCosts
             operatorCosts += self.getOperatorCosts() * durationInHours
-        return userCosts, operatorCosts, vectorUserCosts
+        return operatorCosts, vectorUserCosts
 
     def updatePopulation(self):
         for timePeriod, durationInHours in self.__timePeriods:
@@ -672,7 +671,7 @@ class Model:
                                                                self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
-            userCosts, operatorCosts, vectorUserCosts = self.collectAllCosts()
+            operatorCosts, vectorUserCosts = self.collectAllCosts()
             x = list(self.microtypeIdToIdx.keys())
             userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
                 level='homeMicrotype').sum(axis=0)
@@ -790,7 +789,7 @@ class Optimizer:
         else:
             return 0.0
 
-    def evaluate(self, reallocations: np.ndarray) -> float:
+    def updateAndRunModel(self, reallocations: np.ndarray):
         if self.__fromToSubNetworkIDs is not None:
             networkModification = NetworkModification(reallocations[:self.nSubNetworks()], self.__fromToSubNetworkIDs)
         else:
@@ -802,7 +801,10 @@ class Optimizer:
             transitModification = None
         self.model.modifyNetworks(networkModification, transitModification)
         self.model.collectAllCharacteristics()
-        userCosts, operatorCosts, vectorUserCosts = self.model.collectAllCosts()
+
+    def evaluate(self, reallocations: np.ndarray) -> float:
+        self.updateAndRunModel(reallocations)
+        operatorCosts, vectorUserCosts = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
         print(np.sum(vectorUserCosts), operatorCosts.total, dedicationCosts)
@@ -868,7 +870,7 @@ def startBar():
 
 if __name__ == "__main__":
     model = Model("input-data")
-    userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
+    operatorCosts, vectorUserCosts = model.collectAllCosts()
     optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')], fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus')], method="noisy")
     outcome = optimizer.minimize()
     print(outcome)
@@ -879,7 +881,7 @@ if __name__ == "__main__":
 
     #model.interact.modifyModel('dedication', obj)
     a, b = model.collectAllCharacteristics()
-    userCosts, operatorCosts, vectorUserCosts = model.collectAllCosts()
+    operatorCosts, vectorUserCosts = model.collectAllCosts()
     print('done')
     #model.interact.createDownloadLink()
     #a, b, c = model.toPandas()
