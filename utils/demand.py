@@ -12,6 +12,27 @@ from .misc import DistanceBins, TimePeriods
 from .population import Population
 
 
+class Externalities:
+    def __init__(self, scenarioData):
+        self.__scenarioData = scenarioData
+        self.__numpyPerPassengerMile = np.ndarray(0)
+        self.__numpyPerVehicleMile = np.ndarray(0)
+
+    def init(self):
+        self.__numpyPerPassengerMile = np.zeros(
+            (len(self.__scenarioData.modeToIdx), len(self.__scenarioData.microtypeIdToIdx)))
+        self.__numpyPerVehicleMile = np.zeros(
+            (len(self.__scenarioData.modeToIdx), len(self.__scenarioData.microtypeIdToIdx)))
+        df = self.__scenarioData["modeExternalities"]
+        for mode, modeIdx in self.__scenarioData.modeToIdx.items():
+            for mId, mIdx in self.__scenarioData.microtypeIdToIdx.items():
+                if (mId, mode) in df.index:
+                    self.__numpyPerPassengerMile[modeIdx, mIdx] = df['CostPerPassengerMile'].iloc[
+                        df.index.get_loc((mId, mode))]
+                    self.__numpyPerVehicleMile[modeIdx, mIdx] = df['CostPerVehicleMile'].iloc[
+                        df.index.get_loc((mId, mode))]
+
+
 class TotalUserCosts:
     def __init__(self, total=0., totalEqualVOT=0., totalIVT=0., totalOVT=0., demandForTripsPerHour=0.,
                  demandForPMTPerHour=0.):

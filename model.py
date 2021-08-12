@@ -15,7 +15,7 @@ from scipy.optimize import root, minimize, Bounds
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand, CollectedTotalUserCosts, ODindex, modeSplitFromUtils
+from utils.demand import Demand, CollectedTotalUserCosts, ODindex, modeSplitFromUtils, Externalities
 from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
@@ -177,6 +177,8 @@ class ScenarioData:
         self["modeData"] = self.loadModeData()
         self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
+        self["modeExternalities"] = pd.read_csv(os.path.join(self.__path, "ModeExternalities.csv"),
+                                            dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
 
         self.defineIndices()
 
@@ -300,6 +302,7 @@ class Model:
         self.__tripGeneration = TripGeneration()
         self.__originDestination = OriginDestination()
         self.__transitionMatrices = TransitionMatrices(self.scenarioData)
+        self.__externalities = Externalities(self.scenarioData)
         self.__networkStateData = dict()
         self.__printLoc = stdout
         self.__interactive = interactive
@@ -396,6 +399,7 @@ class Model:
         self.choice.initializeChoiceCharacteristics(self.__trips, self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self, override=False):
+        self.__externalities.init()
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod, override)
 
