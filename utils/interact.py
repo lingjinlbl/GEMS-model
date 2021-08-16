@@ -1,10 +1,9 @@
 import base64
-import numpy
 import os
 from math import floor, log10
+from zipfile import ZipFile
 
 import ipywidgets as widgets
-from zipfile import ZipFile
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.express.colors as col

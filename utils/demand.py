@@ -20,17 +20,22 @@ class Externalities:
 
     def init(self):
         self.__numpyPerPassengerMile = np.zeros(
-            (len(self.__scenarioData.modeToIdx), len(self.__scenarioData.microtypeIdToIdx)))
+            (len(self.__scenarioData.microtypeIdToIdx), len(self.__scenarioData.modeToIdx)))
         self.__numpyPerVehicleMile = np.zeros(
-            (len(self.__scenarioData.modeToIdx), len(self.__scenarioData.microtypeIdToIdx)))
+            (len(self.__scenarioData.microtypeIdToIdx), len(self.__scenarioData.modeToIdx)))
         df = self.__scenarioData["modeExternalities"]
         for mode, modeIdx in self.__scenarioData.modeToIdx.items():
             for mId, mIdx in self.__scenarioData.microtypeIdToIdx.items():
                 if (mId, mode) in df.index:
-                    self.__numpyPerPassengerMile[modeIdx, mIdx] = df['CostPerPassengerMile'].iloc[
+                    self.__numpyPerPassengerMile[mIdx, modeIdx] = df['CostPerPassengerMile'].iloc[
                         df.index.get_loc((mId, mode))]
-                    self.__numpyPerVehicleMile[modeIdx, mIdx] = df['CostPerVehicleMile'].iloc[
+                    self.__numpyPerVehicleMile[mIdx, modeIdx] = df['CostPerVehicleMile'].iloc[
                         df.index.get_loc((mId, mode))]
+
+    def calcuate(self, microtypes: MicrotypeCollection) -> np.ndarray:
+        totalExternalities = self.__numpyPerVehicleMile * microtypes.vehicleDistanceByMode + \
+                             self.__numpyPerPassengerMile * microtypes.passengerDistanceByMode
+        return totalExternalities
 
 
 class TotalUserCosts:
@@ -228,8 +233,9 @@ class Demand:
         modes = list(self.modeToIdx.keys())
         tuples = [(a, b, c, d, e, f, g) for (a, b, c), (d, e, f), g in product(dis, odis, modes)]
         mi = pd.MultiIndex.from_tuples(tuples, names=(
-        'homeMicrotype', 'populationGroupType', 'tripPurpose', 'originMicrotype', 'destinationMicrotype', 'distanceBin',
-        'mode'))
+            'homeMicrotype', 'populationGroupType', 'tripPurpose', 'originMicrotype', 'destinationMicrotype',
+            'distanceBin',
+            'mode'))
         return pd.DataFrame({'Mode split': self.__modeSplitData.flatten(),
                              'Utility': self.__currentUtility.flatten(),
                              'Trips': np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData).flatten()},
@@ -399,9 +405,15 @@ class Demand:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
         startsByOrigin = np.einsum('ijk,ijl->lk', startsByMode, self.__toStarts)
         startsByDestination = np.einsum('ijk,ijl->lk', startsByMode, self.__toEnds)
-        distanceByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughDistance)
+        passengerMilesByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughDistance)
         throughCountsByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughCounts)
-        newData = np.stack([startsByOrigin, startsByDestination, throughCountsByMicrotype, distanceByMicrotype],
+        vehicleMilesByMicrotype = passengerMilesByMicrotype.copy()
+        for mode, modeIdx in self.modeToIdx.items():
+            for mID, mIdx in self.microtypeIdToIdx.items():
+                if microtypes[mID].networks.getMode(mode).fixedVMT:
+                    vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
+        newData = np.stack([startsByOrigin, startsByDestination, throughCountsByMicrotype, passengerMilesByMicrotype,
+                            vehicleMilesByMicrotype],
                            axis=-1)
 
         microtypes.updateNumpyDemand(newData)

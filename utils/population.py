@@ -130,6 +130,7 @@ class Population:
             (len(scenarioData.diToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)))
         self.__modes = scenarioData.getModes()
         self.utilsToDollars = 200
+        self.defaultValueOfTimePerHour = 45
 
     @property
     def diToIdx(self):
@@ -232,8 +233,9 @@ class Population:
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
                 out = DemandClass(group.set_index("Mode").drop(columns=['PopulationGroupTypeID', 'TripPurposeID']))
                 self[demandIndex] = out
-        self.__numpyCost = self.__numpy.copy() * self.utilsToDollars
-        self.__numpyCost[:, :, 0] = 0.0
+        self.__numpyCost = np.zeros_like(self.__numpy)
+        self.__numpyCost[:, :, 2] = 1.0
+        self.__numpyCost[:, :, [1, 3,  4]] = self.defaultValueOfTimePerHour
         print("|  Loaded ", len(populations), " population groups")
 
     def __iter__(self):

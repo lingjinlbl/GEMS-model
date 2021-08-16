@@ -246,7 +246,11 @@ class MicrotypeCollection:
         return self.__numpySpeed
 
     @property
-    def throughDistanceByMode(self):
+    def passengerDistanceByMode(self):
+        return self.__numpyDemand[:, :, -2]
+
+    @property
+    def vehicleDistanceByMode(self):
         return self.__numpyDemand[:, :, -1]
 
     @property
@@ -260,7 +264,8 @@ class MicrotypeCollection:
     def dataByModeDataFrame(self):
         out = {'TripStartsPerHour': self.tripStartRateByMode.flatten(),
                'TripEndsPerHour': self.tripEndRateByMode.flatten(),
-               'ThroughDistancePerHour': self.throughDistanceByMode.flatten(),
+               'PassengerDistancePerHour': self.passengerDistanceByMode.flatten(),
+               'VehicleDistancePerHour': self.vehicleDistanceByMode.flatten(),
                'Speed': self.__numpySpeed.flatten()}
         return pd.DataFrame(out,
                             index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))

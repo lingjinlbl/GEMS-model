@@ -196,7 +196,7 @@ class ScenarioData:
                                self["distanceBins"].DistanceBinID))
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(allODIs)}
 
-        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'throughDistance': 3}
+        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'passengerDistance': 3, 'vehicleDistance': 4}
 
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
@@ -477,15 +477,15 @@ class Model:
             for tp, weight in self.__timePeriods:
                 if tp in self.__demand:
                     if microtypeID is None:
-                        modeSplit += self.__microtypes[tp].throughDistanceByMode.sum(axis=0) * weight
+                        modeSplit += self.__microtypes[tp].passengerDistanceByMode.sum(axis=0) * weight
                     else:
-                        modeSplit += self.__microtypes[tp].throughDistanceByMode[self.microtypeIdToIdx[microtypeID],
+                        modeSplit += self.__microtypes[tp].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID],
                                      :] * weight
         else:
             if microtypeID is None:
-                modeSplit = self.__microtypes[timePeriod].throughDistanceByMode.sum(axis=0)
+                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode.sum(axis=0)
             else:
-                modeSplit = self.__microtypes[timePeriod].throughDistanceByMode[self.microtypeIdToIdx[microtypeID], :]
+                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID], :]
         return modeSplit / np.sum(modeSplit)
 
     def getUserCosts(self, mode=None):
@@ -545,13 +545,15 @@ class Model:
 
     def collectAllCosts(self, event=None):
         operatorCosts = CollectedTotalOperatorCosts()
+        externalities = dict()
         vectorUserCosts = 0.0
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, preserve=True)
             matCosts = self.getMatrixUserCosts() * durationInHours
             vectorUserCosts += matCosts
             operatorCosts += self.getOperatorCosts() * durationInHours
-        return operatorCosts, vectorUserCosts
+            externalities[timePeriod] = self.__externalities.calcuate(self.microtypes) * durationInHours
+        return operatorCosts, vectorUserCosts, sum([e for e in externalities.values()])
 
     def updatePopulation(self):
         for timePeriod, durationInHours in self.__timePeriods:
@@ -675,7 +677,7 @@ class Model:
                                                                self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
-            operatorCosts, vectorUserCosts = self.collectAllCosts()
+            operatorCosts, vectorUserCosts, externalities = self.collectAllCosts()
             x = list(self.microtypeIdToIdx.keys())
             userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
                 level='homeMicrotype').sum(axis=0)
@@ -808,7 +810,7 @@ class Optimizer:
 
     def evaluate(self, reallocations: np.ndarray) -> float:
         self.updateAndRunModel(reallocations)
-        operatorCosts, vectorUserCosts = self.model.collectAllCosts()
+        operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
         print(np.sum(vectorUserCosts), operatorCosts.total, dedicationCosts)
@@ -874,7 +876,7 @@ def startBar():
 
 if __name__ == "__main__":
     model = Model("input-data")
-    operatorCosts, vectorUserCosts = model.collectAllCosts()
+    operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')], fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus')], method="noisy")
     outcome = optimizer.minimize()
     print(outcome)
@@ -885,7 +887,7 @@ if __name__ == "__main__":
 
     #model.interact.modifyModel('dedication', obj)
     a, b = model.collectAllCharacteristics()
-    operatorCosts, vectorUserCosts = model.collectAllCosts()
+    operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     print('done')
     #model.interact.createDownloadLink()
     #a, b, c = model.toPandas()
