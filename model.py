@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from mock import Mock
-from scipy.optimize import root, minimize, Bounds
+from scipy.optimize import root, minimize, Bounds, shgo
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -787,7 +787,7 @@ class Optimizer:
                 #     self.toSubNetworkIDs()), "ModeTypeID"]
             perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
                 pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
-            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)
+            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts) # TODO: Convert back to real numbers
             if np.isnan(cost):
                 return np.inf
             else:
@@ -805,6 +805,9 @@ class Optimizer:
                                                               self.__modesAndMicrotypes)
         else:
             transitModification = None
+        if self.model.choice.broken:
+            self.model.microtypes.resetStateData()
+            self.model.initializeAllTimePeriods(True)
         self.model.modifyNetworks(networkModification, transitModification)
         self.model.collectAllCharacteristics()
 
@@ -813,18 +816,18 @@ class Optimizer:
         operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
-        print(np.sum(vectorUserCosts), operatorCosts.total, dedicationCosts)
-        return -np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts
+        print(np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts + externalities.sum())
+        return np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts + externalities.sum()
 
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
-            upperBoundsROW = [0.25] * len(self.fromSubNetworkIDs())
+            upperBoundsROW = [0.4] * len(self.fromSubNetworkIDs())
             lowerBoundsROW = [0.0] * len(self.fromSubNetworkIDs())
         else:
             upperBoundsROW = []
             lowerBoundsROW = []
         upperBoundsHeadway = [3600.] * self.nModes()
-        lowerBoundsHeadway = [120.] * self.nModes()
+        lowerBoundsHeadway = [60.] * self.nModes()
         defaultHeadway = [300.] * self.nModes()
         bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
         if self.__method == "shgo":
@@ -848,10 +851,11 @@ class Optimizer:
         #    b = self.getBounds()
         #    return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
         elif self.__method == "noisy":
+            scaling = [1.0] * self.nSubNetworks() + [500.0] * self.nModes()
             return minimizeCompass(self.evaluate, self.x0(), bounds=self.getBounds(), paired=False, deltainit=500000.0,
-                                   errorcontrol=False)
+                                   errorcontrol=False, scaling=scaling)
         else:
-            return minimize(self.evaluate, self.x0(), bounds=self.getBounds())
+            return minimize(self.evaluate, self.x0(), bounds=self.getBounds(), options={'eps':1e-2})
         # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
         # return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
         #                 options={'verbose': 3, 'xtol': 10.0, 'gtol': 1e-4, 'maxiter': 15, 'initial_tr_radius': 10.})
@@ -877,7 +881,9 @@ def startBar():
 if __name__ == "__main__":
     model = Model("input-data")
     operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
-    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')], fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus')], method="noisy")
+    a, b = model.collectAllCharacteristics()
+    a, b = model.collectAllCharacteristics()
+    optimizer = Optimizer(model, modesAndMicrotypes=None, fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus')], method="noisy")
     outcome = optimizer.minimize()
     print(outcome)
     #model.updateUtilityParam(-0.3, "travel_time")

@@ -179,6 +179,10 @@ class CollectedChoiceCharacteristics:
     def numpy(self) -> np.ndarray:
         return self.__numpy
 
+    @property
+    def broken(self) -> bool:
+        return self.__broken
+
     def __setitem__(self, key, value: ModalChoiceCharacteristics):
         self.__choiceCharacteristics[key] = value
 
