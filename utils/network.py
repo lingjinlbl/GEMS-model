@@ -3,6 +3,7 @@ from typing import List, Dict
 
 import numpy as np
 import pandas as pd
+# from line_profiler_pycharm import profile
 from scipy.optimize import minimize
 
 from utils.supply import TravelDemand, TravelDemands
@@ -107,21 +108,6 @@ class Mode:
         # return self.params.to_numpy()[self._inds["VehicleSize"]]
         return self.params.at[self.microtypeID, "VehicleSize"]
 
-    @property
-    def perStart(self):
-        # return self.params.to_numpy()[self._inds["PerStartCost"]]
-        return self.params.at[self.microtypeID, "PerStartCost"]
-
-    @property
-    def perEnd(self):
-        # return self.params.to_numpy()[self._inds["PerEndCost"]]
-        return self.params.at[self.microtypeID, "PerEndCost"]
-
-    @property
-    def perMile(self):
-        # return self.params.to_numpy()[self._inds["PerMileCost"]]
-        return self.params.at[self.microtypeID, "PerMileCost"]
-
     def updateScenarioInputs(self):
         pass
 
@@ -219,6 +205,7 @@ class WalkMode(Mode):
         self.name = "walk"
         self.params = modeParams
         self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.microtypeID = microtypeID
         self.__idx = modeParams.index.get_loc(microtypeID)
         # self._inds = self.initInds(idx)
@@ -233,9 +220,24 @@ class WalkMode(Mode):
             self._speed[n] = n.base_speed
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def speedInMetersPerSecond(self):
         # return self.params.to_numpy()[self._inds["PerEndCost"]]
-        return self.params.at[self.microtypeID, "SpeedInMetersPerSecond"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["SpeedInMetersPerSecond"]]
 
     def getSpeed(self):
         return self.speedInMetersPerSecond
@@ -247,6 +249,8 @@ class BikeMode(Mode):
         super(BikeMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "bike"
         self.params = modeParams
+        self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.microtypeID = microtypeID
         self.__idx = modeParams.index.get_loc(microtypeID)
         # self._inds = self.initInds(idx)
@@ -262,9 +266,24 @@ class BikeMode(Mode):
         self.bikeLanePreference = 2.0
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def speedInMetersPerSecond(self):
         # return self.params.to_numpy()[self._inds["PerEndCost"]]
-        return self.params.at[self.microtypeID, "SpeedInMetersPerSecond"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["SpeedInMetersPerSecond"]]
 
     def getSpeed(self):
         return self.speedInMetersPerSecond
@@ -297,6 +316,7 @@ class RailMode(Mode):
         self.name = "rail"
         self.params = modeParams
         self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.microtypeID = microtypeID
         self.__idx = modeParams.index.get_loc(microtypeID)
         self.networks = networks
@@ -311,18 +331,33 @@ class RailMode(Mode):
             self._speed[n] = n.base_speed
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def routeAveragedSpeed(self):
-        return self.params.at[self.microtypeID, "SpeedInMetersPerSecond"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["SpeedInMetersPerSecond"]]
 
     @property
     def vehicleOperatingCostPerHour(self):
         # return self.params.to_numpy()[self._inds["VehicleOperatingCostsPerHour"]]
-        return self.params.at[self.microtypeID, "VehicleOperatingCostsPerHour"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["VehicleOperatingCostsPerHour"]]
 
     @property
     def fare(self):
         # return self.params.to_numpy()[self._inds["PerStartCost"]]
-        return self.params.at[self.microtypeID, "PerStartCost"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerStartCost"]]
 
     @property
     def headwayInSec(self):
@@ -332,11 +367,11 @@ class RailMode(Mode):
     @property
     def stopSpacingInMeters(self):
         # return self.params.to_numpy()[self._inds["StopSpacing"]]
-        return self.params.at[self.microtypeID, "StopSpacing"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["StopSpacing"]]
 
     @property
     def portionAreaCovered(self):
-        return self.__params[self.__idx, 9]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["CoveragePortion"]]
         # return self.params.at[self.microtypeID, "CoveragePortion"]
 
     def updateDemand(self, travelDemand=None):
@@ -381,6 +416,8 @@ class AutoMode(Mode):
         self.params = modeParams
         self.microtypeID = microtypeID
         self.__idx = modeParams.index.get_loc(microtypeID)
+        self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.networks = networks
         self.MFDmode = "single"
         self.override = False
@@ -395,8 +432,23 @@ class AutoMode(Mode):
             self._speed[n] = n.base_speed
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def relativeLength(self):
-        return self.params.at[self.microtypeID, "VehicleSize"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["VehicleSize"]]
 
     def getSpeed(self):
         return self.__speedData[0]
@@ -417,6 +469,7 @@ class AutoMode(Mode):
             self.travelDemand = travelDemand
         self._VMT_tot = travelDemand.rateOfPmtPerHour * self.relativeLength
 
+    # @profile
     def assignVmtToNetworks(self):
         if len(self.networks) == 1:
             if self.MFDmode == "single":
@@ -642,6 +695,7 @@ class BusMode(Mode):
             self.__bad = False
         return spd
 
+    # TODO: store speeds in array
     def getSpeeds(self):
         speeds = []
         for n in self.networks:
@@ -700,6 +754,7 @@ class BusMode(Mode):
             if n.getNetworkStateData().blockedDistance > self.getRouteLength():
                 print('HMMMMM')
 
+    # @profile
     def assignVmtToNetworks(self):
         speeds = self.getSpeeds()
         times = []

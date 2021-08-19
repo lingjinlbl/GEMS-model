@@ -597,7 +597,7 @@ class MicrotypeCollection:
             return inputAllocation.filterAllocation(validMicrotypes)
 
 
-@njit
+@njit(fastmath=True, parallel=False, cache=True)
 def vectorV(N, v_0, n_0, n_other, minspeed=0.005):
     nTimeSteps = N.shape[1]
     out = np.empty_like(N)
@@ -616,7 +616,7 @@ def vectorV(N, v_0, n_0, n_other, minspeed=0.005):
     return out
 
 
-@njit
+@njit(fastmath=True, parallel=False, cache=True)
 def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, n_other, dt):
     X = np.transpose(Xprime)
     nTimeSteps = N.shape[1]

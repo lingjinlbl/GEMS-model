@@ -309,6 +309,7 @@ class Model:
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
+        self.__successful = True
         if interactive:
             self.interact.init()
 
@@ -367,6 +368,10 @@ class Model:
             self.__networkStateData[self.__currentTimePeriod] = CollectedNetworkStateData()
         return self.__networkStateData[self.__currentTimePeriod]
 
+    @property
+    def successful(self):
+        return self.__successful
+
     def getNetworkStateData(self, timePeriod) -> CollectedNetworkStateData:
         return self.__networkStateData[timePeriod]
 
@@ -400,6 +405,7 @@ class Model:
 
     def initializeAllTimePeriods(self, override=False):
         self.__externalities.init()
+        self.__successful = True
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod, override)
 
@@ -459,9 +465,11 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        sol = root(self.g, startingPoint, method='df-sane', tol=0.0001, options={'maxiter': 100})
+        sol = root(self.g, startingPoint, method='df-sane', tol=0.000001, options={'maxfev': 200,'maxiter': 200,'line_search':'cheng', 'sigma_0':-0.8})
         # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
         fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
+        print(sol.nit)
+        self.__successful = self.__successful & sol.success
 
         """
         Finalize
@@ -573,6 +581,8 @@ class Model:
             vectorUserCosts += matCosts
             self.__networkStateData[timePeriod] = self.microtypes.getStateData()
             utilities.append(self.demand.utility(self.choice))
+            if not self.successful:
+                break
         return vectorUserCosts, np.stack(utilities)
 
     def toPandas(self):
@@ -805,7 +815,7 @@ class Optimizer:
                                                               self.__modesAndMicrotypes)
         else:
             transitModification = None
-        if self.model.choice.broken:
+        if self.model.choice.broken | (not self.model.successful):
             self.model.microtypes.resetStateData()
             self.model.initializeAllTimePeriods(True)
         self.model.modifyNetworks(networkModification, transitModification)
@@ -814,6 +824,10 @@ class Optimizer:
     def evaluate(self, reallocations: np.ndarray) -> float:
         self.updateAndRunModel(reallocations)
         operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
+        if self.model.choice.broken | (not self.model.successful):
+            print('SKIPPING!')
+            print(reallocations)
+            return np.nan
         dedicationCosts = self.getDedicationCost(reallocations)
         print(reallocations)
         print(np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts + externalities.sum())
@@ -879,22 +893,23 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data")
+    model = Model("input-data-geotype-A")
     operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     a, b = model.collectAllCharacteristics()
     a, b = model.collectAllCharacteristics()
-    optimizer = Optimizer(model, modesAndMicrotypes=None, fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus')], method="noisy")
-    outcome = optimizer.minimize()
-    print(outcome)
+    optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'bus'), ('2', 'bus')], fromToSubNetworkIDs=[('1', 'Bus'), ('2', 'Bus')], method="noisy")
+    optimizer.updateAndRunModel(np.array([0.15,0.05, 250, 400]))
+    # outcome = optimizer.minimize()
+    # print(outcome)
     #model.updateUtilityParam(-0.3, "travel_time")
 
     #obj = Mock()
     #obj.value = 0.25
 
     #model.interact.modifyModel('dedication', obj)
-    a, b = model.collectAllCharacteristics()
-    operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
-    print('done')
+    # a, b = model.collectAllCharacteristics()
+    # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+    # print('done')
     #model.interact.createDownloadLink()
     #a, b, c = model.toPandas()
     #ms = model.getModeSplit()
