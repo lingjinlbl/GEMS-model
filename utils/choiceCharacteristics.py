@@ -243,7 +243,7 @@ class CollectedChoiceCharacteristics:
 
 
 def speedToTravelTime(modeSpeed: np.ndarray, toThroughDistance: np.ndarray) -> (np.ndarray, bool):
-    if np.any(np.isnan(modeSpeed) | (modeSpeed <= 0.01)):
+    if np.any(np.isnan(modeSpeed) | (modeSpeed <= 0.001)):
         broken = True
     else:
         broken = False

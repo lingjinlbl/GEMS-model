@@ -53,6 +53,9 @@ class CollectedTotalOperatorCosts:
     def toDataFrame(self):
         return pd.concat([val.toDataFrame([key]) for key, val in self.__costs.items()])
 
+    def __str__(self):
+        return str(self.toDataFrame())
+
 
 class Microtype:
     def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):
@@ -383,7 +386,7 @@ class MicrotypeCollection:
                 minimumProduction = criticalV * criticalDensity
                 v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
             if np.any(v_out > v_0):
-                print("WHY TOO FAST?")
+                # print("WHY TOO FAST?")
                 v_out[v_out > v_0] = v_0[v_out > v_0]
             return v_out
 
@@ -471,7 +474,7 @@ class MicrotypeCollection:
                     n_other[idx] = networkStateData.nonAutoAccumulation
                     n_init[idx] = networkStateData.initialAccumulation
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
-
+        # print(n_other)
         dt = self.__timeStepInSeconds
         if False:
 
@@ -522,6 +525,7 @@ class MicrotypeCollection:
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
         # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
         averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        # print(averageSpeeds)
 
         # averageSpeeds = np.min(vs, axis=1)
         # print('----new iter---')
@@ -542,7 +546,7 @@ class MicrotypeCollection:
                         networkStateData = collectedNetworkStateData[(microtypeID, modes)]
                         networkStateData.finalAccumulation = ns[idx, -1]
                         networkStateData.finalSpeed = vs[idx, -1]
-                        # networkStateData.averageSpeed = averageSpeeds[idx]
+                        networkStateData.averageSpeed = averageSpeeds[idx]
                         networkStateData.inflow = np.squeeze(inflows[idx, :]) * dt
                         networkStateData.outflow = np.squeeze(outflows[idx, :]) * dt
                         networkStateData.flowMatrix = np.squeeze(flowMats[idx, :, :]) * dt
@@ -632,7 +636,7 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, n
             minimumProduction = criticalV * criticalDensity
             v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
         if np.any(v_out > v_0):
-            print("WHY TOO FAST?")
+            # print("WHY TOO FAST?")
             v_out[v_out > v_0] = v_0[v_out > v_0]
         return v_out
 

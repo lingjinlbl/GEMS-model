@@ -40,9 +40,15 @@ class TotalOperatorCosts:
         output = TotalOperatorCosts()
         for key in self.__costs.keys():
             if key in self.__costs:
-                output[key] = (self.__costs[key] + other.__costs[key], self.__revenues[key] + other.__revenues[key])
+                if key in other.__costs:
+                    output[key] = (self.__costs[key] + other.__costs[key], self.__revenues[key] + other.__revenues[key])
+                else:
+                    output[key] = (self.__costs[key], self.__revenues[key])
             else:
-                output[key] = (other.__costs[key], other.__revenues[key])
+                if key in other.__costs:
+                    output[key] = (other.__costs[key], other.__revenues[key])
+                else:
+                    output[key] = (0., 0.)
         return output
 
     def __str__(self):
@@ -766,6 +772,9 @@ class BusMode(Mode):
                 spd = 0.1
             times.append(self.getOperatingL(n) / spd)
             lengths.append(self.getOperatingL(n))
+        out1 = []
+        out2 = []
+        out3 = []
         for ind, n in enumerate(self.networks):
             assert isinstance(n, Network)
             if speeds[ind] >= 0:
@@ -775,9 +784,13 @@ class BusMode(Mode):
                 n.updateBaseSpeed()
                 self._speed[n] = self.getSubNetworkSpeed(n)
                 self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength,
-                                     self.getRouteLength() / n.avgLinkLength / 100)
+                                     self.getRouteLength() / n.avgLinkLength / 2)  # Why was this divided by 100?
+                out1.append(VMT / self._speed[n] * self.relativeLength)
+                out2.append(self.getRouteLength() / n.avgLinkLength)
+                out3.append(self._speed[n])
                 n.setN(self.name, self._N_eff[n])
                 n.getNetworkStateData().nonAutoAccumulation += self._N_eff[n]
+        # print(out1, out2, out3)
         self.updateCommercialSpeed()
 
     def updateCommercialSpeed(self):
@@ -832,7 +845,6 @@ class Network:
         self._V_steadyState = self.freeFlowSpeed
         self.__modeToIdx = modeToIdx
         self.__modeToMicrotypeSpeed = modeToMicrotypeSpeed
-        self.base_speed = self.freeFlowSpeed
         if diameter is None:
             self.__diameter = 1.0
         else:
@@ -846,12 +858,16 @@ class Network:
     #     return self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
 
     @property
+    def base_speed(self):
+        return self.getNetworkStateData().averageSpeed
+
+    @property
     def autoSpeed(self):
         return self.__modeToMicrotypeSpeed[self.__modeToIdx['auto']]
 
-    # @base_speed.setter
-    # def base_speed(self, spd):
-    #     self.__modeToMicrotypeSpeed[self.__modeToIdx['auto']] = spd
+    @base_speed.setter
+    def base_speed(self, spd):
+        self.getNetworkStateData().averageSpeed = spd
 
     @property
     def avgLinkLength(self):
@@ -915,7 +931,8 @@ class Network:
 
     def updateBaseSpeed(self, override=False):
         # out = self.NEF(overrideMatrix=override)
-        self.base_speed = self.NEF(overrideMatrix=override)
+        if self.dedicated:
+            self.base_speed = self.NEF(overrideMatrix=override)
 
     def getSpeedFromMFD(self, N):
         L_tot = self.L - self.getBlockedDistance()
@@ -1141,33 +1158,25 @@ class NetworkCollection:
     def updateModes(self, nIters: int = 1):
         # allModes = [n.getModeValues() for n in self._networks]
         # uniqueModes = set([item for sublist in allModes for item in sublist])
-        oldSpeeds = self.getModeSpeeds()
+        # oldSpeeds = self.getModeSpeeds()
+        # TODO: This might not need to be repeated
         for m in self.modes.values():
             m.updateDemand(self.demands[m.name])
-        for it in range(nIters):
-            for modes, n in self:
-                # n.getNetworkStateData().resetBlockedDistance()
-                n.getNetworkStateData().resetNonAutoAccumulation()
-                # n.resetSpeeds()
-            for m in self.modes.values():  # uniqueModes:
-                m.assignVmtToNetworks()
-                for n in m.networks:
-                    n.updateBaseSpeed()
-                m.updateModeBlockedDistance()
-                # m.updateCommercialSpeed()
-                # self.getModeSpeeds()
-                # m.updateN(self.demands[m.name])
-            # self.updateNetworks()
-            # self.updateMFD()
-            # if self.verbose:
-            #     print(str(self))
-            # if np.any([n.isJammed for n in self._networks]):
+
+        for modes, n in self:
+            # n.getNetworkStateData().resetBlockedDistance()
+            n.getNetworkStateData().resetNonAutoAccumulation()
+            # n.resetSpeeds()
+        for m in self.modes.values():  # uniqueModes:
+            m.assignVmtToNetworks()
+            for n in m.networks:
+                n.updateBaseSpeed()
+            m.updateModeBlockedDistance()
+            # newSpeeds = self.getModeSpeeds()
+            # if np.linalg.norm(oldSpeeds - newSpeeds) < 1e-9:
             #     break
-            newSpeeds = self.getModeSpeeds()
-            if np.linalg.norm(oldSpeeds - newSpeeds) < 1e-9:
-                break
-            else:
-                oldSpeeds = newSpeeds
+            # else:
+            #     oldSpeeds = newSpeeds
 
     # def updateNetworks(self):
     #     for n in self._networks:
@@ -1214,7 +1223,7 @@ class NetworkStateData:
             self.initialAccumulation = 0.0
             self.nonAutoAccumulation = 0.0
             self.blockedDistance = 0.0
-            # self.averageSpeed = 0.0
+            self.averageSpeed = 0.0
             self.initialTime = 0.0
             self.inflow = np.zeros(0)
             self.outflow = np.zeros(0)
@@ -1231,7 +1240,7 @@ class NetworkStateData:
             self.initialAccumulation = data.initialAccumulation
             self.nonAutoAccumulation = data.nonAutoAccumulation
             self.blockedDistance = data.blockedDistance
-            # self.averageSpeed = data.averageSpeed
+            self.averageSpeed = data.averageSpeed
             self.initialTime = data.initialTime
             self.inflow = data.inflow
             self.outflow = data.outflow
@@ -1244,7 +1253,7 @@ class NetworkStateData:
         self.initialSpeed = network.freeFlowSpeed
         self.finalSpeed = network.freeFlowSpeed
         self.steadyStateSpeed = network.freeFlowSpeed
-        # self.averageSpeed = network.freeFlowSpeed
+        self.averageSpeed = network.freeFlowSpeed
         return self
 
     def resetBlockedDistance(self):
@@ -1263,7 +1272,7 @@ class NetworkStateData:
         self.initialAccumulation = 0.0
         self.nonAutoAccumulation = 0.0
         self.blockedDistance = 0.0
-        # self.averageSpeed = 0.0
+        self.averageSpeed = 0.0
         self.initialTime = 0.0
         self.inflow = np.zeros(0)
         self.outflow = np.zeros(0)

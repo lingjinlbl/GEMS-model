@@ -235,7 +235,7 @@ class Population:
                 self[demandIndex] = out
         self.__numpyCost = np.zeros_like(self.__numpy)
         self.__numpyCost[:, :, 2] = 1.0
-        self.__numpyCost[:, :, [1, 3,  4]] = self.defaultValueOfTimePerHour
+        self.__numpyCost[:, :, [1, 3, 4]] = self.defaultValueOfTimePerHour
         print("|  Loaded ", len(populations), " population groups")
 
     def __iter__(self):

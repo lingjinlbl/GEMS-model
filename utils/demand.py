@@ -393,7 +393,7 @@ class Demand:
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
     # @profile
-    def updateMFD(self, microtypes: MicrotypeCollection, nIters=5, utilitiesArray=None, modeSplitArray=None):
+    def updateMFD(self, microtypes: MicrotypeCollection, nIters=3, utilitiesArray=None, modeSplitArray=None):
         if utilitiesArray is not None:
             np.copyto(self.__modeSplitData, modeSplitFromUtils(utilitiesArray))
             np.copyto(self.__currentUtility, utilitiesArray)
@@ -469,7 +469,12 @@ class Demand:
             Step four: Update blocked distance, given average car speeds
             """
             for microtypeID, microtype in microtypes:
-                microtype.updateNetworkSpeeds(1)
+                nonAuto1 = microtype.networks['bus'][0].getNetworkStateData().nonAutoAccumulation
+                blockedDistance1 = microtype.networks['bus'][0].getBlockedDistance()
+                microtype.updateNetworkSpeeds()
+                blockedDistance2 = microtype.networks['bus'][0].getBlockedDistance()
+                nonAuto2 = microtype.networks['bus'][0].getNetworkStateData().nonAutoAccumulation
+                # print(microtypeID, blockedDistance1, blockedDistance2, nonAuto1, nonAuto2)
 
         autoProductionInMeters = microtypes.collectedNetworkStateData.getAutoProduction()
         # print(autoProductionInMeters)
