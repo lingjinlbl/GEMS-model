@@ -844,9 +844,9 @@ class Optimizer:
             return np.nan
         dedicationCosts = self.getDedicationCost(reallocations / scaling)
         # print(reallocations / scaling)
-        print({a: b.sum() for a, b in vectorUserCosts.items()})
-        print(operatorCosts)
-        print({a: b.sum() for a, b in externalities.items()})
+        # print({a: b.sum() for a, b in vectorUserCosts.items()})
+        # print(operatorCosts)
+        # print({a: b.sum() for a, b in externalities.items()})
         return self.model.sumAllCosts(operatorCosts, vectorUserCosts, externalities) + dedicationCosts
 
     def getBounds(self):
@@ -914,7 +914,7 @@ if __name__ == "__main__":
     operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     a, b = model.collectAllCharacteristics()
     a, b = model.collectAllCharacteristics()
-    optimizer = Optimizer(model, modesAndMicrotypes=None, fromToSubNetworkIDs=[('A', 'Bus'), ('A', 'Bus')], method="noisy")
+    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus')], fromToSubNetworkIDs=[('A', 'Bus')], method="min")
     # optimizer.updateAndRunModel(np.array([0.15,0.05, 250, 400]))
     optimizer.evaluate(optimizer.x0())
     outcome = optimizer.minimize()
