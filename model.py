@@ -889,7 +889,7 @@ class Optimizer:
             # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
             return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
                             # options={'scale':scaling, 'eps':0.01})
-                            options={'initial_tr_radius':1.0, 'finite_diff_rel_step':0.001,'maxiter':100000, 'xtol':0.001,'barrier_tol':0.001, 'verbose':3})
+                            options={'initial_tr_radius':2.0, 'finite_diff_rel_step':0.001,'maxiter':2000, 'xtol':0.001,'barrier_tol':0.001, 'verbose':3})
 
 
 
@@ -914,7 +914,7 @@ if __name__ == "__main__":
     operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     a, b = model.collectAllCharacteristics()
     a, b = model.collectAllCharacteristics()
-    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus')], fromToSubNetworkIDs=[('A', 'Bus')], method="min")
+    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'),('B', 'bus')], fromToSubNetworkIDs=[('A', 'Bus'),('B', 'Bus')], method="min")
     # optimizer.updateAndRunModel(np.array([0.15,0.05, 250, 400]))
     optimizer.evaluate(optimizer.x0())
     outcome = optimizer.minimize()
