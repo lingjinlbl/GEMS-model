@@ -536,6 +536,7 @@ class Interact:
         if self.__showFigure:
             self.__loadingWidget.value = "<center><i>Model Running</i></center>"
             self.__downloadWidget.layout.visibility = "hidden"
+            self.__downloadHTML.format(payload="")
         self.model.collectAllCharacteristics()
         if self.__showFigure:
             self.updatePlots()
