@@ -469,14 +469,9 @@ class Demand:
             Step four: Update blocked distance, given average car speeds
             """
             for microtypeID, microtype in microtypes:
-                nonAuto1 = microtype.networks['bus'][0].getNetworkStateData().nonAutoAccumulation
-                blockedDistance1 = microtype.networks['bus'][0].getBlockedDistance()
                 microtype.updateNetworkSpeeds()
-                blockedDistance2 = microtype.networks['bus'][0].getBlockedDistance()
-                nonAuto2 = microtype.networks['bus'][0].getNetworkStateData().nonAutoAccumulation
-                # print(microtypeID, blockedDistance1, blockedDistance2, nonAuto1, nonAuto2)
 
-        autoProductionInMeters = microtypes.collectedNetworkStateData.getAutoProduction()
+        # autoProductionInMeters = microtypes.collectedNetworkStateData.getAutoProduction()
         # print(autoProductionInMeters)
 
     def utility(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics):

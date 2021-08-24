@@ -537,7 +537,7 @@ class MicrotypeCollection:
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)
-
+        # print(averageSpeeds)
         if writeData:
             for microtypeID, microtype in self:
                 idx = self.transitionMatrix.idx(microtypeID)

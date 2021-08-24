@@ -820,12 +820,13 @@ class Network:
     def __init__(self, data, characteristics, idx, diameter=None, microtypeID=None, modeToMicrotypeSpeed=None,
                  modeToIdx=None):
         self.data = data
-        self.__data = data.to_numpy()
+
         self.characteristics = characteristics
         self.charColumnToIdx = {i: characteristics.columns.get_loc(i) for i in characteristics.columns}
         self.dataColumnToIdx = {i: data.columns.get_loc(i) for i in data.columns}
         self.microtypeID = microtypeID
         self._idx = data.index.get_loc(idx)
+        self.__data = data.iloc[self._idx, :].to_numpy()
         self.type = self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
         self.L_blocked = dict()
         self._modes = dict()
@@ -850,8 +851,8 @@ class Network:
         else:
             self.__diameter = diameter
 
-    def updateNetworkData(self):
-        self.__data = self.data.to_numpy()
+    def updateNetworkData(self):  # CONSOLIDATE
+        np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
 
     # @property
     # def type(self):
@@ -871,19 +872,19 @@ class Network:
 
     @property
     def avgLinkLength(self):
-        return self.__data[self._idx, self.dataColumnToIdx["avgLinkLength"]]
+        return self.__data[self.dataColumnToIdx["avgLinkLength"]]
 
     @property
     def freeFlowSpeed(self):
-        return self.__data[self._idx, self.dataColumnToIdx["vMax"]]
+        return self.__data[self.dataColumnToIdx["vMax"]]
 
     @property
     def jamDensity(self):
-        return self.__data[self._idx, self.dataColumnToIdx["densityMax"]]
+        return self.__data[self.dataColumnToIdx["densityMax"]]
 
     @property
     def L(self):
-        return self.__data[self._idx, self.dataColumnToIdx["Length"]]
+        return self.__data[self.dataColumnToIdx["Length"]]
 
     @property
     def diameter(self):
@@ -896,7 +897,7 @@ class Network:
         return mode in self._modes
 
     def updateScenarioInputs(self):
-        np.copyto(self.__data, self.data.to_numpy())
+        np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
 
     def getAccumulationExcluding(self, mode: str):
         return np.sum(acc for m, acc in self._N_eff.items() if m != mode)

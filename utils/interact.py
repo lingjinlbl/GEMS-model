@@ -37,7 +37,9 @@ class Interact:
         self.__plotStateWidget = None
         self.__loadingWidget = None
         self.__downloadWidget = None
+        self.__generateWidget = None
         self.__downloadHTML = None
+        self.__generateHTML = None
         self.__out = None  # print(*a, file = sys.stdout)
         if figure:
             self.__grid = self.generateGridSpec()
@@ -260,7 +262,12 @@ class Interact:
 
         downloadButton = widgets.HTML(html_button, layout=Layout(width='95%', height='0.5in'))
 
+        generateButton = widgets.Button(description="Create download link", layout=Layout(width='95%', height='0.5in'))
+        generateButton.on_click(self.createDownloadLink)
+
         self.__downloadWidget = downloadButton
+
+        self.__generateWidget = generateButton
 
         populationStack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -446,7 +453,7 @@ class Interact:
         self.__out = widgets.Output(layout={'border': '1px solid black'})
         # gs[1, 2] = setRef
         gs[1, 2] = widgets.VBox([rerunModel, setRef])
-        gs[2, 2] = downloadButton
+        gs[2, 2] = widgets.VBox([generateButton, downloadButton])
 
         # self.createDownloadLink()
         return gs
@@ -522,12 +529,17 @@ class Interact:
         axs[3, 0].set_ylabel('mode split')
 
     def updateCosts(self, message=None):
+        if self.model.choice.broken | (not self.model.successful):
+            print("Starting from a bad place so I'll reset")
+            self.model.microtypes.resetStateData()
+            self.model.initializeAllTimePeriods(True)
         if self.__showFigure:
             self.__loadingWidget.value = "<center><i>Model Running</i></center>"
+            self.__downloadWidget.layout.visibility = "hidden"
         self.model.collectAllCharacteristics()
         if self.__showFigure:
             self.updatePlots()
-            self.createDownloadLink()
+            # self.createDownloadLink()
             self.__loadingWidget.value = "<center><b>Complete</b></center>"
 
     def updatePlots(self, message=None):
@@ -644,6 +656,7 @@ class Interact:
         html_button = self.__downloadHTML.format(payload=payload)
 
         self.__downloadWidget.value = html_button
+        self.__downloadWidget.layout.visibility = 'visible'
         #
         # out = FileLink(r'temp/sample.zip')
         # # urlopen(out)
@@ -674,8 +687,11 @@ class Interact:
             self.model.updateUtilityParam(val, param, popGroup, tripPurpose, mode)
 
     def init(self):
+        print("Initialized")
         self.updateCosts()
+        print("Costs updated")
         self.copyCurrentToRef()
+        print("Copied to Ref")
 
     def hardReset(self, message=None):
         self.model.scenarioData.loadData()

@@ -1,5 +1,4 @@
 import os
-from noisyopt import minimizeCompass
 # from line_profiler_pycharm import profile
 from collections import OrderedDict
 from copy import deepcopy
@@ -7,15 +6,15 @@ from itertools import product
 from sys import stdout
 
 import ipywidgets as widgets
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from mock import Mock
+from noisyopt import minimizeCompass
 from scipy.optimize import root, minimize, Bounds, shgo
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand, CollectedTotalUserCosts, ODindex, modeSplitFromUtils, Externalities
+from utils.demand import Demand, ODindex, modeSplitFromUtils, Externalities
 from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
@@ -24,7 +23,6 @@ from utils.population import Population
 
 
 # from skopt import gp_minimize
-
 
 
 class TransitScheduleModification:
@@ -178,7 +176,7 @@ class ScenarioData:
         self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         self["modeExternalities"] = pd.read_csv(os.path.join(self.__path, "ModeExternalities.csv"),
-                                            dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
+                                                dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
 
         self.defineIndices()
 
@@ -196,7 +194,8 @@ class ScenarioData:
                                self["distanceBins"].DistanceBinID))
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(allODIs)}
 
-        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'passengerDistance': 3, 'vehicleDistance': 4}
+        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'passengerDistance': 3,
+                            'vehicleDistance': 4}
 
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
@@ -447,6 +446,9 @@ class Model:
     def timePeriods(self):
         return {a: b for a, b in self.__timePeriods}
 
+    def timePeriodNames(self):
+        return {a: self.__timePeriods.getTimePeriodName(a) for a, _ in self.__timePeriods}
+
     def findEquilibrium(self):
         diff = 1000.
         i = 0
@@ -467,19 +469,25 @@ class Model:
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
         if np.linalg.norm(self.g(startingPoint)) < self.__tolerance:
+            print("Nice, I don't need to do anything")
             fixedPointModeSplit = self.fromObjectiveFunction(startingPoint)
+            # print(self.microtypes.collectedNetworkStateData[('A', ('auto', 'bike', 'bus'))].averageSpeed, 'DURING 1 ')
         else:
-            sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance, options={'maxfev': 200,'maxiter': 200,'line_search':'cheng', 'sigma_0':-0.8})
+            sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
+                       options={'maxfev': 200, 'maxiter': 200, 'line_search': 'cheng', 'sigma_0': -0.8})
             # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
+            self.g(sol.x)
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
             # print(self.g(sol.x))
             self.__successful = self.__successful & sol.success
+            # print(self.microtypes.collectedNetworkStateData[('A', ('auto', 'bike', 'bus'))].averageSpeed, 'DURING 2')
 
         """
         Finalize
         """
         self.demand.updateMFD(self.microtypes, modeSplitArray=fixedPointModeSplit)
         self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
+        # print(self.microtypes.collectedNetworkStateData[('A', ('auto', 'bike', 'bus'))].averageSpeed, 'DURING 3')
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
@@ -519,7 +527,7 @@ class Model:
 
     def modifyNetworks(self, networkModification=None,
                        scheduleModification=None):
-        originalScenarioData = self.__initialScenarioData.copy()
+        # originalScenarioData = self.__initialScenarioData.copy()
         if networkModification is not None:
             for ((microtypeID, modeName), laneDistance) in networkModification:
                 self.interact.modifyModel(changeType=('dedicated', microtypeID), value=laneDistance)
@@ -581,17 +589,20 @@ class Model:
         vectorUserCosts = 0.0
         init = True
         utilities = []
+        keepGoing = True
         for timePeriod, durationInHours in self.__timePeriods:
-            self.setTimePeriod(timePeriod, init)
-            self.microtypes.updateNetworkData()
-            init = False
-            self.findEquilibrium()
-            matCosts = self.getMatrixSummedCharacteristics() * durationInHours
-            vectorUserCosts += matCosts
-            self.__networkStateData[timePeriod] = self.microtypes.getStateData()
-            utilities.append(self.demand.utility(self.choice))
-            if not self.successful:
-                break
+            if keepGoing:
+                self.setTimePeriod(timePeriod, init)
+                self.microtypes.updateNetworkData()
+                init = False
+                self.findEquilibrium()
+                matCosts = self.getMatrixSummedCharacteristics() * durationInHours
+                vectorUserCosts += matCosts
+                self.__networkStateData[timePeriod] = self.microtypes.getStateData()
+                utilities.append(self.demand.utility(self.choice))
+                if not self.successful:
+                    keepGoing = False
+                    print('SHOULD I BE BROKEN?')
         return vectorUserCosts, np.stack(utilities)
 
     def toPandas(self):
@@ -605,7 +616,8 @@ class Model:
             sd = self.__microtypes[timePeriod].dataByModeDataFrame()
             sd['TotalTripStarts'] = sd['TripStartsPerHour'] * durationInHours / self.nSubBins
             sd['TotalTripEnds'] = sd['TripEndsPerHour'] * durationInHours / self.nSubBins
-            sd['TotalThroughDistance'] = sd['ThroughDistancePerHour'] * durationInHours / self.nSubBins
+            sd['TotalPassengerDistance'] = sd['PassengerDistancePerHour'] * durationInHours / self.nSubBins
+            sd['TotalVehicleDistance'] = sd['VehicleDistancePerHour'] * durationInHours / self.nSubBins
             speedData[timePeriod] = sd
 
             ud = self.__choice[timePeriod].toDataFrame()
@@ -617,10 +629,9 @@ class Model:
 
         modeSplitData.columns.set_names(['Time Period', 'Value'], inplace=True)
         speedData.columns.set_names(['Time Period', 'Value'], inplace=True)
-        utilityData.columns.set_names(['Time Period', 'Value','Parameter'], inplace=True)
+        utilityData.columns.set_names(['Time Period', 'Value', 'Parameter'], inplace=True)
 
         return modeSplitData, speedData, utilityData
-
 
     def getModeSpeeds(self, timePeriod=None):
         if timePeriod is None:
@@ -715,18 +726,22 @@ class Model:
     def odiTuples(self):
         return [(odi.o, odi.d, odi.distBin) for odi in self.odiToIdx.keys()]
 
-    def userCostDataFrame(self, userCostMatrix):
-        dfs = {}
-        for mode, idx in self.modeToIdx.items():
-            data = userCostMatrix[:, :, idx]
-            df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(),
-                                                                    names=['homeMicrotype', 'populationGroupType',
-                                                                           'tripPurpose']),
-                              columns=pd.MultiIndex.from_tuples(self.odiTuples(),
-                                                                names=['originMicrotype', 'destinationMicrotype',
-                                                                       'distanceBin']))
-            dfs[mode] = df
-        return pd.concat(dfs)
+    def userCostDataFrame(self, userCostMatrixByTimePeriod):
+        dfByTimePeriod = {}
+        for timePeriodID, timePeriodName in self.timePeriodNames().items():
+            dfs = {}
+            userCostMatrix = userCostMatrixByTimePeriod[timePeriodID]
+            for mode, idx in self.modeToIdx.items():
+                data = userCostMatrix[:, :, idx]
+                df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(),
+                                                                        names=['homeMicrotype', 'populationGroupType',
+                                                                               'tripPurpose']),
+                                  columns=pd.MultiIndex.from_tuples(self.odiTuples(),
+                                                                    names=['originMicrotype', 'destinationMicrotype',
+                                                                           'distanceBin']))
+                dfs[mode] = df
+            dfByTimePeriod[(timePeriodID, timePeriodName)] = pd.concat(dfs)
+        return pd.concat(dfByTimePeriod)
 
     def getDedicationCostByMicrotype(self):
         updatedNetworkData = self.scenarioData["subNetworkData"].merge(
@@ -791,22 +806,22 @@ class Optimizer:
         else:
             return 0
 
-    def toSubNetworkIDs(self): # RENAME TO Microtypes
+    def toSubNetworkIDs(self):  # RENAME TO Microtypes
         return [toID for fromID, toID in self.__fromToSubNetworkIDs]
 
-    def fromSubNetworkIDs(self): # Rename to modes
+    def fromSubNetworkIDs(self):  # Rename to modes
         return [fromID for fromID, toID in self.__fromToSubNetworkIDs]
 
     def getDedicationCost(self, reallocations: np.ndarray) -> float:
         if self.nSubNetworks() > 0:
-            microtypes = self.fromSubNetworkIDs() #self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
+            microtypes = self.fromSubNetworkIDs()  # self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
             modes = self.toSubNetworkIDs()
-                # self.model.scenarioData["modeToSubNetworkData"].loc[
-                # self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(
-                #     self.toSubNetworkIDs()), "ModeTypeID"]
+            # self.model.scenarioData["modeToSubNetworkData"].loc[
+            # self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(
+            #     self.toSubNetworkIDs()), "ModeTypeID"]
             perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
                 pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
-            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts) # TODO: Convert back to real numbers
+            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)  # TODO: Convert back to real numbers
             if np.isnan(cost):
                 return np.inf
             else:
@@ -889,9 +904,8 @@ class Optimizer:
             # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
             return minimize(self.evaluate, self.x0(), method='trust-constr', bounds=self.getBounds(),
                             # options={'scale':scaling, 'eps':0.01})
-                            options={'initial_tr_radius':2.0, 'finite_diff_rel_step':0.001,'maxiter':2000, 'xtol':0.001,'barrier_tol':0.001, 'verbose':3})
-
-
+                            options={'initial_tr_radius': 2.0, 'finite_diff_rel_step': 0.001, 'maxiter': 2000,
+                                     'xtol': 0.001, 'barrier_tol': 0.001, 'verbose': 3})
 
 
 def startBar():
@@ -910,24 +924,27 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data")
+    model = Model("input-data", 4, True)
     operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
-    a, b = model.collectAllCharacteristics()
-    a, b = model.collectAllCharacteristics()
-    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'),('B', 'bus')], fromToSubNetworkIDs=[('A', 'Bus'),('B', 'Bus')], method="min")
+    # a, b = model.collectAllCharacteristics()
+    # a, b = model.collectAllCharacteristics()
+    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
+                          fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus')], method="noisy")
     # optimizer.updateAndRunModel(np.array([0.15,0.05, 250, 400]))
-    optimizer.evaluate(optimizer.x0())
+    optimizer.evaluate([0., 0., 300, 300])
+    obj = Mock()
+    obj.new = 0.25
+
+    model.interact.modifyModel(('dedicated', 'A'), obj)
+    model.collectAllCharacteristics()
+    userCostDf = model.userCostDataFrame(vectorUserCosts)
     outcome = optimizer.minimize()
     print(outcome)
-    #model.updateUtilityParam(-0.3, "travel_time")
+    # model.updateUtilityParam(-0.3, "travel_time")
 
-    #obj = Mock()
-    #obj.value = 0.25
-
-    #model.interact.modifyModel('dedication', obj)
     # a, b = model.collectAllCharacteristics()
     # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # print('done')
-    #model.interact.createDownloadLink()
-    #a, b, c = model.toPandas()
-    #ms = model.getModeSplit()
+    # model.interact.createDownloadLink()
+    # a, b, c = model.toPandas()
+    # ms = model.getModeSplit()
