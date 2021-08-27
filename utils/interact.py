@@ -585,6 +585,9 @@ class Interact:
                 yCurrent = np.array(self.__dataToHandle['modeSplit']['current'][mode][mID].y)
                 if len(yRef) == 0:
                     plot.y = yCurrent * 0.0
+                elif len(yRef) < len(yCurrent):
+                    plot.y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
+                    plot.y[len(yRef):] = np.nan
                 else:
                     plot.y = yCurrent - yRef
                 plot.x = self.__dataToHandle['modeSplit']['current'][mode][mID].x
@@ -594,6 +597,9 @@ class Interact:
             yCurrent = np.array(self.__dataToHandle['speed']['current'][mID].y)
             if len(yRef) == 0:
                 plot.y = yCurrent * 0.0
+            elif len(yRef) < len(yCurrent):
+                plot.y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
+                plot.y[len(yRef):] = np.nan
             else:
                 plot.y = yCurrent - yRef
             plot.x = self.__dataToHandle['speed']['current'][mID].x

@@ -135,16 +135,16 @@ class Microtype:
             cc.access_time += self.networks.modes[
                                   mode].getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
 
-    def addThroughTimeCostWait(self, mode: str, distanceInMiles: float, cc: ChoiceCharacteristics):
-        if mode in self:
-            speedMilesPerHour = max([self.getModeSpeed(mode), 0.01]) * 2.23694
-            if np.isnan(speedMilesPerHour):
-                speedMilesPerHour = self.getModeSpeed("auto")
-            timeInHours = distanceInMiles / speedMilesPerHour
-            cc.travel_time += timeInHours
-            cc.cost += distanceInMiles * self.networks.modes[mode].perMile
-            cc.distance += distanceInMiles
-            cc.protected_distance += self.networks.modes[mode].getPortionDedicated() * distanceInMiles
+    # def addThroughTimeCostWait(self, mode: str, distanceInMiles: float, cc: ChoiceCharacteristics):
+    #     if mode in self:
+    #         speedMilesPerHour = max([self.getModeSpeed(mode), 0.01]) * 2.23694
+    #         if np.isnan(speedMilesPerHour):
+    #             speedMilesPerHour = self.getModeSpeed("auto")
+    #         timeInHours = distanceInMiles / speedMilesPerHour
+    #         cc.travel_time += timeInHours
+    #         cc.cost += distanceInMiles * self.networks.modes[mode].perMile
+    #         cc.distance += distanceInMiles
+    #         cc.protected_distance += self.networks.modes[mode].getPortionDedicated() * distanceInMiles
 
     def addEndTimeCostWait(self, mode: str, cc: ChoiceCharacteristics):
         if mode in self:
@@ -218,6 +218,7 @@ class MicrotypeCollection:
         self.__modeToMicrotype = dict()
         self.__numpyDemand = np.ndarray([0])
         self.__numpySpeed = np.ndarray([0])
+        self.__numpyMixedTrafficDistance = np.ndarray([0])
         self.__diameters = np.ndarray([0])
 
     @property
@@ -247,6 +248,10 @@ class MicrotypeCollection:
     @property
     def numpySpeed(self):
         return self.__numpySpeed
+
+    @property
+    def numpyMixedTrafficDistance(self):
+        return self.__numpyMixedTrafficDistance
 
     @property
     def passengerDistanceByMode(self):
@@ -335,6 +340,7 @@ class MicrotypeCollection:
             self.__numpyDemand = np.zeros(
                 (len(self.microtypeIdToIdx), len(self.modeToIdx), len(self.dataToIdx)), dtype=float)
             self.__numpySpeed = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)), dtype=float)
+            self.__numpyMixedTrafficDistance = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)), dtype=float)
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
@@ -366,6 +372,14 @@ class MicrotypeCollection:
                 # print("|  Loaded ",
                 #       len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
                 #       " subNetworks in microtype ", microtypeID)
+
+    def updateDedicatedDistance(self):
+        for microtypeID, microtype in self:
+            idx = self.transitionMatrix.idx(microtypeID)
+            for mode in microtype.mode_names:
+                portionDedicated = microtype.networks.modes[mode].getPortionDedicated()
+                distanceMixed = microtype.getModeDemandForPMT(mode) * (1. - portionDedicated)
+                self.__numpyMixedTrafficDistance[idx, self.modeToIdx[mode]] = distanceMixed
 
     def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):
         if collectedNetworkStateData is None:

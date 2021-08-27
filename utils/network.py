@@ -294,13 +294,38 @@ class BikeMode(Mode):
     def getSpeed(self):
         return self.speedInMetersPerSecond
 
-    # def allocateVehicles(self):
-    #     """by length"""
-    #     L_tot = sum([(n.L + n.L * (self.bikeLanePreference - 1) * n.dedicated) for n in self.networks])
-    #     for n in self.networks:
-    #         n.N_eq[self.name] = (n.L + n.L * (
-    #                 self.bikeLanePreference - 1) * n.dedicated) * self._N_tot / L_tot * self.relativeLength
-    #         self._N[n] = (n.L + n.L * (self.bikeLanePreference - 1) * n.dedicated) * self._N_tot / L_tot
+    def distanceOnDedicatedLanes(self, capacityTot, capacityDedicated, preference=1.0) -> (float, float):
+        capacityMixed = capacityTot - capacityDedicated
+        effectiveDedicatedCapacity = capacityDedicated + (1 - preference) * capacityMixed
+        N = self._VMT_tot / self.speedInMetersPerSecond
+        if N >= effectiveDedicatedCapacity:
+            N_dedicated, N_mixed = N, 0.
+        else:
+            N_dedicated = N / effectiveDedicatedCapacity * capacityDedicated
+            N_mixed = N - N_dedicated
+        return N_dedicated * self.speedInMetersPerSecond, N_mixed * self.speedInMetersPerSecond
+
+    def assignVmtToNetworks(self):
+        capacityTot = sum([n.L * n.jamDensity for n in self.networks])
+        capacityDedicated = sum([n.L * n.jamDensity for n in self.networks if n.dedicated])
+        capacityMixed = capacityTot - capacityDedicated
+        VMT_dedicated, VMT_mixed = self.distanceOnDedicatedLanes(capacityTot, capacityDedicated, 1.0)
+        for n in self.networks:
+            if n.dedicated:
+                if VMT_dedicated == 0:
+                    VMT = 0
+                else:
+                    VMT = VMT_dedicated * n.L * n.jamDensity / capacityDedicated
+            else:
+                if VMT_mixed == 0:
+                    VMT = 0
+                else:
+                    VMT = VMT_mixed * n.L * n.jamDensity / capacityMixed
+            self._VMT[n] = VMT
+            n.setVMT(self.name, self._VMT[n])
+            self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
+            n.setN(self.name, self._N_eff[n])
+        print('done')
 
     def getPortionDedicated(self) -> float:
         if self._VMT_tot > 0:
@@ -310,7 +335,7 @@ class BikeMode(Mode):
                 tot += val
                 if key.dedicated:
                     tot_dedicated += val
-            return tot_dedicated / tot
+            return np.nan_to_num(tot_dedicated / tot)
         else:
             return 0.0
 
@@ -814,6 +839,18 @@ class BusMode(Mode):
 
     def getOperatorRevenues(self) -> float:
         return self.travelDemand.tripStartRatePerHour * self.fare
+
+    def getPortionDedicated(self) -> float:
+        if self._VMT_tot > 0:
+            tot = 0.0
+            tot_dedicated = 0.0
+            for key, val in self._VMT.items():
+                tot += val
+                if key.dedicated:
+                    tot_dedicated += val
+            return tot_dedicated / tot
+        else:
+            return 0.0
 
 
 class Network:

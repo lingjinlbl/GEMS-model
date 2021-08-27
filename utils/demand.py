@@ -464,7 +464,7 @@ class Demand:
 
             # print([(a, b.blockedDistance, b.nonAutoAccumulation) for a, b in microtypes.collectedNetworkStateData if (b.nonAutoAccumulation > 0)])
             microtypes.transitionMatrixMFD(self.timePeriodDuration)
-
+            microtypes.updateDedicatedDistance()
             """
             Step four: Update blocked distance, given average car speeds
             """

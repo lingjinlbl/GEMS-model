@@ -474,7 +474,7 @@ class Model:
             # print(self.microtypes.collectedNetworkStateData[('A', ('auto', 'bike', 'bus'))].averageSpeed, 'DURING 1 ')
         else:
             sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
-                       options={'maxfev': 200, 'maxiter': 200, 'line_search': 'cheng', 'sigma_0': -0.8})
+                       options={'maxfev': 250, 'maxiter': 250, 'line_search': 'cheng', 'sigma_0': -0.8})
             # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
             self.g(sol.x)
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
