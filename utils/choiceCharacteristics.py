@@ -219,8 +219,8 @@ class CollectedChoiceCharacteristics:
     def updateChoiceCharacteristics(self, microtypes, trips) -> np.ndarray:
         self.resetChoiceCharacteristics()
         travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed, self.__demand.toThroughDistance)
-        mixedTravelDistance, totalTravelDistance = mixedPortionToMixedDistance(microtypes.numpyMixedTrafficDistance,
-                                                                               self.__demand.toThroughDistance)
+        mixedTravelPortion = mixedPortion(microtypes.numpyMixedTrafficDistance,
+                                          self.__demand.toThroughDistance)  # Right now it's a waste to recalculate it every time but it might come in handy at some point?
         self.__broken = broken
 
         for odIndex, trip in trips:
@@ -239,6 +239,7 @@ class CollectedChoiceCharacteristics:
         # otherTravelTime = self.__numpy[:,:, self.paramToIdx['travel_time']]
         # print(travelTimeInHours - otherTravelTime)
         self.__numpy[:, :, self.paramToIdx['travel_time']] = travelTimeInHours
+        self.__numpy[:, :, self.paramToIdx['unprotected_travel_time']] = travelTimeInHours * mixedTravelPortion
         return self.__numpy
 
     def isBroken(self):
@@ -258,11 +259,11 @@ def speedToTravelTime(modeSpeed: np.ndarray, toThroughDistance: np.ndarray) -> (
     return throughTravelTimeInSeconds / 3600.0, broken
 
 
-def mixedPortionToMixedDistance(mixedPortion: np.ndarray, toThroughDistance: np.ndarray):
+def mixedPortion(mixedPortionByMicrotype: np.ndarray, toThroughDistance: np.ndarray):
     assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
-    mixedTrafficDistance = assignmentMatrix @ mixedPortion
-    full = np.ones_like(mixedPortion)
-    return mixedTrafficDistance, assignmentMatrix @ full
+    mixedTrafficDistance = assignmentMatrix @ mixedPortionByMicrotype
+    full = np.ones_like(mixedPortionByMicrotype)
+    return mixedTrafficDistance / (assignmentMatrix @ full)
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):

@@ -291,12 +291,16 @@ class BikeMode(Mode):
         # return self.params.to_numpy()[self._inds["PerEndCost"]]
         return self.__params[self.__idx, self.modeParamsColumnToIdx["SpeedInMetersPerSecond"]]
 
+    @property
+    def dedicatedLanePreference(self):
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["DedicatedLanePreference"]]
+
     def getSpeed(self):
         return self.speedInMetersPerSecond
 
-    def distanceOnDedicatedLanes(self, capacityTot, capacityDedicated, preference=1.0) -> (float, float):
+    def distanceOnDedicatedLanes(self, capacityTot, capacityDedicated) -> (float, float):
         capacityMixed = capacityTot - capacityDedicated
-        effectiveDedicatedCapacity = capacityDedicated + (1 - preference) * capacityMixed
+        effectiveDedicatedCapacity = capacityDedicated + (1 - self.dedicatedLanePreference) * capacityMixed
         N = self._VMT_tot / self.speedInMetersPerSecond
         if N >= effectiveDedicatedCapacity:
             N_dedicated, N_mixed = N, 0.
@@ -309,7 +313,7 @@ class BikeMode(Mode):
         capacityTot = sum([n.L * n.jamDensity for n in self.networks])
         capacityDedicated = sum([n.L * n.jamDensity for n in self.networks if n.dedicated])
         capacityMixed = capacityTot - capacityDedicated
-        VMT_dedicated, VMT_mixed = self.distanceOnDedicatedLanes(capacityTot, capacityDedicated, 1.0)
+        VMT_dedicated, VMT_mixed = self.distanceOnDedicatedLanes(capacityTot, capacityDedicated)
         for n in self.networks:
             if n.dedicated:
                 if VMT_dedicated == 0:

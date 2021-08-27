@@ -200,7 +200,7 @@ class ScenarioData:
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
         self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                             'protected_distance': 5, 'distance': 6}
+                             'unprotected_travel_time': 5, 'distance': 6}
 
     def copy(self):
         """

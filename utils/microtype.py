@@ -378,7 +378,7 @@ class MicrotypeCollection:
             idx = self.transitionMatrix.idx(microtypeID)
             for mode in microtype.mode_names:
                 portionDedicated = microtype.networks.modes[mode].getPortionDedicated()
-                distanceMixed = microtype.getModeDemandForPMT(mode) * (1. - portionDedicated)
+                distanceMixed = (1. - portionDedicated)  # microtype.getModeDemandForPMT(mode) *
                 self.__numpyMixedTrafficDistance[idx, self.modeToIdx[mode]] = distanceMixed
 
     def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):

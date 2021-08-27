@@ -215,18 +215,18 @@ class Population:
 
         for homeMicrotypeID in populations["MicrotypeID"].unique():
             for (tripPurpose, groupId), row in data.iterrows():
-                df = row.unstack().loc[['Intercept', 'BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime'], self.__modes]
+                df = row.unstack().loc[['Intercept', 'BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime',
+                                        'BetaTravelTimeMixed'], self.__modes]
                 # Convert everything to units of hours
                 df.loc['BetaTravelTime', :] *= 60.0
                 df.loc['BetaWaitTime', :] *= 60.0
                 # df.BetaWaitTimeSquared *= 3600.0
                 df.loc['BetaAccessTime', :] *= 60.0
+                df.loc['BetaTravelTimeMixed', :] *= 60.0
                 for mode, values in df.transpose().iterrows():
                     self.__numpy[
                         self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose
-                                                 )], self.modeToIdx[mode], [0, 1, 3, 4]] = values.to_numpy()
-                self.__numpy[:, self.modeToIdx['bike'], 5] = self.__numpy[:, self.modeToIdx['bike'],
-                                                             1] * 2.0  # TODO: Make configurable
+                                                 )], self.modeToIdx[mode], [0, 1, 3, 4, 5]] = values.to_numpy()
                 # self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
                 # counter += 1
                 # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
@@ -238,7 +238,6 @@ class Population:
         self.__numpyCost = np.zeros_like(self.__numpy)
         self.__numpyCost[:, :, 2] = 1.0
         self.__numpyCost[:, :, [1, 3, 4]] = self.defaultValueOfTimePerHour
-        self.__numpyCost[:, self.modeToIdx['bike'], 5] = self.defaultValueOfTimePerHour
         print("|  Loaded ", len(populations), " population groups")
 
     def __iter__(self):
