@@ -453,13 +453,16 @@ class Interact:
             titleStack.append(widgets.HTML(value="<center><i>{}</i></center>".format(mID)))
             userCostStack.append(
                 widgets.FloatSlider(value=1.0, min=0.0, max=10.0, step=0.1, layout=Layout(width='180px')))
-            self.__widgetIDtoField[coverageStack[-1].model_id] = ('cost', (mID, 'User'))
+            self.__widgetIDtoField[userCostStack[-1].model_id] = ('cost', (mID, 'User'))
+            userCostStack[-1].observe(self.response, names="value")
             systemCostStack.append(
                 widgets.FloatSlider(value=1.0, min=0.0, max=10.0, step=0.1, layout=Layout(width='180px')))
-            self.__widgetIDtoField[coverageStack[-1].model_id] = ('cost', (mID, 'System'))
+            self.__widgetIDtoField[systemCostStack[-1].model_id] = ('cost', (mID, 'System'))
+            systemCostStack[-1].observe(self.response, names="value")
             externalityCostStack.append(
                 widgets.FloatSlider(value=1.0, min=0.0, max=10.0, step=0.1, layout=Layout(width='180px')))
-            self.__widgetIDtoField[coverageStack[-1].model_id] = ('cost', (mID, 'Externality'))
+            self.__widgetIDtoField[externalityCostStack[-1].model_id] = ('cost', (mID, 'Externality'))
+            externalityCostStack[-1].observe(self.response, names="value")
         costAccordion = widgets.HBox(
             [widgets.VBox(titleStack), widgets.VBox(userCostStack), widgets.VBox(systemCostStack),
              widgets.VBox(externalityCostStack)])
@@ -556,6 +559,14 @@ class Interact:
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'vMax'] = newValue
         if changeType[0] == 'densityMax':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'densityMax'] = newValue
+        if changeType[0] == 'cost':
+            mID, costType = changeType[1]
+            if costType == "System":
+                self.__optimizer.updateAlpha("Operator", newValue, mID)
+                self.__optimizer.updateAlpha("Dedication", newValue, mID)
+            else:
+                self.__optimizer.updateAlpha(costType, newValue, mID)
+            self.updatePlots()
 
     def returnModeNetworkLengths(self, mID, modeName):
         return self.model.scenarioData['subNetworkDataFull'].loc[

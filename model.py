@@ -789,17 +789,26 @@ class Optimizer:
         self.__fromToSubNetworkIDs = fromToSubNetworkIDs
         self.__modesAndMicrotypes = modesAndMicrotypes
         self.__method = method
-        self.__alphas = {"User": 1.0, "Operator": 1.0, "Externality": 1.0, "Dedication": 1.0}
+        self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)),
+                         "Operator": np.ones(len(model.microtypeIdToIdx)),
+                         "Externality": np.ones(len(model.microtypeIdToIdx)),
+                         "Dedication": np.ones(len(model.microtypeIdToIdx))}
         self.__trialParams = []
         self.__objectiveFunctionValues = []
         self.__isImprovement = []
         self.model = model
 
-    def updateAlpha(self, costType, newValue):
-        if costType in self.__alphas:
-            self.__alphas[costType] = newValue
+    def updateAlpha(self, costType, newValue, mID=None):
+        if mID is None:
+            if costType in self.__alphas:
+                self.__alphas[costType][:] = newValue
+            else:
+                print("BAD INPUT")
         else:
-            print("BAD INPUT")
+            if costType in self.__alphas:
+                self.__alphas[costType][self.model.microtypeIdToIdx[mID]] = newValue
+            else:
+                print("BAD INPUT")
 
     def nSubNetworks(self):
         if self.__fromToSubNetworkIDs is not None:
@@ -867,10 +876,10 @@ class Optimizer:
                                                 index=sorted(self.model.microtypeIdToIdx))
         dedication = self.model.scenarioData['subNetworkDataFull'].loc[
             self.model.scenarioData['subNetworkDataFull'].Dedicated & (
-                        self.model.scenarioData['subNetworkDataFull'].Type == "Road"), ["ModesAllowed", "MicrotypeID"]]
+                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), ["ModesAllowed", "MicrotypeID"]]
         dedication['Distance'] = self.model.scenarioData['subNetworkData'].loc[
             self.model.scenarioData['subNetworkDataFull'].Dedicated & (
-                        self.model.scenarioData['subNetworkDataFull'].Type == "Road"), "Length"]
+                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), "Length"]
         dedicationCostsByMicrotype = pd.Series(0.0, index=sorted(self.model.microtypeIdToIdx))
         for _, val in dedication.iterrows():
             costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
