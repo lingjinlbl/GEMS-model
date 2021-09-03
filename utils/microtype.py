@@ -216,10 +216,13 @@ class MicrotypeCollection:
         self.transitionMatrix = None
         self.collectedNetworkStateData = CollectedNetworkStateData()
         self.__modeToMicrotype = dict()
+        self.__networkIdToIdx = dict()
         self.__numpyDemand = np.ndarray([0])
         self.__numpySpeed = np.ndarray([0])
         self.__numpyMixedTrafficDistance = np.ndarray([0])
         self.__diameters = np.ndarray([0])
+        self.__numpyNetworkAccumulation = np.ndarray([0])
+        self.__numpyNetworkSpeed = np.ndarray([0])
 
     @property
     def diToIdx(self):
@@ -328,7 +331,7 @@ class MicrotypeCollection:
         subNetworkCharacteristics = self.__scenarioData["subNetworkDataFull"]
         modeToSubNetworkData = self.__scenarioData["modeToSubNetworkData"]
         microtypeData = self.__scenarioData["microtypeIDs"]
-
+        self.__networkIdToIdx = {networkId: idx for idx, networkId in enumerate(subNetworkCharacteristics.index)}
         self.__diameters = np.zeros(len(microtypeData), dtype=float)
         for microtypeId, idx in self.microtypeIdToIdx.items():
             self.__diameters[idx] = microtypeData.loc[microtypeId, 'DiameterInMiles'] * 1609.34
@@ -341,6 +344,10 @@ class MicrotypeCollection:
                 (len(self.microtypeIdToIdx), len(self.modeToIdx), len(self.dataToIdx)), dtype=float)
             self.__numpySpeed = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)), dtype=float)
             self.__numpyMixedTrafficDistance = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)), dtype=float)
+            self.__numpyNetworkSpeed = np.zeros((len(self.__scenarioData['subNetworkData'].index),
+                                                 len(self.modeToIdx)), dtype=float)
+            self.__numpyNetworkAccumulation = np.zeros((len(self.__scenarioData['subNetworkData'].index),
+                                                        len(self.modeToIdx)), dtype=float)
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
@@ -350,11 +357,14 @@ class MicrotypeCollection:
                 subNetworkToModes = OrderedDict()
                 modeToModeData = OrderedDict()
                 allModes = set()
-                for idx in subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index:
+                for subNetworkId in subNetworkCharacteristics.loc[
+                    subNetworkCharacteristics["MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
-                        modeToSubNetworkData['SubnetworkID'] == idx]
-                    subNetwork = Network(subNetworkData, subNetworkCharacteristics, idx, diameter, microtypeID,
+                        modeToSubNetworkData['SubnetworkID'] == subNetworkId]
+                    subNetwork = Network(subNetworkData, subNetworkCharacteristics, subNetworkId, diameter, microtypeID,
                                          self.__numpySpeed[self.microtypeIdToIdx[microtypeID], :],
+                                         self.__numpyNetworkSpeed[self.__networkIdToIdx[subNetworkId], :],
+                                         self.__numpyNetworkAccumulation[self.__networkIdToIdx[subNetworkId], :],
                                          self.modeToIdx)
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
