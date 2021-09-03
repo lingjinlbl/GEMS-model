@@ -130,6 +130,7 @@ class Population:
             (len(scenarioData.diToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)))
         self.__modes = scenarioData.getModes()
         self.utilsToDollars = 200
+        self.defaultValueOfTimePerHour = 45
 
     @property
     def diToIdx(self):
@@ -214,26 +215,29 @@ class Population:
 
         for homeMicrotypeID in populations["MicrotypeID"].unique():
             for (tripPurpose, groupId), row in data.iterrows():
-                df = row.unstack().loc[['Intercept', 'BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime'], self.__modes]
+                df = row.unstack().loc[['Intercept', 'BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime',
+                                        'BetaTravelTimeMixed'], self.__modes]
                 # Convert everything to units of hours
                 df.loc['BetaTravelTime', :] *= 60.0
                 df.loc['BetaWaitTime', :] *= 60.0
                 # df.BetaWaitTimeSquared *= 3600.0
                 df.loc['BetaAccessTime', :] *= 60.0
+                df.loc['BetaTravelTimeMixed', :] *= 60.0
                 for mode, values in df.transpose().iterrows():
                     self.__numpy[
                         self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose
-                                                 )], self.modeToIdx[mode], [0, 1, 3, 4]] = values.to_numpy()
+                                                 )], self.modeToIdx[mode], [0, 1, 3, 4, 5]] = values.to_numpy()
                 # self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
                 # counter += 1
                 # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                # 'protected_distance': 5, 'distance': 6}
+                # 'unprotected_travel_time': 5, 'distance': 6}
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
                 out = DemandClass(group.set_index("Mode").drop(columns=['PopulationGroupTypeID', 'TripPurposeID']))
                 self[demandIndex] = out
-        self.__numpyCost = self.__numpy.copy() * self.utilsToDollars
-        self.__numpyCost[:, :, 0] = 0.0
+        self.__numpyCost = np.zeros_like(self.__numpy)
+        self.__numpyCost[:, :, 2] = 1.0
+        self.__numpyCost[:, :, [1, 3, 4]] = self.defaultValueOfTimePerHour
         print("|  Loaded ", len(populations), " population groups")
 
     def __iter__(self):

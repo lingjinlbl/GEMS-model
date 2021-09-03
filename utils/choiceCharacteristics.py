@@ -12,12 +12,12 @@ class ChoiceCharacteristics:
     UNITS ARE IN HOURS
     """
 
-    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, protected_distance=0, distance=0,
+    def __init__(self, travel_time=0., cost=0., wait_time=0., access_time=0, unprotected_travel_time=0, distance=0,
                  data=None):
         self.__parameterToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                                 'protected_distance': 5, 'distance': 6}
+                                 'unprotected_travel_time': 5, 'distance': 6}
         if data is None:
-            self.__numpy = np.array([1.0, travel_time, cost, wait_time, access_time, protected_distance, distance],
+            self.__numpy = np.array([1.0, travel_time, cost, wait_time, access_time, unprotected_travel_time, distance],
                                     dtype=float)
         else:
             self.__numpy = data
@@ -63,12 +63,12 @@ class ChoiceCharacteristics:
         self.__numpy[self.__parameterToIdx['access_time']] = val
 
     @property
-    def protected_distance(self):
-        return self.__numpy[self.__parameterToIdx['protected_distance']]
+    def unprotected_travel_time(self):
+        return self.__numpy[self.__parameterToIdx['unprotected_travel_time']]
 
-    @protected_distance.setter
-    def protected_distance(self, val: float):
-        self.__numpy[self.__parameterToIdx['protected_distance']] = val
+    @unprotected_travel_time.setter
+    def unprotected_travel_time(self, val: float):
+        self.__numpy[self.__parameterToIdx['unprotected_travel_time']] = val
 
     @property
     def distance(self):
@@ -179,6 +179,10 @@ class CollectedChoiceCharacteristics:
     def numpy(self) -> np.ndarray:
         return self.__numpy
 
+    @property
+    def broken(self) -> bool:
+        return self.__broken
+
     def __setitem__(self, key, value: ModalChoiceCharacteristics):
         self.__choiceCharacteristics[key] = value
 
@@ -215,6 +219,8 @@ class CollectedChoiceCharacteristics:
     def updateChoiceCharacteristics(self, microtypes, trips) -> np.ndarray:
         self.resetChoiceCharacteristics()
         travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed, self.__demand.toThroughDistance)
+        mixedTravelPortion = mixedPortion(microtypes.numpyMixedTrafficDistance,
+                                          self.__demand.toThroughDistance)  # Right now it's a waste to recalculate it every time but it might come in handy at some point?
         self.__broken = broken
 
         for odIndex, trip in trips:
@@ -224,6 +230,7 @@ class CollectedChoiceCharacteristics:
                 for mode in modes:
                     microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
                     microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
+
         #         newAllocation = microtypes.filterAllocation(mode, trip.allocation)
         #         for microtypeID, allocation in newAllocation.items():
         #             microtypes[microtypeID].addThroughTimeCostWait(mode,
@@ -232,6 +239,7 @@ class CollectedChoiceCharacteristics:
         # otherTravelTime = self.__numpy[:,:, self.paramToIdx['travel_time']]
         # print(travelTimeInHours - otherTravelTime)
         self.__numpy[:, :, self.paramToIdx['travel_time']] = travelTimeInHours
+        self.__numpy[:, :, self.paramToIdx['unprotected_travel_time']] = travelTimeInHours * mixedTravelPortion
         return self.__numpy
 
     def isBroken(self):
@@ -239,7 +247,7 @@ class CollectedChoiceCharacteristics:
 
 
 def speedToTravelTime(modeSpeed: np.ndarray, toThroughDistance: np.ndarray) -> (np.ndarray, bool):
-    if np.any(np.isnan(modeSpeed) | (modeSpeed <= 0.01)):
+    if np.any(np.isnan(modeSpeed) | (modeSpeed <= 0.001)):
         broken = True
     else:
         broken = False
@@ -249,6 +257,13 @@ def speedToTravelTime(modeSpeed: np.ndarray, toThroughDistance: np.ndarray) -> (
     assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
     throughTravelTimeInSeconds = assignmentMatrix @ modeSecondsPerMeter
     return throughTravelTimeInSeconds / 3600.0, broken
+
+
+def mixedPortion(mixedPortionByMicrotype: np.ndarray, toThroughDistance: np.ndarray):
+    assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
+    mixedTrafficDistance = assignmentMatrix @ mixedPortionByMicrotype
+    full = np.ones_like(mixedPortionByMicrotype)
+    return mixedTrafficDistance / (assignmentMatrix @ full)
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):

@@ -3,6 +3,7 @@ from typing import List, Dict
 
 import numpy as np
 import pandas as pd
+# from line_profiler_pycharm import profile
 from scipy.optimize import minimize
 
 from utils.supply import TravelDemand, TravelDemands
@@ -39,9 +40,15 @@ class TotalOperatorCosts:
         output = TotalOperatorCosts()
         for key in self.__costs.keys():
             if key in self.__costs:
-                output[key] = (self.__costs[key] + other.__costs[key], self.__revenues[key] + other.__revenues[key])
+                if key in other.__costs:
+                    output[key] = (self.__costs[key] + other.__costs[key], self.__revenues[key] + other.__revenues[key])
+                else:
+                    output[key] = (self.__costs[key], self.__revenues[key])
             else:
-                output[key] = (other.__costs[key], other.__revenues[key])
+                if key in other.__costs:
+                    output[key] = (other.__costs[key], other.__revenues[key])
+                else:
+                    output[key] = (0., 0.)
         return output
 
     def __str__(self):
@@ -70,10 +77,11 @@ class Costs:
 
 
 class Mode:
-    def __init__(self, networks=None, params=None, idx=None, name=None, travelDemandData=None, speedData=None):
+    def __init__(self, networks=None, params=None, microtypeID=None, name=None, travelDemandData=None, speedData=None):
         self.name = name
         self.params = params
-        self._idx = idx
+        self.microtypeID = microtypeID
+        # self.__idx = params.index.get_loc(microtypeID)
         # self._inds = self.initInds(idx)
         self.networks = networks
         # self._N_tot = 0.0
@@ -84,6 +92,7 @@ class Mode:
         self._VMT = dict()
         self._speed = dict()
         self.__bad = False
+        self.fixedVMT = True
         if networks is not None:
             for n in networks:
                 n.addMode(self)
@@ -103,22 +112,7 @@ class Mode:
     @property
     def relativeLength(self):
         # return self.params.to_numpy()[self._inds["VehicleSize"]]
-        return self.params.at[self._idx, "VehicleSize"]
-
-    @property
-    def perStart(self):
-        # return self.params.to_numpy()[self._inds["PerStartCost"]]
-        return self.params.at[self._idx, "PerStartCost"]
-
-    @property
-    def perEnd(self):
-        # return self.params.to_numpy()[self._inds["PerEndCost"]]
-        return self.params.at[self._idx, "PerEndCost"]
-
-    @property
-    def perMile(self):
-        # return self.params.to_numpy()[self._inds["PerMileCost"]]
-        return self.params.at[self._idx, "PerMileCost"]
+        return self.params.at[self.microtypeID, "VehicleSize"]
 
     def updateScenarioInputs(self):
         pass
@@ -211,13 +205,18 @@ class Mode:
 
 
 class WalkMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None, speedData=None) -> None:
+    def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
+                 speedData=None) -> None:
         super(WalkMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "walk"
         self.params = modeParams
-        self._idx = idx
+        self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
+        self.microtypeID = microtypeID
+        self.__idx = modeParams.index.get_loc(microtypeID)
         # self._inds = self.initInds(idx)
         self.networks = networks
+        self.fixedVMT = False
         for n in networks:
             n.addMode(self)
             # self._N[n] = 0.0
@@ -227,22 +226,42 @@ class WalkMode(Mode):
             self._speed[n] = n.base_speed
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def speedInMetersPerSecond(self):
         # return self.params.to_numpy()[self._inds["PerEndCost"]]
-        return self.params.at[self._idx, "SpeedInMetersPerSecond"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["SpeedInMetersPerSecond"]]
 
     def getSpeed(self):
         return self.speedInMetersPerSecond
 
 
 class BikeMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None, speedData=None) -> None:
+    def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
+                 speedData=None) -> None:
         super(BikeMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "bike"
         self.params = modeParams
-        self._idx = idx
+        self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
+        self.microtypeID = microtypeID
+        self.__idx = modeParams.index.get_loc(microtypeID)
         # self._inds = self.initInds(idx)
         self.networks = networks
+        self.fixedVMT = False
         for n in networks:
             n.addMode(self)
             # self._N[n] = 0.0
@@ -253,20 +272,63 @@ class BikeMode(Mode):
         self.bikeLanePreference = 2.0
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def speedInMetersPerSecond(self):
         # return self.params.to_numpy()[self._inds["PerEndCost"]]
-        return self.params.at[self._idx, "SpeedInMetersPerSecond"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["SpeedInMetersPerSecond"]]
+
+    @property
+    def dedicatedLanePreference(self):
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["DedicatedLanePreference"]]
 
     def getSpeed(self):
         return self.speedInMetersPerSecond
 
-    # def allocateVehicles(self):
-    #     """by length"""
-    #     L_tot = sum([(n.L + n.L * (self.bikeLanePreference - 1) * n.dedicated) for n in self.networks])
-    #     for n in self.networks:
-    #         n.N_eq[self.name] = (n.L + n.L * (
-    #                 self.bikeLanePreference - 1) * n.dedicated) * self._N_tot / L_tot * self.relativeLength
-    #         self._N[n] = (n.L + n.L * (self.bikeLanePreference - 1) * n.dedicated) * self._N_tot / L_tot
+    def distanceOnDedicatedLanes(self, capacityTot, capacityDedicated) -> (float, float):
+        capacityMixed = capacityTot - capacityDedicated
+        effectiveDedicatedCapacity = capacityDedicated + (1 - self.dedicatedLanePreference) * capacityMixed
+        N = self._VMT_tot / self.speedInMetersPerSecond
+        if N >= effectiveDedicatedCapacity:
+            N_dedicated, N_mixed = N, 0.
+        else:
+            N_dedicated = N / effectiveDedicatedCapacity * capacityDedicated
+            N_mixed = N - N_dedicated
+        return N_dedicated * self.speedInMetersPerSecond, N_mixed * self.speedInMetersPerSecond
+
+    def assignVmtToNetworks(self):
+        capacityTot = sum([n.L * n.jamDensity for n in self.networks])
+        capacityDedicated = sum([n.L * n.jamDensity for n in self.networks if n.dedicated])
+        capacityMixed = capacityTot - capacityDedicated
+        VMT_dedicated, VMT_mixed = self.distanceOnDedicatedLanes(capacityTot, capacityDedicated)
+        for n in self.networks:
+            if n.dedicated:
+                if VMT_dedicated == 0:
+                    VMT = 0
+                else:
+                    VMT = VMT_dedicated * n.L * n.jamDensity / capacityDedicated
+            else:
+                if VMT_mixed == 0:
+                    VMT = 0
+                else:
+                    VMT = VMT_mixed * n.L * n.jamDensity / capacityMixed
+            self._VMT[n] = VMT
+            n.setVMT(self.name, self._VMT[n])
+            self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
+            n.setN(self.name, self._N_eff[n])
 
     def getPortionDedicated(self) -> float:
         if self._VMT_tot > 0:
@@ -276,18 +338,23 @@ class BikeMode(Mode):
                 tot += val
                 if key.dedicated:
                     tot_dedicated += val
-            return tot_dedicated / tot
+            return np.nan_to_num(tot_dedicated / tot)
         else:
             return 0.0
 
 
 class RailMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None, speedData=None) -> None:
+    def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
+                 speedData=None) -> None:
         super(RailMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "rail"
         self.params = modeParams
-        self._idx = idx
+        self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
+        self.microtypeID = microtypeID
+        self.__idx = modeParams.index.get_loc(microtypeID)
         self.networks = networks
+        self.fixedVMT = True
         # self.initInds(idx)
         for n in networks:
             n.addMode(self)
@@ -298,33 +365,48 @@ class RailMode(Mode):
             self._speed[n] = n.base_speed
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def routeAveragedSpeed(self):
-        return self.params.at[self._idx, "SpeedInMetersPerSecond"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["SpeedInMetersPerSecond"]]
 
     @property
     def vehicleOperatingCostPerHour(self):
         # return self.params.to_numpy()[self._inds["VehicleOperatingCostsPerHour"]]
-        return self.params.at[self._idx, "VehicleOperatingCostsPerHour"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["VehicleOperatingCostsPerHour"]]
 
     @property
     def fare(self):
         # return self.params.to_numpy()[self._inds["PerStartCost"]]
-        return self.params.at[self._idx, "PerStartCost"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerStartCost"]]
 
     @property
     def headwayInSec(self):
         # return self.params.to_numpy()[self._inds["Headway"]]
-        return self.params.at[self._idx, "Headway"]
+        return self.params.at[self.microtypeID, "Headway"]
 
     @property
     def stopSpacingInMeters(self):
         # return self.params.to_numpy()[self._inds["StopSpacing"]]
-        return self.params.at[self._idx, "StopSpacing"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["StopSpacing"]]
 
     @property
     def portionAreaCovered(self):
-        # return self.params.to_numpy()[self._inds["CoveragePortion"]]
-        return self.params.at[self._idx, "CoveragePortion"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["CoveragePortion"]]
+        # return self.params.at[self.microtypeID, "CoveragePortion"]
 
     def updateDemand(self, travelDemand=None):
         if travelDemand is not None:
@@ -361,14 +443,19 @@ class RailMode(Mode):
 
 
 class AutoMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None, speedData=None) -> None:
+    def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
+                 speedData=None) -> None:
         super(AutoMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "auto"
         self.params = modeParams
-        self._idx = idx
+        self.microtypeID = microtypeID
+        self.__idx = modeParams.index.get_loc(microtypeID)
+        self.__params = modeParams.to_numpy()
+        self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.networks = networks
         self.MFDmode = "single"
         self.override = False
+        self.fixedVMT = False
         self.__speedData = speedData
         for n in networks:
             n.addMode(self)
@@ -379,8 +466,23 @@ class AutoMode(Mode):
             self._speed[n] = n.base_speed
 
     @property
+    def perStart(self):
+        # return self.params.to_numpy()[self._inds["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perEnd(self):
+        # return self.params.to_numpy()[self._inds["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
+
+    @property
+    def perMile(self):
+        # return self.params.to_numpy()[self._inds["PerMileCost"]]
+        return self.params.at[self.microtypeID, "PerMileCost"]
+
+    @property
     def relativeLength(self):
-        return self.params.at[self._idx, "VehicleSize"]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["VehicleSize"]]
 
     def getSpeed(self):
         return self.__speedData[0]
@@ -401,6 +503,7 @@ class AutoMode(Mode):
             self.travelDemand = travelDemand
         self._VMT_tot = travelDemand.rateOfPmtPerHour * self.relativeLength
 
+    # @profile
     def assignVmtToNetworks(self):
         if len(self.networks) == 1:
             if self.MFDmode == "single":
@@ -465,14 +568,17 @@ class AutoMode(Mode):
 
 
 class BusMode(Mode):
-    def __init__(self, networks, modeParams: pd.DataFrame, idx: str, travelDemandData=None, speedData=None) -> None:
+    def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
+                 speedData=None) -> None:
         super(BusMode, self).__init__(travelDemandData=travelDemandData)
         self.name = "bus"
         self.params = modeParams
-        self._idx = modeParams.index.get_loc(idx)
+        self.microtypeID = microtypeID
+        self.__idx = modeParams.index.get_loc(microtypeID)
         self.__params = modeParams.to_numpy()
         self.modeParamsColumnToIdx = {i: modeParams.columns.get_loc(i) for i in modeParams.columns}
         self.networks = networks
+        self.fixedVMT = True
         self.__operatingL = dict()
         self.__speedData = speedData
         for n in networks:
@@ -499,43 +605,43 @@ class BusMode(Mode):
 
     @property
     def headwayInSec(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["Headway"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["Headway"]]
 
     @property
     def passengerWaitInSec(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["PassengerWait"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PassengerWait"]]
 
     @property
     def passengerWaitInSecDedicated(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["PassengerWaitDedicated"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PassengerWaitDedicated"]]
 
     @property
     def stopSpacingInMeters(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["StopSpacing"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["StopSpacing"]]
 
     @property
     def minStopTimeInSec(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["MinStopTime"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["MinStopTime"]]
 
     @property
     def fare(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerStartCost"]]
 
     @property
     def perStart(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["PerStartCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerStartCost"]]
 
     @property
     def perEnd(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["PerEndCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerEndCost"]]
 
     @property
     def perMile(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["PerMileCost"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["PerMileCost"]]
 
     @property
     def vehicleOperatingCostPerHour(self):
-        return self.__params[self._idx, self.modeParamsColumnToIdx["VehicleOperatingCostPerHour"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["VehicleOperatingCostPerHour"]]
 
     @property
     def routeDistanceToNetworkDistance(self) -> float:
@@ -543,12 +649,12 @@ class BusMode(Mode):
         Changed January 2021: Removed need for car-only subnnetworks.
         Now buses only run on a fixed portion of the bus/car subnetwork
         """
-        return self.__params[self._idx, self.modeParamsColumnToIdx["CoveragePortion"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["CoveragePortion"]]
 
     @property
     def relativeLength(self):
         # return self.params.to_numpy()[self._inds["VehicleSize"]]
-        return self.__params[self._idx, self.modeParamsColumnToIdx["VehicleSize"]]
+        return self.__params[self.__idx, self.modeParamsColumnToIdx["VehicleSize"]]
 
     def updateScenarioInputs(self):
         self.__params = self.params.to_numpy()
@@ -623,6 +729,7 @@ class BusMode(Mode):
             self.__bad = False
         return spd
 
+    # TODO: store speeds in array
     def getSpeeds(self):
         speeds = []
         for n in self.networks:
@@ -681,6 +788,7 @@ class BusMode(Mode):
             if n.getNetworkStateData().blockedDistance > self.getRouteLength():
                 print('HMMMMM')
 
+    # @profile
     def assignVmtToNetworks(self):
         speeds = self.getSpeeds()
         times = []
@@ -692,6 +800,9 @@ class BusMode(Mode):
                 spd = 0.1
             times.append(self.getOperatingL(n) / spd)
             lengths.append(self.getOperatingL(n))
+        out1 = []
+        out2 = []
+        out3 = []
         for ind, n in enumerate(self.networks):
             assert isinstance(n, Network)
             if speeds[ind] >= 0:
@@ -701,9 +812,13 @@ class BusMode(Mode):
                 n.updateBaseSpeed()
                 self._speed[n] = self.getSubNetworkSpeed(n)
                 self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength,
-                                     self.getRouteLength() / n.avgLinkLength / 100)
+                                     self.getRouteLength() / n.avgLinkLength / 2)  # Why was this divided by 100?
+                out1.append(VMT / self._speed[n] * self.relativeLength)
+                out2.append(self.getRouteLength() / n.avgLinkLength)
+                out3.append(self._speed[n])
                 n.setN(self.name, self._N_eff[n])
                 n.getNetworkStateData().nonAutoAccumulation += self._N_eff[n]
+        # print(out1, out2, out3)
         self.updateCommercialSpeed()
 
     def updateCommercialSpeed(self):
@@ -728,17 +843,33 @@ class BusMode(Mode):
     def getOperatorRevenues(self) -> float:
         return self.travelDemand.tripStartRatePerHour * self.fare
 
+    def getPortionDedicated(self) -> float:
+        if self._VMT_tot > 0:
+            tot = 0.0
+            tot_dedicated = 0.0
+            for key, val in self._VMT.items():
+                tot += val
+                if key.dedicated:
+                    tot_dedicated += val
+            if tot == 0:
+                return 0.
+            else:
+                return np.nan_to_num(tot_dedicated / tot)
+        else:
+            return 0.0
+
 
 class Network:
     def __init__(self, data, characteristics, idx, diameter=None, microtypeID=None, modeToMicrotypeSpeed=None,
                  modeToIdx=None):
         self.data = data
-        self.__data = data.to_numpy()
+
         self.characteristics = characteristics
         self.charColumnToIdx = {i: characteristics.columns.get_loc(i) for i in characteristics.columns}
         self.dataColumnToIdx = {i: data.columns.get_loc(i) for i in data.columns}
         self.microtypeID = microtypeID
         self._idx = data.index.get_loc(idx)
+        self.__data = data.iloc[self._idx, :].to_numpy()
         self.type = self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
         self.L_blocked = dict()
         self._modes = dict()
@@ -758,42 +889,45 @@ class Network:
         self._V_steadyState = self.freeFlowSpeed
         self.__modeToIdx = modeToIdx
         self.__modeToMicrotypeSpeed = modeToMicrotypeSpeed
-        self.base_speed = self.freeFlowSpeed
         if diameter is None:
             self.__diameter = 1.0
         else:
             self.__diameter = diameter
 
-    def updateNetworkData(self):
-        self.__data = self.data.to_numpy()
+    def updateNetworkData(self):  # CONSOLIDATE
+        np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
 
     # @property
     # def type(self):
     #     return self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
 
     @property
+    def base_speed(self):
+        return self.getNetworkStateData().averageSpeed
+
+    @property
     def autoSpeed(self):
         return self.__modeToMicrotypeSpeed[self.__modeToIdx['auto']]
 
-    # @base_speed.setter
-    # def base_speed(self, spd):
-    #     self.__modeToMicrotypeSpeed[self.__modeToIdx['auto']] = spd
+    @base_speed.setter
+    def base_speed(self, spd):
+        self.getNetworkStateData().averageSpeed = spd
 
     @property
     def avgLinkLength(self):
-        return self.__data[self._idx, self.dataColumnToIdx["avgLinkLength"]]
+        return self.__data[self.dataColumnToIdx["avgLinkLength"]]
 
     @property
     def freeFlowSpeed(self):
-        return self.__data[self._idx, self.dataColumnToIdx["vMax"]]
+        return self.__data[self.dataColumnToIdx["vMax"]]
 
     @property
     def jamDensity(self):
-        return self.__data[self._idx, self.dataColumnToIdx["densityMax"]]
+        return self.__data[self.dataColumnToIdx["densityMax"]]
 
     @property
     def L(self):
-        return self.__data[self._idx, self.dataColumnToIdx["Length"]]
+        return self.__data[self.dataColumnToIdx["Length"]]
 
     @property
     def diameter(self):
@@ -806,7 +940,7 @@ class Network:
         return mode in self._modes
 
     def updateScenarioInputs(self):
-        np.copyto(self.__data, self.data.to_numpy())
+        np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
 
     def getAccumulationExcluding(self, mode: str):
         return np.sum(acc for m, acc in self._N_eff.items() if m != mode)
@@ -841,7 +975,8 @@ class Network:
 
     def updateBaseSpeed(self, override=False):
         # out = self.NEF(overrideMatrix=override)
-        self.base_speed = self.NEF(overrideMatrix=override)
+        if self.dedicated:
+            self.base_speed = self.NEF(overrideMatrix=override)
 
     def getSpeedFromMFD(self, N):
         L_tot = self.L - self.getBlockedDistance()
@@ -941,6 +1076,9 @@ class Network:
         self._networkStateData.finalAccumulation = n[-1]
         # self._networkStateData.averageSpeed = np.mean(v)
 
+    def getVMT(self, mode):
+        return self._VMT.get(mode, 0.0)
+
     # def getTransitionMatrixMeanSpeed(self):
     #     return self._networkStateData.averageSpeed
 
@@ -980,6 +1118,12 @@ class NetworkCollection:
         self.demands = TravelDemands([])
         self.verbose = verbose
         # self.resetModes()
+
+    def getMode(self, mode):
+        return self.modes[mode]
+
+    def getModeVMT(self, mode):
+        return sum([n.getVMT(mode) for n in self[mode]])
 
     def updateNetworkData(self):
         for n in self._networks.values():
@@ -1058,33 +1202,25 @@ class NetworkCollection:
     def updateModes(self, nIters: int = 1):
         # allModes = [n.getModeValues() for n in self._networks]
         # uniqueModes = set([item for sublist in allModes for item in sublist])
-        oldSpeeds = self.getModeSpeeds()
+        # oldSpeeds = self.getModeSpeeds()
+        # TODO: This might not need to be repeated
         for m in self.modes.values():
             m.updateDemand(self.demands[m.name])
-        for it in range(nIters):
-            for modes, n in self:
-                # n.getNetworkStateData().resetBlockedDistance()
-                n.getNetworkStateData().resetNonAutoAccumulation()
-                # n.resetSpeeds()
-            for m in self.modes.values():  # uniqueModes:
-                m.assignVmtToNetworks()
-                for n in m.networks:
-                    n.updateBaseSpeed()
-                m.updateModeBlockedDistance()
-                # m.updateCommercialSpeed()
-                # self.getModeSpeeds()
-                # m.updateN(self.demands[m.name])
-            # self.updateNetworks()
-            # self.updateMFD()
-            # if self.verbose:
-            #     print(str(self))
-            # if np.any([n.isJammed for n in self._networks]):
+
+        for modes, n in self:
+            # n.getNetworkStateData().resetBlockedDistance()
+            n.getNetworkStateData().resetNonAutoAccumulation()
+            # n.resetSpeeds()
+        for m in self.modes.values():  # uniqueModes:
+            m.assignVmtToNetworks()
+            for n in m.networks:
+                n.updateBaseSpeed()
+            m.updateModeBlockedDistance()
+            # newSpeeds = self.getModeSpeeds()
+            # if np.linalg.norm(oldSpeeds - newSpeeds) < 1e-9:
             #     break
-            newSpeeds = self.getModeSpeeds()
-            if np.linalg.norm(oldSpeeds - newSpeeds) < 1e-9:
-                break
-            else:
-                oldSpeeds = newSpeeds
+            # else:
+            #     oldSpeeds = newSpeeds
 
     # def updateNetworks(self):
     #     for n in self._networks:
@@ -1115,6 +1251,9 @@ class NetworkCollection:
             out[name] = (mode.getOperatorCosts(), mode.getOperatorRevenues())
         return out
 
+    def iterModes(self):
+        return iter(self.__modes)
+
 
 class NetworkStateData:
     def __init__(self, data=None):
@@ -1128,7 +1267,7 @@ class NetworkStateData:
             self.initialAccumulation = 0.0
             self.nonAutoAccumulation = 0.0
             self.blockedDistance = 0.0
-            # self.averageSpeed = 0.0
+            self.averageSpeed = 0.0
             self.initialTime = 0.0
             self.inflow = np.zeros(0)
             self.outflow = np.zeros(0)
@@ -1145,7 +1284,7 @@ class NetworkStateData:
             self.initialAccumulation = data.initialAccumulation
             self.nonAutoAccumulation = data.nonAutoAccumulation
             self.blockedDistance = data.blockedDistance
-            # self.averageSpeed = data.averageSpeed
+            self.averageSpeed = data.averageSpeed
             self.initialTime = data.initialTime
             self.inflow = data.inflow
             self.outflow = data.outflow
@@ -1158,7 +1297,7 @@ class NetworkStateData:
         self.initialSpeed = network.freeFlowSpeed
         self.finalSpeed = network.freeFlowSpeed
         self.steadyStateSpeed = network.freeFlowSpeed
-        # self.averageSpeed = network.freeFlowSpeed
+        self.averageSpeed = network.freeFlowSpeed
         return self
 
     def resetBlockedDistance(self):
@@ -1177,7 +1316,7 @@ class NetworkStateData:
         self.initialAccumulation = 0.0
         self.nonAutoAccumulation = 0.0
         self.blockedDistance = 0.0
-        # self.averageSpeed = 0.0
+        self.averageSpeed = 0.0
         self.initialTime = 0.0
         self.inflow = np.zeros(0)
         self.outflow = np.zeros(0)

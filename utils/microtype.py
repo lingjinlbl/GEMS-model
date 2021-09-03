@@ -53,6 +53,9 @@ class CollectedTotalOperatorCosts:
     def toDataFrame(self):
         return pd.concat([val.toDataFrame([key]) for key, val in self.__costs.items()])
 
+    def __str__(self):
+        return str(self.toDataFrame())
+
 
 class Microtype:
     def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):
@@ -132,16 +135,16 @@ class Microtype:
             cc.access_time += self.networks.modes[
                                   mode].getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
 
-    def addThroughTimeCostWait(self, mode: str, distanceInMiles: float, cc: ChoiceCharacteristics):
-        if mode in self:
-            speedMilesPerHour = max([self.getModeSpeed(mode), 0.01]) * 2.23694
-            if np.isnan(speedMilesPerHour):
-                speedMilesPerHour = self.getModeSpeed("auto")
-            timeInHours = distanceInMiles / speedMilesPerHour
-            cc.travel_time += timeInHours
-            cc.cost += distanceInMiles * self.networks.modes[mode].perMile
-            cc.distance += distanceInMiles
-            cc.protected_distance += self.networks.modes[mode].getPortionDedicated() * distanceInMiles
+    # def addThroughTimeCostWait(self, mode: str, distanceInMiles: float, cc: ChoiceCharacteristics):
+    #     if mode in self:
+    #         speedMilesPerHour = max([self.getModeSpeed(mode), 0.01]) * 2.23694
+    #         if np.isnan(speedMilesPerHour):
+    #             speedMilesPerHour = self.getModeSpeed("auto")
+    #         timeInHours = distanceInMiles / speedMilesPerHour
+    #         cc.travel_time += timeInHours
+    #         cc.cost += distanceInMiles * self.networks.modes[mode].perMile
+    #         cc.distance += distanceInMiles
+    #         cc.protected_distance += self.networks.modes[mode].getPortionDedicated() * distanceInMiles
 
     def addEndTimeCostWait(self, mode: str, cc: ChoiceCharacteristics):
         if mode in self:
@@ -215,6 +218,7 @@ class MicrotypeCollection:
         self.__modeToMicrotype = dict()
         self.__numpyDemand = np.ndarray([0])
         self.__numpySpeed = np.ndarray([0])
+        self.__numpyMixedTrafficDistance = np.ndarray([0])
         self.__diameters = np.ndarray([0])
 
     @property
@@ -246,7 +250,15 @@ class MicrotypeCollection:
         return self.__numpySpeed
 
     @property
-    def throughDistanceByMode(self):
+    def numpyMixedTrafficDistance(self):
+        return self.__numpyMixedTrafficDistance
+
+    @property
+    def passengerDistanceByMode(self):
+        return self.__numpyDemand[:, :, -2]
+
+    @property
+    def vehicleDistanceByMode(self):
         return self.__numpyDemand[:, :, -1]
 
     @property
@@ -260,7 +272,8 @@ class MicrotypeCollection:
     def dataByModeDataFrame(self):
         out = {'TripStartsPerHour': self.tripStartRateByMode.flatten(),
                'TripEndsPerHour': self.tripEndRateByMode.flatten(),
-               'ThroughDistancePerHour': self.throughDistanceByMode.flatten(),
+               'PassengerDistancePerHour': self.passengerDistanceByMode.flatten(),
+               'VehicleDistancePerHour': self.vehicleDistanceByMode.flatten(),
                'Speed': self.__numpySpeed.flatten()}
         return pd.DataFrame(out,
                             index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))
@@ -327,6 +340,7 @@ class MicrotypeCollection:
             self.__numpyDemand = np.zeros(
                 (len(self.microtypeIdToIdx), len(self.modeToIdx), len(self.dataToIdx)), dtype=float)
             self.__numpySpeed = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)), dtype=float)
+            self.__numpyMixedTrafficDistance = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)), dtype=float)
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
@@ -359,6 +373,14 @@ class MicrotypeCollection:
                 #       len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
                 #       " subNetworks in microtype ", microtypeID)
 
+    def updateDedicatedDistance(self):
+        for microtypeID, microtype in self:
+            idx = self.transitionMatrix.idx(microtypeID)
+            for mode in microtype.mode_names:
+                portionDedicated = microtype.networks.modes[mode].getPortionDedicated()
+                distanceMixed = (1. - portionDedicated)  # microtype.getModeDemandForPMT(mode) *
+                self.__numpyMixedTrafficDistance[idx, self.modeToIdx[mode]] = distanceMixed
+
     def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):
         if collectedNetworkStateData is None:
             collectedNetworkStateData = self.collectedNetworkStateData
@@ -378,7 +400,7 @@ class MicrotypeCollection:
                 minimumProduction = criticalV * criticalDensity
                 v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
             if np.any(v_out > v_0):
-                print("WHY TOO FAST?")
+                # print("WHY TOO FAST?")
                 v_out[v_out > v_0] = v_0[v_out > v_0]
             return v_out
 
@@ -466,9 +488,9 @@ class MicrotypeCollection:
                     n_other[idx] = networkStateData.nonAutoAccumulation
                     n_init[idx] = networkStateData.initialAccumulation
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
-
+        # print(n_other)
         dt = self.__timeStepInSeconds
-        if True:
+        if False:
 
             X = np.transpose(self.transitionMatrix.matrix.values)
 
@@ -517,6 +539,7 @@ class MicrotypeCollection:
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
         # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
         averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        # print(averageSpeeds)
 
         # averageSpeeds = np.min(vs, axis=1)
         # print('----new iter---')
@@ -528,7 +551,7 @@ class MicrotypeCollection:
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)
-
+        # print(averageSpeeds)
         if writeData:
             for microtypeID, microtype in self:
                 idx = self.transitionMatrix.idx(microtypeID)
@@ -537,7 +560,7 @@ class MicrotypeCollection:
                         networkStateData = collectedNetworkStateData[(microtypeID, modes)]
                         networkStateData.finalAccumulation = ns[idx, -1]
                         networkStateData.finalSpeed = vs[idx, -1]
-                        # networkStateData.averageSpeed = averageSpeeds[idx]
+                        networkStateData.averageSpeed = averageSpeeds[idx]
                         networkStateData.inflow = np.squeeze(inflows[idx, :]) * dt
                         networkStateData.outflow = np.squeeze(outflows[idx, :]) * dt
                         networkStateData.flowMatrix = np.squeeze(flowMats[idx, :, :]) * dt
@@ -592,7 +615,7 @@ class MicrotypeCollection:
             return inputAllocation.filterAllocation(validMicrotypes)
 
 
-@njit
+@njit(fastmath=True, parallel=False, cache=True)
 def vectorV(N, v_0, n_0, n_other, minspeed=0.005):
     nTimeSteps = N.shape[1]
     out = np.empty_like(N)
@@ -611,7 +634,7 @@ def vectorV(N, v_0, n_0, n_other, minspeed=0.005):
     return out
 
 
-@njit
+@njit(fastmath=True, parallel=False, cache=True)
 def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, n_other, dt):
     X = np.transpose(Xprime)
     nTimeSteps = N.shape[1]
@@ -627,7 +650,7 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, n
             minimumProduction = criticalV * criticalDensity
             v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
         if np.any(v_out > v_0):
-            print("WHY TOO FAST?")
+            # print("WHY TOO FAST?")
             v_out[v_out > v_0] = v_0[v_out > v_0]
         return v_out
 
