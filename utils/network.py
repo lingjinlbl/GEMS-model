@@ -329,7 +329,6 @@ class BikeMode(Mode):
             n.setVMT(self.name, self._VMT[n])
             self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
             n.setN(self.name, self._N_eff[n])
-        print('done')
 
     def getPortionDedicated(self) -> float:
         if self._VMT_tot > 0:
@@ -852,7 +851,10 @@ class BusMode(Mode):
                 tot += val
                 if key.dedicated:
                     tot_dedicated += val
-            return tot_dedicated / tot
+            if tot == 0:
+                return 0.
+            else:
+                return np.nan_to_num(tot_dedicated / tot)
         else:
             return 0.0
 

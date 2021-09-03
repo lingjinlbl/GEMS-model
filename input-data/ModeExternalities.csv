@@ -1,5 +1,9 @@
 MicrotypeID,ModeTypeID,CostPerVehicleMile,CostPerPassengerMile
-A,auto,0.1,0.0
-B,auto,0.1,0.0
-C,auto,0.1,0.0
-D,auto,0.1,0.0
+A,auto,0.5,0.0
+B,auto,0.4,0.0
+C,auto,0.3,0.0
+D,auto,0.2,0.0
+A,bus,1.0,0.0
+B,bus,0.8,0.0
+C,bus,0.6,0.0
+D,bus,0.3,0.0
