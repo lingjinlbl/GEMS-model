@@ -222,7 +222,9 @@ class MicrotypeCollection:
         self.__numpyMixedTrafficDistance = np.ndarray([0])
         self.__diameters = np.ndarray([0])
         self.__numpyNetworkAccumulation = np.ndarray([0])
+        self.__numpyNetworkOccupancy = np.ndarray([0])
         self.__numpyNetworkSpeed = np.ndarray([0])
+        self.__numpyNetworkBlockedDistance = np.ndarray([0])
 
     @property
     def diToIdx(self):
@@ -348,6 +350,10 @@ class MicrotypeCollection:
                                                  len(self.modeToIdx)), dtype=float)
             self.__numpyNetworkAccumulation = np.zeros((len(self.__scenarioData['subNetworkData'].index),
                                                         len(self.modeToIdx)), dtype=float)
+            self.__numpyNetworkOccupancy = np.zeros((len(self.__scenarioData['subNetworkData'].index),
+                                                        len(self.modeToIdx)), dtype=float)
+            self.__numpyNetworkBlockedDistance = np.zeros((len(self.__scenarioData['subNetworkData'].index),
+                                                        len(self.modeToIdx)), dtype=float)
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
@@ -365,6 +371,8 @@ class MicrotypeCollection:
                                          self.__numpySpeed[self.microtypeIdToIdx[microtypeID], :],
                                          self.__numpyNetworkSpeed[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkAccumulation[self.__networkIdToIdx[subNetworkId], :],
+                                         self.__numpyNetworkOccupancy[self.__networkIdToIdx[subNetworkId], :],
+                                         self.__numpyNetworkBlockedDistance[self.__networkIdToIdx[subNetworkId], :],
                                          self.modeToIdx)
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
