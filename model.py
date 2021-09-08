@@ -8,6 +8,7 @@ from sys import stdout
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
+from IPython.core.display import display
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
 
@@ -991,16 +992,17 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 4, True)
-    operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+    model = Model("input-data-geotype-A", 2, True)
+    # display(model.interact.grid)
+    # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
     # a, b = model.collectAllCharacteristics()
     # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
-    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus')],
-                          fromToSubNetworkIDs=[('A', 'Bus')], method="noisy")
-    optimizer.evaluate(optimizer.x0())
-    optimizer.evaluate([0., 300.])
+    optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'bus')],
+                          fromToSubNetworkIDs=[('1', 'Bike')], method="noisy")
+    # optimizer.evaluate(optimizer.x0())
+    optimizer.evaluate([0.2, 300.])
     optimizer.evaluate(optimizer.x0())
     # obj = Mock()
     # obj.new = 0.25
