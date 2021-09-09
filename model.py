@@ -8,6 +8,7 @@ from sys import stdout
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
+from IPython.core.display import display
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
 
@@ -451,7 +452,6 @@ class Model:
     def findEquilibrium(self):
         diff = 1000.
         i = 0
-        # self.demand.resetCounter()
 
         """
         Initial conditions
@@ -468,9 +468,7 @@ class Model:
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
         if np.linalg.norm(self.g(startingPoint)) < self.__tolerance:
-            print("Nice, I don't need to do anything")
             fixedPointModeSplit = self.fromObjectiveFunction(startingPoint)
-            # print(self.microtypes.collectedNetworkStateData[('A', ('auto', 'bike', 'bus'))].averageSpeed, 'DURING 1 ')
         else:
             sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
                        options={'maxfev': 500, 'maxiter': 500, 'line_search': 'cheng', 'sigma_0': -0.8})
@@ -479,14 +477,12 @@ class Model:
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
             # print(self.g(sol.x))
             self.__successful = self.__successful & sol.success
-            # print(self.microtypes.collectedNetworkStateData[('A', ('auto', 'bike', 'bus'))].averageSpeed, 'DURING 2')
 
         """
         Finalize
         """
         self.demand.updateMFD(self.microtypes, modeSplitArray=fixedPointModeSplit)
         self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
-        # print(self.microtypes.collectedNetworkStateData[('A', ('auto', 'bike', 'bus'))].averageSpeed, 'DURING 3')
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
@@ -991,16 +987,17 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 4, True)
+    model = Model("input-data-geotype-A", 2, True)
+    # display(model.interact.grid)
     operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
     # a, b = model.collectAllCharacteristics()
     # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
-    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus')],
-                          fromToSubNetworkIDs=[('A', 'Bus')], method="noisy")
-    optimizer.evaluate(optimizer.x0())
-    optimizer.evaluate([0., 300.])
+    optimizer = Optimizer(model, modesAndMicrotypes=None,
+                          fromToSubNetworkIDs=[('1', 'Bike')], method="noisy")
+    # optimizer.evaluate(optimizer.x0())
+    optimizer.evaluate([0.2])
     optimizer.evaluate(optimizer.x0())
     # obj = Mock()
     # obj.new = 0.25

@@ -430,7 +430,7 @@ class TripGeneration:
         self.tripClasses[key] = value
 
     def __getitem__(self, item: (str, str)):
-        return self.tripClasses[item]
+        return self.tripClasses.get(item, 0.0)
 
     def __contains__(self, item):
         return item in self.__tripClasses
