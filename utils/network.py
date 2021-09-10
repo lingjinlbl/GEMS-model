@@ -1,6 +1,7 @@
 from math import sqrt, cosh, sinh, cos, sin
 from typing import List, Dict
 
+import numba as nb
 import numpy as np
 import pandas as pd
 # from line_profiler_pycharm import profile
@@ -889,13 +890,37 @@ class Network:
         self._V_steadyState = self.freeFlowSpeed
         self.__modeToIdx = modeToIdx
         self.__modeToMicrotypeSpeed = modeToMicrotypeSpeed
+        self.MFD = lambda _: 0.0
         if diameter is None:
             self.__diameter = 1.0
         else:
             self.__diameter = diameter
 
+    def defineMFD(self):
+        if self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "loder":
+            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
+            densityMax = self.characteristics.iat[self._idx, self.charColumnToIdx["densityMax"]]
+            capacityFlow = self.characteristics.iat[self._idx, self.charColumnToIdx["capacityFlow"]]
+            smoothingFactor = self.characteristics.iat[self._idx, self.charColumnToIdx["smoothingFactor"]]
+            waveSpeed = self.characteristics.iat[self._idx, self.charColumnToIdx["waveSpeed"]]
+
+            @nb.jit
+            def _MFD(density):
+                return smoothingFactor / density * np.log(
+                    np.exp(- vMax * density / smoothingFactor) + np.exp(-capacityFlow / smoothingFactor) + np.exp(
+                        - (density - densityMax) * waveSpeed / smoothingFactor))
+            return _MFD
+
+        else:
+            @nb.jit
+            def _MFD(density):
+                return 0.0
+
+            return _MFD
+
     def updateNetworkData(self):  # CONSOLIDATE
         np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
+        self.MFD = self.defineMFD()
 
     # @property
     # def type(self):
