@@ -8,7 +8,6 @@ from sys import stdout
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
-from IPython.core.display import display
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
 
@@ -148,7 +147,8 @@ class ScenarioData:
         data.
         """
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                             usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength"],
+                                             usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
+                                                      "capacityFlow", "smoothingFactor", "waveSpeed"],
                                              index_col="SubnetworkID", dtype={"MicrotypeID": str}).fillna(0.0)
         self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                                  index_col="SubnetworkID", dtype={"MicrotypeID": str})
@@ -987,7 +987,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-geotype-A", 2, True)
+    model = Model("input-data-geotype-A", 2, False)
     # display(model.interact.grid)
     operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
