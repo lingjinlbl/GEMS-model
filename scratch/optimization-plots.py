@@ -8,10 +8,10 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 model = Model(ROOT_DIR + "/../input-data", nSubBins=2)
 
 operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
-optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus')], fromToSubNetworkIDs=[('A', 'Bus')], method="noisy") #,
+optimizer = Optimizer(model, modesAndMicrotypes=None, fromToSubNetworkIDs=[('A', 'bus'), ('B', 'bus')], method="noisy") #,
 
-headways = np.linspace(60, 600, 10)
-allocations = np.linspace(0., 0.35, 10)
+headways = np.linspace(0., 0.2, 10)
+allocations = np.linspace(0., 0.2, 10)
 collectedUserCosts = np.zeros((len(headways), len(allocations)))
 collectedOperatorCosts = np.zeros((len(headways), len(allocations)))
 collectedExternalityCosts = np.zeros((len(headways), len(allocations)))

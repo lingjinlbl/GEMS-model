@@ -305,7 +305,7 @@ class Model:
         self.__networkStateData = dict()
         self.__printLoc = stdout
         self.__interactive = interactive
-        self.__tolerance = 1e-8
+        self.__tolerance = 1e-9
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
