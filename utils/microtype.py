@@ -384,9 +384,6 @@ class MicrotypeCollection:
     def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):
         if collectedNetworkStateData is None:
             collectedNetworkStateData = self.collectedNetworkStateData
-            writeData = True
-        else:
-            writeData = False
 
         if tripStartRate is None:
             tripStartRate = self.getModeStartRatePerSecond("auto")
@@ -552,21 +549,20 @@ class MicrotypeCollection:
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)
         # print(averageSpeeds)
-        if writeData:
-            for microtypeID, microtype in self:
-                idx = self.transitionMatrix.idx(microtypeID)
-                for modes, autoNetwork in microtype.networks:
-                    if "auto" in autoNetwork:
-                        networkStateData = collectedNetworkStateData[(microtypeID, modes)]
-                        networkStateData.finalAccumulation = ns[idx, -1]
-                        networkStateData.finalSpeed = vs[idx, -1]
-                        networkStateData.averageSpeed = averageSpeeds[idx]
-                        networkStateData.inflow = np.squeeze(inflows[idx, :]) * dt
-                        networkStateData.outflow = np.squeeze(outflows[idx, :]) * dt
-                        networkStateData.flowMatrix = np.squeeze(flowMats[idx, :, :]) * dt
-                        networkStateData.n = np.squeeze(ns[idx, :])
-                        networkStateData.v = np.squeeze(vs[idx, :])
-                        networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
+        for microtypeID, microtype in self:
+            idx = self.transitionMatrix.idx(microtypeID)
+            for modes, autoNetwork in microtype.networks:
+                if "auto" in autoNetwork:
+                    networkStateData = collectedNetworkStateData[(microtypeID, modes)]
+                    networkStateData.finalAccumulation = ns[idx, -1]
+                    networkStateData.finalSpeed = vs[idx, -1]
+                    networkStateData.averageSpeed = averageSpeeds[idx]
+                    networkStateData.inflow = np.squeeze(inflows[idx, :]) * dt
+                    networkStateData.outflow = np.squeeze(outflows[idx, :]) * dt
+                    networkStateData.flowMatrix = np.squeeze(flowMats[idx, :, :]) * dt
+                    networkStateData.n = np.squeeze(ns[idx, :])
+                    networkStateData.v = np.squeeze(vs[idx, :])
+                    networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
         return {"t": np.transpose(ts), "v": np.transpose(vs), "n": np.transpose(ns),
                 "max_accumulation": N_0}
 

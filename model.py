@@ -554,8 +554,8 @@ class Model:
             if not preserve:
                 if not init:
                     self.microtypes.importPreviousStateData(networkStateData)
-                else:
-                    self.microtypes.resetStateData()
+                # else:
+                #     self.microtypes.resetStateData()
 
     def collectAllCosts(self, event=None):
         operatorCosts = CollectedTotalOperatorCosts()
@@ -987,18 +987,27 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-geotype-A", 2, True)
+    model = Model("input-data", 2, False)
     # display(model.interact.grid)
-    operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+    # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
     # a, b = model.collectAllCharacteristics()
     # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bike')], method="noisy")
+                          fromToSubNetworkIDs=[('A', 'Bike')], method="noisy")
     # optimizer.evaluate(optimizer.x0())
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
+    print('-----0.2------')
     optimizer.evaluate([0.2])
-    optimizer.evaluate(optimizer.x0())
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
+    print('done')
     # obj = Mock()
     # obj.new = 0.25
     #

@@ -117,6 +117,9 @@ class Mode:
     def updateScenarioInputs(self):
         pass
 
+    def updateRouteAveragedSpeed(self):
+        pass
+
     def updateDemand(self, travelDemand=None):
         if travelDemand is None:
             travelDemand = self.travelDemand
@@ -248,6 +251,15 @@ class WalkMode(Mode):
     def getSpeed(self):
         return self.speedInMetersPerSecond
 
+    def updateScenarioInputs(self):
+        # self.__params = self.params.to_numpy()
+        for n in self.networks:
+            # self._L_blocked[n] = 0.0
+            self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
+            # self._speed[n] = n.base_speed
+            # self.__operatingL[n] = self.updateOperatingL(n)
+
 
 class BikeMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
@@ -341,6 +353,16 @@ class BikeMode(Mode):
             return np.nan_to_num(tot_dedicated / tot)
         else:
             return 0.0
+
+    def updateScenarioInputs(self):
+        pass
+        # self.__params = self.params.to_numpy()
+        # for n in self.networks:
+            # self._L_blocked[n] = 0.0
+            # self._VMT[n] = 0.0
+            # self._N_eff[n] = 0.0
+            # self._speed[n] = n.base_speed
+            # self.__operatingL[n] = self.updateOperatingL(n)
 
 
 class RailMode(Mode):
@@ -440,6 +462,15 @@ class RailMode(Mode):
             self._speed[n] = self.routeAveragedSpeed
             self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
             n.setN(self.name, self._N_eff[n])
+
+    def updateScenarioInputs(self):
+        self.__params = self.params.to_numpy()
+        for n in self.networks:
+            # self._L_blocked[n] = 0.0
+            self._VMT[n] = 0.0
+            # self._N_eff[n] = 0.0
+            # self._speed[n] = n.base_speed
+            # self.__operatingL[n] = self.updateOperatingL(n)
 
 
 class AutoMode(Mode):
@@ -566,6 +597,15 @@ class AutoMode(Mode):
     #         n.N_eq[self.name] = n_new[ind] * self.relativeLength
     #         self._N[n] = n_new[ind]
 
+    def updateScenarioInputs(self):
+        # self.__params = self.params.to_numpy()
+        for n in self.networks:
+            self._L_blocked[n] = 0.0
+            self._VMT[n] = 0.0
+            self._N_eff[n] = 0.0
+            self._speed[n] = n.base_speed
+            # self.__operatingL[n] = self.updateOperatingL(n)
+
 
 class BusMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
@@ -581,6 +621,7 @@ class BusMode(Mode):
         self.fixedVMT = True
         self.__operatingL = dict()
         self.__speedData = speedData
+        self.__availableRoadNetworkDistance = sum([n.L for n in self.networks])
         for n in networks:
             n.addMode(self)
             self._L_blocked[n] = 0.0
@@ -660,7 +701,7 @@ class BusMode(Mode):
         self.__params = self.params.to_numpy()
         for n in self.networks:
             self._L_blocked[n] = 0.0
-            self._VMT[n] = 0.0
+            # self._VMT[n] = 0.0
             self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
             self.__operatingL[n] = self.updateOperatingL(n)
@@ -685,11 +726,12 @@ class BusMode(Mode):
         if network.dedicated:
             return network.L
         else:
-            dedicatedDistance = sum([n.L for n in self.networks if n.dedicated])
-            totalDistance = sum([n.L for n in self.networks])
-            undedicatedDistance = totalDistance - dedicatedDistance
-            return max(0, (self.routeDistanceToNetworkDistance * totalDistance - dedicatedDistance) * (
-                    network.L / undedicatedDistance))
+            dedicatedDistanceToBus = sum([n.L for n in self.networks if n.dedicated])
+            totalDistance = self.__availableRoadNetworkDistance
+            dedicatedDistanceToOther = totalDistance - sum([n.L for n in self.networks])
+            undedicatedDistance = totalDistance - dedicatedDistanceToBus
+            return max(0, (self.routeDistanceToNetworkDistance * totalDistance - dedicatedDistanceToBus) * (
+                    network.L / (undedicatedDistance - dedicatedDistanceToOther)))
             # return self.routeDistanceToNetworkDistance * totalDistance * network.L / (totalDistance - dedicatedDistance)
 
     def getN(self, network=None):
@@ -753,9 +795,13 @@ class BusMode(Mode):
                 speeds[idx] = meters[idx] / seconds[idx]
         if np.sum(seconds) > 0:
             spd = np.sum(meters) / np.sum(seconds)
-            return spd
+            out = spd
         else:
-            return next(iter(self.networks)).getBaseSpeed()
+            out = next(iter(self.networks)).getBaseSpeed()
+        return out
+
+    def updateRouteAveragedSpeed(self):
+        self.routeAveragedSpeed = self.getSpeed()
 
     def calculateBlockedDistance(self, network) -> float:
         if network.dedicated:
@@ -800,9 +846,6 @@ class BusMode(Mode):
                 spd = 0.1
             times.append(self.getOperatingL(n) / spd)
             lengths.append(self.getOperatingL(n))
-        out1 = []
-        out2 = []
-        out3 = []
         for ind, n in enumerate(self.networks):
             assert isinstance(n, Network)
             if speeds[ind] >= 0:
@@ -812,14 +855,11 @@ class BusMode(Mode):
                 n.updateBaseSpeed()
                 self._speed[n] = self.getSubNetworkSpeed(n)
                 self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength,
-                                     self.getRouteLength() / n.avgLinkLength / 2)  # Why was this divided by 100?
-                out1.append(VMT / self._speed[n] * self.relativeLength)
-                out2.append(self.getRouteLength() / n.avgLinkLength)
-                out3.append(self._speed[n])
+                                     self.getRouteLength() / n.avgLinkLength / 2 * self.relativeLength)  # Why was this divided by 100?
                 n.setN(self.name, self._N_eff[n])
-                n.getNetworkStateData().nonAutoAccumulation += self._N_eff[n]
+                # n.getNetworkStateData().nonAutoAccumulation += self._N_eff[n]
         # print(out1, out2, out3)
-        self.updateCommercialSpeed()
+        # self.updateCommercialSpeed()
 
     def updateCommercialSpeed(self):
         self.routeAveragedSpeed = self.getRouteLength() / sum(
@@ -1181,6 +1221,7 @@ class NetworkCollection:
     def updateModeData(self):
         for m in self.__modes:
             m.updateScenarioInputs()
+            m.updateModeBlockedDistance()
 
     def isJammed(self):
         return np.any([n.isJammed for n in self._networks])
@@ -1207,20 +1248,19 @@ class NetworkCollection:
         for m in self.modes.values():
             m.updateDemand(self.demands[m.name])
 
-        for modes, n in self:
-            # n.getNetworkStateData().resetBlockedDistance()
-            n.getNetworkStateData().resetNonAutoAccumulation()
-            # n.resetSpeeds()
         for m in self.modes.values():  # uniqueModes:
             m.assignVmtToNetworks()
             for n in m.networks:
                 n.updateBaseSpeed()
             m.updateModeBlockedDistance()
-            # newSpeeds = self.getModeSpeeds()
-            # if np.linalg.norm(oldSpeeds - newSpeeds) < 1e-9:
-            #     break
-            # else:
-            #     oldSpeeds = newSpeeds
+            m.updateRouteAveragedSpeed()
+
+        for modes, n in self:
+            nonAutoAccumulation = sum([self.modes[m]._N_eff[n] for m in modes if m in {'bus'}])
+            n.getNetworkStateData().nonAutoAccumulation = nonAutoAccumulation
+        # if self.modes['bus'].microtypeID == 'A':
+        #     print(self.modes['bus'].routeAveragedSpeed)
+
 
     # def updateNetworks(self):
     #     for n in self._networks:
@@ -1269,6 +1309,7 @@ class NetworkStateData:
             self.blockedDistance = 0.0
             self.averageSpeed = 0.0
             self.initialTime = 0.0
+            self.defaultSpeed = 0.0
             self.inflow = np.zeros(0)
             self.outflow = np.zeros(0)
             self.flowMatrix = np.zeros(0)
@@ -1289,6 +1330,7 @@ class NetworkStateData:
             self.inflow = data.inflow
             self.outflow = data.outflow
             self.flowMatrix = data.flowMatrix
+            self.defaultSpeed = data.defaultSpeed
             self.v = data.v
             self.n = data.n
             self.t = data.t
@@ -1298,6 +1340,7 @@ class NetworkStateData:
         self.finalSpeed = network.freeFlowSpeed
         self.steadyStateSpeed = network.freeFlowSpeed
         self.averageSpeed = network.freeFlowSpeed
+        self.defaultSpeed = network.freeFlowSpeed
         return self
 
     def resetBlockedDistance(self):
@@ -1316,7 +1359,7 @@ class NetworkStateData:
         self.initialAccumulation = 0.0
         self.nonAutoAccumulation = 0.0
         self.blockedDistance = 0.0
-        self.averageSpeed = 0.0
+        self.averageSpeed = self.defaultSpeed
         self.initialTime = 0.0
         self.inflow = np.zeros(0)
         self.outflow = np.zeros(0)
