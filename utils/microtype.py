@@ -292,8 +292,8 @@ class MicrotypeCollection:
     def updateNetworkData(self):
         for m in self.__microtypes.values():
             # assert isinstance(m, Microtype)
-            m.networks.updateModeData()
             m.networks.updateNetworkData()
+            m.networks.updateModeData()
             for _, n in m.networks:
                 # assert isinstance(n, Network)
                 n.updateScenarioInputs()

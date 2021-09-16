@@ -358,11 +358,11 @@ class BikeMode(Mode):
         pass
         # self.__params = self.params.to_numpy()
         # for n in self.networks:
-            # self._L_blocked[n] = 0.0
-            # self._VMT[n] = 0.0
-            # self._N_eff[n] = 0.0
-            # self._speed[n] = n.base_speed
-            # self.__operatingL[n] = self.updateOperatingL(n)
+        # self._L_blocked[n] = 0.0
+        # self._VMT[n] = 0.0
+        # self._N_eff[n] = 0.0
+        # self._speed[n] = n.base_speed
+        # self.__operatingL[n] = self.updateOperatingL(n)
 
 
 class RailMode(Mode):
@@ -718,8 +718,11 @@ class BusMode(Mode):
     def getDemandForVmtPerHour(self):
         return self.getRouteLength() / self.headwayInSec * 3600. / 1609.34
 
-    def getOperatingL(self, network) -> float:
-        return self.__operatingL[network]
+    def getOperatingL(self, network=None):
+        if network is None:
+            return self.__operatingL
+        else:
+            return self.__operatingL[network]
 
     def updateOperatingL(self, network) -> float:
         """Changed January 2021: Buses only operate on a portion of subnetwork"""
@@ -1139,7 +1142,7 @@ class NetworkCollection:
                  dataToIdx=None, modeToIdx=None, verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
-        self.__modes = []
+        self.__modes = dict()
 
         if demandData is None:
             self.__demandData = np.ndarray(0)
@@ -1160,7 +1163,7 @@ class NetworkCollection:
         # self.resetModes()
 
     def getMode(self, mode):
-        return self.modes[mode]
+        return self.__modes[mode]
 
     def getModeVMT(self, mode):
         return sum([n.getVMT(mode) for n in self[mode]])
@@ -1191,35 +1194,40 @@ class NetworkCollection:
 
             if modeName == "bus":
                 self.__speedData[self.__modeToIdx[modeName]] = networks[0].base_speed
-                self.__modes.append(BusMode(networks, params, microtypeID,
-                                            travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                            speedData=self.__speedData[self.__modeToIdx[modeName], None]))
+                mode = BusMode(networks, params, microtypeID,
+                               travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
+                               speedData=self.__speedData[self.__modeToIdx[modeName], None])
+                self.__modes["bus"] = mode
             elif modeName == "auto":
                 self.__speedData[self.__modeToIdx[modeName]] = networks[0].base_speed
-                self.__modes.append(AutoMode(networks, params, microtypeID,
-                                             travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                             speedData=self.__speedData[self.__modeToIdx[modeName], None]))
+                mode = AutoMode(networks, params, microtypeID,
+                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
+                                speedData=self.__speedData[self.__modeToIdx[modeName], None])
+                self.__modes["auto"] = mode
             elif modeName == "walk":
                 self.__speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                self.__modes.append(WalkMode(networks, params, microtypeID,
-                                             travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                             speedData=self.__speedData[self.__modeToIdx[modeName], None]))
+                mode = WalkMode(networks, params, microtypeID,
+                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
+                                speedData=self.__speedData[self.__modeToIdx[modeName], None])
+                self.__modes["walk"] = mode
             elif modeName == "bike":
                 self.__speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                self.__modes.append(BikeMode(networks, params, microtypeID,
-                                             travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                             speedData=self.__speedData[self.__modeToIdx[modeName], None]))
+                mode = BikeMode(networks, params, microtypeID,
+                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
+                                speedData=self.__speedData[self.__modeToIdx[modeName], None])
+                self.__modes["bike"] = mode
             elif modeName == "rail":
                 self.__speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                self.__modes.append(RailMode(networks, params, microtypeID,
-                                             travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                             speedData=self.__speedData[self.__modeToIdx[modeName], None]))
+                mode = RailMode(networks, params, microtypeID,
+                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
+                                speedData=self.__speedData[self.__modeToIdx[modeName], None])
+                self.__modes["rail"] = mode
             else:
                 print("BAD!")
                 Mode(networks, params, microtypeID, "bad")
 
     def updateModeData(self):
-        for m in self.__modes:
+        for m in self.__modes.values():
             m.updateScenarioInputs()
             m.updateModeBlockedDistance()
 
@@ -1260,7 +1268,6 @@ class NetworkCollection:
             n.getNetworkStateData().nonAutoAccumulation = nonAutoAccumulation
         # if self.modes['bus'].microtypeID == 'A':
         #     print(self.modes['bus'].routeAveragedSpeed)
-
 
     # def updateNetworks(self):
     #     for n in self._networks:
