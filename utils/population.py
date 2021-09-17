@@ -220,17 +220,13 @@ class Population:
                 # Convert everything to units of hours
                 df.loc['BetaTravelTime', :] *= 60.0
                 df.loc['BetaWaitTime', :] *= 60.0
-                # df.BetaWaitTimeSquared *= 3600.0
                 df.loc['BetaAccessTime', :] *= 60.0
                 df.loc['BetaTravelTimeMixed', :] *= 60.0
                 for mode, values in df.transpose().iterrows():
                     self.__numpy[
                         self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose
                                                  )], self.modeToIdx[mode], [0, 1, 3, 4, 5]] = values.to_numpy()
-                # self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose)] = counter
-                # counter += 1
-                # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                # 'unprotected_travel_time': 5, 'distance': 6}
+
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
                 out = DemandClass(group.set_index("Mode").drop(columns=['PopulationGroupTypeID', 'TripPurposeID']))

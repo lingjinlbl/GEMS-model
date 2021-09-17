@@ -768,7 +768,7 @@ class BusMode(Mode):
         driving_time = self.getOperatingL(network) / network.base_speed
         spd = self.getOperatingL(network) / (stopped_time + driving_time)
         if np.isnan(spd):
-            spd = 0.005
+            spd = 0.001
             self.__bad = True
         else:
             self.__bad = False

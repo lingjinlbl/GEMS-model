@@ -4,7 +4,7 @@ import shutil
 import pandas as pd
 
 geotype = "A"
-inFolder = "input-data-national"
+inFolder = "input-data-transgeo"
 outFolder = "input-data-geotype-" + geotype
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -13,7 +13,7 @@ if os.path.exists(newDir):
     shutil.rmtree(newDir)
 os.makedirs(newDir)
 
-for copiedFile in ["DistanceBins", "ObjectiveFunctionUserCosts", "PopulationGroups", "TimePeriods", "TripGeneration",
+for copiedFile in ["DistanceBins", "TripGeneration",
                    "TripPurposes", "ModeExternalities"]:
     oldPath = os.path.join(ROOT_DIR, "..", inFolder, copiedFile + ".csv")
     newPath = os.path.join(ROOT_DIR, "..", outFolder, copiedFile + ".csv")
@@ -31,6 +31,21 @@ for mode in ["auto", "bike", "bus", "rail", "walk"]:
     newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
     newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
     newdf.sort_values(newdf.columns[0], ascending = True).to_csv(newPath, index=False)
+
+# %% PopulationGroups
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "PopulationGroups.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "PopulationGroups.csv")
+df = pd.read_csv(oldPath)
+df['BetaTravelTimeMixed'] = 0.0
+df.loc[df['Mode'] == 'bike', 'BetaTravelTimeMixed'] = df.loc[df['Mode'] == 'bike', 'BetaTravelTime'].values / 2.
+df.loc[df['Mode'] == 'bike', 'BetaTravelTime'] /= 2.0
+df.to_csv(newPath, index=False)
+
+# %% TimePeriods
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "TimePeriods.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "TimePeriods.csv")
+df = pd.read_csv(oldPath)
+df.sort_values(by='TimePeriodID').to_csv(newPath, index=False)
 
 # %% DistanceDistribution
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "DistanceDistribution.csv")
