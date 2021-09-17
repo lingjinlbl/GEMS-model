@@ -471,9 +471,6 @@ class Demand:
             for microtypeID, microtype in microtypes:
                 microtype.updateNetworkSpeeds()
 
-        # autoProductionInMeters = microtypes.collectedNetworkStateData.getAutoProduction()
-        # print(autoProductionInMeters)
-
     def utility(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics):
         return utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
 

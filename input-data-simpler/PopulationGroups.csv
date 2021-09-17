@@ -3,5 +3,7 @@
 -0.04,0.1,nonwork,auto,0,high-income,-0.03,-0.0,-0.04,-0.015
 -0.02,0.1,nonwork,bus,0,high-income,-0.009,-0.03,-0.0,-0.015
 -0.02,0.1,work,bus,0,high-income,-0.009,-0.03,-0.0,-0.015
+-0.02,0.1,nonwork,bike,0,high-income,-0.009,-0.03,-0.0,-0.015
+-0.02,0.1,work,bike,0,high-income,-0.009,-0.03,-0.0,-0.015
 -0.04,0.1,nonwork,walk,0,high-income,-0.03,-0.0,-0.04,-0.015
 -0.04,0.1,work,walk,0,high-income,-0.03,-0.0,-0.04,-0.015

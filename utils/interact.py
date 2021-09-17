@@ -569,12 +569,12 @@ class Interact:
             self.updatePlots()
 
     def returnModeNetworkLengths(self, mID, modeName):
-        return self.model.scenarioData['subNetworkDataFull'].loc[
+        return self.model.scenarioData['subNetworkData'].loc[
             self.model.scenarioData['subNetworkDataFull'].ModesAllowed.str.lower().str.contains(modeName.lower()) & (
                     self.model.scenarioData['subNetworkDataFull'].MicrotypeID == mID), 'Length']
 
     def returnRoadNetworkLengths(self, mID):
-        return self.model.scenarioData['subNetworkDataFull'].loc[
+        return self.model.scenarioData['subNetworkData'].loc[
             (self.model.scenarioData['subNetworkDataFull'].Type == "Road") & (
                     self.model.scenarioData['subNetworkDataFull'].MicrotypeID == mID), 'Length']
 
