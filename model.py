@@ -1385,38 +1385,3 @@ if __name__ == "__main__":
     outcome = optimizer.minimize()
     params, outcomes, mask = optimizer.plotConvergence()
     print(outcome)
-    # model.updateUtilityParam(-0.3, "travel_time")
-
-    # a.plotAllDynamicStats("N")
-    x, y = model.plotAllDynamicStats("v")
-    plt.plot(x, y)
-    # o = Optimizer("input-data", list(zip([2, 4, 6, 8], [13, 14, 15, 16])))
-    # o = Optimizer("input-data", fromToSubNetworkIDs=list(zip([2, 8], [13, 16])),
-    #               modesAndMicrotypes=list(zip(["A", "D", "A", "D"], ["bus", "bus", "rail", "rail"])),
-    #               method="shgo")
-    # o = Optimizer("input-data-production",
-    #               fromToSubNetworkIDs=list(zip([1, 7, 43, 49, 85, 91, 121, 127], [3, 9, 45, 51, 87, 93, 123, 129])),
-    #               method="noisy")
-    # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
-    # o.evaluate(np.array([0., 30., 200., 200., 300., 300.]))
-    # o.evaluate(np.array([300., 200., 200., 200.]))
-    # output = o.minimize()
-    # print("DONE")
-    # print(output.x)
-    # print(output.fun)
-    # print(output.message)
-    #
-    # model.interact.modifyModel(('dedicated', 'A'), obj)
-    # model.collectAllCharacteristics()
-    # userCostDf = model.userCostDataFrame(vectorUserCosts)
-    outcome = optimizer.minimize()
-    params, outcomes, mask = optimizer.plotConvergence()
-    print(outcome)
-    # model.updateUtilityParam(-0.3, "travel_time")
-
-    # a, b = model.collectAllCharacteristics()
-    # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
-    # print('done')
-    # model.interact.createDownloadLink()
-    # a, b, c = model.toPandas()
-    # ms = model.getModeSplit()
