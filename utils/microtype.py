@@ -614,19 +614,12 @@ class MicrotypeCollection:
             return inputAllocation.filterAllocation(validMicrotypes)
 
 
-# @njit(fastmath=True, parallel=False, cache=True)
+@njit(fastmath=True, parallel=False, cache=True)
 def vectorV(N, v_0, n_0, n_other, L_eff, speedFunctions, minspeed=0.005):
     nTimeSteps = N.shape[1]
     out = np.empty_like(N)
 
-    def v(n, v_0, n_0, n_other, minspeed):
-        n_eff = n + n_other
-        vOut = v_0 * (1. - n_eff / n_0)
-        vOut[vOut < minspeed] = minspeed
-        vOut[vOut > v_0] = v_0[vOut > v_0]
-        return vOut
-
-    def v2(n, n_other, L_eff, speedFunctions):
+    def v(n, n_other, L_eff, speedFunctions):
         density = (n + n_other) / L_eff
         v_out = np.zeros_like(n)
         for ind, d in enumerate(density):
@@ -635,25 +628,9 @@ def vectorV(N, v_0, n_0, n_other, L_eff, speedFunctions, minspeed=0.005):
 
     for t in np.arange(nTimeSteps):
         n = N[:, t]
-        out[:, t] = v2(n, n_other, L_eff, speedFunctions)
+        out[:, t] = v(n, n_other, L_eff, speedFunctions)
 
     return out
-
-@njit
-def ident(x):
-    return x
-
-def chain(fs, inner=ident):
-    head, tail = fs[-1], fs[:-1]
-
-    @njit
-    def wrap(x):
-        return head(inner(x))
-
-    if tail:
-        return chain(tail, wrap)
-    else:
-        return wrap
 
 
 @njit(fastmath=True, parallel=False, cache=True)
@@ -663,38 +640,18 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, L
 
     N[:, 0] = n_init
 
-    def v2(n, n_other, L_eff, speedFunctions):
+    def v(n, n_other, L_eff, speedFunctions):
         density = (n + n_other) / L_eff
         v_out = np.zeros_like(n)
         for ind, d in enumerate(density):
             v_out[ind] = speedFunctions[ind](d)
         return v_out
 
-    def v(n, v_0, n_0, n_other, criticalDensity=0.9):
-        n_eff = n + n_other
-        density = n_eff / n_0
-        v_out = v_0 * (1. - n_eff / n_0)
-        if np.any(density > criticalDensity):
-            criticalV = v_0[density > criticalDensity] * (1. - criticalDensity)
-            minimumProduction = criticalV * criticalDensity
-            v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
-        if np.any(v_out > v_0):
-            # print("WHY TOO FAST?")
-            v_out[v_out > v_0] = v_0[v_out > v_0]
-        return v_out
+    def outflow(n):
+        return v(n, n_other, L_eff, speedFunctions) * n / characteristicL
 
-    def outflow2(n):
-        return v2(n, n_other, L_eff, speedFunctions) * n / characteristicL
-
-    def outflow(n, L, v_0, n_0, n_other):
-        return v(n, v_0, n_0, n_other) * n / L
-
-    def inflow2(n):
-        return X @ (v2(n, n_other, L_eff, speedFunctions) * n / characteristicL)
-
-    def inflow(n, X, L, v_0, n_0, n_other):
-        os = X @ (v(n, v_0, n_0, n_other) * n / L)
-        return os
+    def inflow(n):
+        return X @ (v(n, n_other, L_eff, speedFunctions) * n / characteristicL)
 
     def spillback(n, N_0, demand, inflow, outflow, dt):
         requestedN = (demand + inflow - outflow) * dt + n
@@ -702,11 +659,9 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, L
 
     for t in np.arange(nTimeSteps - 1):
         n_t = N[:, t]
-        infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
-        outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-        infl2 = inflow2(n_t)
-        outfl2 = outflow2(n_t)
-        n_t = spillback(n_t, N_0, tripStartRate, infl2, outfl2, dt)  # CHANGE BACK TO n_other
+        infl = inflow(n_t)
+        outfl = outflow(n_t)
+        n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt)
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
 

@@ -6,6 +6,7 @@ from zipfile import ZipFile
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import plotly.express.colors as col
 import plotly.graph_objects as go
 from ipywidgets import Layout
@@ -443,7 +444,7 @@ class Interact:
             coverageStack.append(widgets.FloatSlider(value=busServiceData.CoveragePortion, min=0.02, max=1.0, step=0.02,
                                                      description="Microtype " + mID))
             coverageStack[-1].observe(self.response, names="value")
-            self.__widgetIDtoField[coverageStack[-1].model_id] = ('headway', mID)
+            self.__widgetIDtoField[coverageStack[-1].model_id] = ('coverage', mID)
 
         titleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
         userCostStack = [widgets.HTML(value="<center><i>User Costs</i></center>")]
@@ -650,13 +651,22 @@ class Interact:
         # mIDs, costs = self.model.plotAllDynamicStats('costs')
         costs = self.__optimizer.sumAllCosts()
         for ind, (mID, handle) in enumerate(self.__dataToHandle['cost']['current'].items()):
-            handle.y = costs.loc[mID, :].values
+            if isinstance(costs, pd.DataFrame):
+                handle.y = costs.loc[mID, :].values
+            else:
+                handle.y = handle.y * 0.0
 
         for mID, plot in self.__dataToHandle['costDiff'].items():
             yRef = np.array(self.__dataToHandle['cost']['ref'][mID].y)
             yCurrent = np.array(self.__dataToHandle['cost']['current'][mID].y)
             if len(yRef) == 0:
                 plot.y = yCurrent * 0.0
+            elif len(yRef) < len(yCurrent):
+                y = np.zeros_like(yCurrent) * np.nan
+                y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
+            elif len(yCurrent) < len(yRef):
+                y = np.zeros_like(yRef) * np.nan
+                y[:len(yCurrent)] = yCurrent - yRef[:len(yRef)]
             else:
                 plot.y = yCurrent - yRef
 
@@ -665,6 +675,9 @@ class Interact:
             yCurrent = np.array(self.__dataToHandle['cost']['current'][mID].y)
             if len(yRef) == 0:
                 plot.y = yCurrent * 0.0
+            elif len(yCurrent) < len(yRef):
+                y = np.zeros_like(yRef) * np.nan
+                y[:len(yCurrent)] = yCurrent
             else:
                 plot.y = yCurrent
 

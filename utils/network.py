@@ -1436,6 +1436,11 @@ class CollectedNetworkStateData:
     def __getitem__(self, item) -> NetworkStateData:
         return self.__data[item]
 
+    def resetAll(self):
+        for _, val in self.__data.items():
+            val.reset()
+        return self
+
     def getAutoProduction(self):
         prods = []
         for (mID, modes), val in self.__data.items():
