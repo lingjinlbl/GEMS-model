@@ -1,6 +1,7 @@
 from math import sqrt, cosh, sinh, cos, sin
 from typing import List, Dict
 
+import numba as nb
 import numpy as np
 import pandas as pd
 # from line_profiler_pycharm import profile
@@ -932,13 +933,62 @@ class Network:
         self._V_steadyState = self.freeFlowSpeed
         self.__modeToIdx = modeToIdx
         self.__modeToMicrotypeSpeed = modeToMicrotypeSpeed
+        self.MFD = self.defineMFD()
         if diameter is None:
             self.__diameter = 1.0
         else:
             self.__diameter = diameter
 
+    def defineMFD(self):
+        if self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "loder":
+            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
+            densityMax = self.characteristics.iat[self._idx, self.charColumnToIdx["densityMax"]]
+            capacityFlow = self.characteristics.iat[self._idx, self.charColumnToIdx["capacityFlow"]]
+            smoothingFactor = self.characteristics.iat[self._idx, self.charColumnToIdx["smoothingFactor"]]
+            waveSpeed = self.characteristics.iat[self._idx, self.charColumnToIdx["waveSpeed"]]
+
+            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+            def _MFD(density):
+                if density == 0:
+                    return vMax
+                else:
+                    speedExp = smoothingFactor / density * np.log(
+                        np.exp(- vMax * density / smoothingFactor) + np.exp(-capacityFlow / smoothingFactor) + np.exp(
+                            - (density - densityMax) * waveSpeed / smoothingFactor))
+                    speedLinear = vMax * (1. - density / densityMax)
+                return max(min(speedLinear, speedExp), 0.05)
+
+        elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "quadratic":
+            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
+            densityMax = self.characteristics.iat[self._idx, self.charColumnToIdx["densityMax"]]
+
+            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+            def _MFD(density):
+                return max(vMax * (1. - density / densityMax), 0.05)
+
+        elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "bottleneck":
+            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
+            capacityFlow = self.characteristics.iat[self._idx, self.charColumnToIdx["capacityFlow"]]
+
+            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+            def _MFD(density):
+                if density > (capacityFlow / vMax):
+                    return capacityFlow / density
+                else:
+                    return vMax
+
+        else:
+            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
+
+            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+            def _MFD(_):
+                return vMax
+
+        return _MFD
+
     def updateNetworkData(self):  # CONSOLIDATE
         np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
+        self.MFD = self.defineMFD()
 
     # @property
     # def type(self):
@@ -1385,6 +1435,11 @@ class CollectedNetworkStateData:
 
     def __getitem__(self, item) -> NetworkStateData:
         return self.__data[item]
+
+    def resetAll(self):
+        for _, val in self.__data.items():
+            val.reset()
+        return self
 
     def getAutoProduction(self):
         prods = []

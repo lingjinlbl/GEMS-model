@@ -8,7 +8,6 @@ from sys import stdout
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
-from IPython.core.display import display
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
 
@@ -280,7 +279,8 @@ class ScenarioData:
         data.
         """
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                             usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength"],
+                                             usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
+                                                      "capacityFlow", "smoothingFactor", "waveSpeed"],
                                              index_col="SubnetworkID", dtype={"MicrotypeID": str}).fillna(0.0)
         self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                                  index_col="SubnetworkID", dtype={"MicrotypeID": str})
@@ -451,7 +451,7 @@ class Model:
         self.__networkStateData = dict()
         self.__printLoc = stdout
         self.__interactive = interactive
-        self.__tolerance = 1e-8
+        self.__tolerance = 1e-9
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
@@ -613,7 +613,7 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        if np.linalg.norm(self.g(startingPoint)) < (self.__tolerance/10.):
+        if np.linalg.norm(self.g(startingPoint)) < (self.__tolerance / 10.):
             fixedPointModeSplit = self.fromObjectiveFunction(startingPoint)
         else:
             sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
@@ -740,6 +740,7 @@ class Model:
                     keepGoing = False
                     print('SHOULD I BE BROKEN?')
             else:
+                self.__networkStateData[timePeriod] = self.microtypes.getStateData().resetAll()
                 vectorUserCosts *= np.nan
                 utilities.append(utility * np.nan)
         return vectorUserCosts, np.stack(utilities)
@@ -1110,7 +1111,7 @@ class Optimizer:
             # return minimize(self.evaluate, self.x0(), bounds=self.getBounds(), options={'eps':1e-1})
             # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
             return minimize(self.evaluate, x0, method='TNC', bounds=self.getBounds(),
-                            options={'eps': 0.002, 'eta': 0.1, 'disp': True, 'ftol':10, 'xtol':0.005})
+                            options={'eps': 0.002, 'eta': 0.1, 'disp': True, 'ftol': 10, 'xtol': 0.005})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -1354,8 +1355,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-geotype-A", 1, False)
-    # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+    model = Model("input-data", 2, True)
     # display(model.interact.grid)
     # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
@@ -1363,10 +1363,11 @@ if __name__ == "__main__":
     # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
     # optimizer.evaluate(optimizer.x0())
     print('-----0.0------')
-    optimizer.evaluate([0.0])
+    optimizer.evaluate([0.8])
+    model.interact.updatePlots()
     print('-----0.15------')
     optimizer.evaluate([0.15])
     # print('-----0.0------')

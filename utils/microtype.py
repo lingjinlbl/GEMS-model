@@ -468,8 +468,10 @@ class MicrotypeCollection:
         characteristicL = np.zeros((len(self)), dtype=float)
         V_0 = np.zeros((len(self)), dtype=float)
         N_0 = np.zeros((len(self)), dtype=float)
+        L_eff = np.zeros((len(self)), dtype=float)
         n_other = np.zeros((len(self)), dtype=float)
         n_init = np.zeros((len(self)), dtype=float)
+        speedFunctions = [None] * len(self)
         for microtypeID, microtype in self:
             idx = self.transitionMatrix.idx(microtypeID)
             for modes, autoNetwork in microtype.networks:
@@ -478,12 +480,13 @@ class MicrotypeCollection:
                     networkStateData = collectedNetworkStateData[(microtypeID, modes)]
                     # nsd2 = autoNetwork.getNetworkStateData()
                     # assert (isinstance(autoNetwork, Network))
-                    L_eff = autoNetwork.L - networkStateData.blockedDistance
+                    L_eff[idx] = autoNetwork.L - networkStateData.blockedDistance
                     characteristicL[idx] += autoNetwork.diameter * 1609.34
                     V_0[idx] = autoNetwork.freeFlowSpeed
-                    N_0[idx] = L_eff * autoNetwork.jamDensity
+                    N_0[idx] = L_eff[idx] * autoNetwork.jamDensity
                     n_other[idx] = networkStateData.nonAutoAccumulation
                     n_init[idx] = networkStateData.initialAccumulation
+                    speedFunctions[idx] = autoNetwork.MFD
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
         # print(n_other)
         dt = self.__timeStepInSeconds
@@ -527,8 +530,8 @@ class MicrotypeCollection:
             ts = np.arange(0, durationInHours * 3600., dt)
             ns = np.zeros((len(self), np.size(ts)), dtype=float)
             ns = doMatrixCalcs(ns, n_init, self.transitionMatrix.matrix.values, tripStartRate, characteristicL, V_0,
-                               N_0, n_other, dt)
-            vs = vectorV(ns, V_0, N_0, n_other)
+                               N_0, L_eff, n_other, dt, speedFunctions)
+            vs = vectorV(ns, V_0, N_0, n_other, L_eff, speedFunctions)
             inflows = vs.copy()
             outflows = vs.copy()
             flowMats = np.zeros((len(self), len(self), np.size(ts)), dtype=float)
@@ -612,50 +615,43 @@ class MicrotypeCollection:
 
 
 @njit(fastmath=True, parallel=False, cache=True)
-def vectorV(N, v_0, n_0, n_other, minspeed=0.005):
+def vectorV(N, v_0, n_0, n_other, L_eff, speedFunctions, minspeed=0.005):
     nTimeSteps = N.shape[1]
     out = np.empty_like(N)
 
-    def v(n, v_0, n_0, n_other, minspeed):
-        n_eff = n + n_other
-        vOut = v_0 * (1. - n_eff / n_0)
-        vOut[vOut < minspeed] = minspeed
-        vOut[vOut > v_0] = v_0[vOut > v_0]
-        return vOut
+    def v(n, n_other, L_eff, speedFunctions):
+        density = (n + n_other) / L_eff
+        v_out = np.zeros_like(n)
+        for ind, d in enumerate(density):
+            v_out[ind] = speedFunctions[ind](d)
+        return v_out
 
     for t in np.arange(nTimeSteps):
         n = N[:, t]
-        out[:, t] = v(n, v_0, n_0, n_other, minspeed)
+        out[:, t] = v(n, n_other, L_eff, speedFunctions)
 
     return out
 
 
 @njit(fastmath=True, parallel=False, cache=True)
-def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, n_other, dt):
+def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, L_eff, n_other, dt, speedFunctions):
     X = np.transpose(Xprime)
     nTimeSteps = N.shape[1]
 
     N[:, 0] = n_init
 
-    def v(n, v_0, n_0, n_other, criticalDensity=0.9):
-        n_eff = n + n_other
-        density = n_eff / n_0
-        v_out = v_0 * (1. - n_eff / n_0)
-        if np.any(density > criticalDensity):
-            criticalV = v_0[density > criticalDensity] * (1. - criticalDensity)
-            minimumProduction = criticalV * criticalDensity
-            v_out[density > criticalDensity] = minimumProduction / density[density > criticalDensity]
-        if np.any(v_out > v_0):
-            # print("WHY TOO FAST?")
-            v_out[v_out > v_0] = v_0[v_out > v_0]
+    def v(n, n_other, L_eff, speedFunctions):
+        density = (n + n_other) / L_eff
+        v_out = np.zeros_like(n)
+        for ind, d in enumerate(density):
+            v_out[ind] = speedFunctions[ind](d)
         return v_out
 
-    def outflow(n, L, v_0, n_0, n_other):
-        return v(n, v_0, n_0, n_other) * n / L
+    def outflow(n):
+        return v(n, n_other, L_eff, speedFunctions) * n / characteristicL
 
-    def inflow(n, X, L, v_0, n_0, n_other):
-        os = X @ (v(n, v_0, n_0, n_other) * n / L)
-        return os
+    def inflow(n):
+        return X @ (v(n, n_other, L_eff, speedFunctions) * n / characteristicL)
 
     def spillback(n, N_0, demand, inflow, outflow, dt):
         requestedN = (demand + inflow - outflow) * dt + n
@@ -663,9 +659,9 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, V_0, N_0, n
 
     for t in np.arange(nTimeSteps - 1):
         n_t = N[:, t]
-        infl = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
-        outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-        n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt)  # CHANGE BACK TO n_other
+        infl = inflow(n_t)
+        outfl = outflow(n_t)
+        n_t = spillback(n_t, N_0, tripStartRate, infl, outfl, dt)
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
 
