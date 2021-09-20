@@ -1342,7 +1342,7 @@ class Optimizer:
 def startBar():
     modelInput = widgets.Dropdown(
         options=['One microtype toy model', '4 microtype toy model', 'Los Angeles', 'Geotype A', 'Geotype B',
-                 'Geotype C'],
+                 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
         value='Los Angeles',
         description='Input data:',
         disabled=False,
@@ -1352,7 +1352,10 @@ def startBar():
               'Los Angeles': 'input-data-losangeles',
               'Geotype A': 'input-data-geotype-A',
               'Geotype B': 'input-data-geotype-B',
-              'Geotype C': 'input-data-geotype-C'}
+              'Geotype C': 'input-data-geotype-C',
+              'Geotype D': 'input-data-geotype-D',
+              'Geotype E': 'input-data-geotype-E',
+              'Geotype F': 'input-data-geotype-F'}
     return modelInput, lookup
 
 
