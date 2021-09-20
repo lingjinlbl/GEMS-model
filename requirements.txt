@@ -8,3 +8,4 @@ plotly>=4.14.3
 numba>=0.53.1
 mock~=4.0.3
 noisyopt~=0.2.2
+icc_rt
