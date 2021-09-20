@@ -696,8 +696,15 @@ class Interact:
                 if len(yRef) == 0:
                     plot.y = yCurrent * 0.0
                 elif len(yRef) < len(yCurrent):
-                    plot.y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
-                    plot.y[len(yRef):] = np.nan
+                    y = plot.y.copy()
+                    y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
+                    y[len(yRef):] = np.nan
+                    plot.y = y
+                elif len(yCurrent) < len(yRef):
+                    y = plot.y.copy()
+                    y[:len(yCurrent)] = yCurrent - yRef[:len(yCurrent)]
+                    y[len(yCurrent):] = np.nan
+                    plot.y = y
                 else:
                     plot.y = yCurrent - yRef
                 plot.x = self.__dataToHandle['modeSplit']['current'][mode][mID].x
@@ -708,8 +715,15 @@ class Interact:
             if len(yRef) == 0:
                 plot.y = yCurrent * 0.0
             elif len(yRef) < len(yCurrent):
-                plot.y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
-                plot.y[len(yRef):] = np.nan
+                y = plot.y.copy()
+                y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
+                y[len(yRef):] = np.nan
+                plot.y = y
+            elif len(yCurrent) < len(yRef):
+                y = plot.y.copy()
+                y[:len(yCurrent)] = yCurrent - yRef[:len(yCurrent)]
+                y[len(yCurrent):] = np.nan
+                plot.y = y
             else:
                 plot.y = yCurrent - yRef
             plot.x = self.__dataToHandle['speed']['current'][mID].x

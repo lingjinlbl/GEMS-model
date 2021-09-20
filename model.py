@@ -1341,13 +1341,15 @@ class Optimizer:
 
 def startBar():
     modelInput = widgets.Dropdown(
-        options=['One microtype toy model', '4 microtype toy model', 'Geotype A', 'Geotype B', 'Geotype C'],
-        value='4 microtype toy model',
+        options=['One microtype toy model', '4 microtype toy model', 'Los Angeles', 'Geotype A', 'Geotype B',
+                 'Geotype C'],
+        value='Los Angeles',
         description='Input data:',
         disabled=False,
     )
     lookup = {'One microtype toy model': 'input-data-simpler',
               '4 microtype toy model': 'input-data',
+              'Los Angeles': 'input-data-losangeles',
               'Geotype A': 'input-data-geotype-A',
               'Geotype B': 'input-data-geotype-B',
               'Geotype C': 'input-data-geotype-C'}
@@ -1355,7 +1357,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 2, True)
+    model = Model("input-data-losangeles", 2, True)
     # display(model.interact.grid)
     # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
@@ -1363,7 +1365,7 @@ if __name__ == "__main__":
     # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
     # optimizer.evaluate(optimizer.x0())
     print('-----0.0------')
     optimizer.evaluate([0.8])
