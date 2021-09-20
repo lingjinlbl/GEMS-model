@@ -391,7 +391,7 @@ class Interact:
                                                              style={'description_width': '1.25in'}))
                     parameterVBox[-1].observe(self.response, names="value")
                     self.__widgetIDtoField[parameterVBox[-1].model_id] = ('densityMax', row.Index)
-                    roadNetworkParameters.append(widgets.VBox(parameterVBox))
+                roadNetworkParameters.append(widgets.VBox(parameterVBox))
                 autoVBox.append(widgets.HBox(roadNetworkParameters))
             microtypeRoadNetworks.append(widgets.VBox(autoVBox))
             MFDstack.append(widgets.HBox(microtypeRoadNetworks))
