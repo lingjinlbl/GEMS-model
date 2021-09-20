@@ -384,13 +384,14 @@ class Interact:
                                      )
                 parameterVBox[-1].observe(self.response, names="value")
                 self.__widgetIDtoField[parameterVBox[-1].model_id] = ('vMax', row.Index)
-                parameterVBox.append(widgets.FloatSlider(value=row.densityMax, min=0.1, max=0.2, step=0.002,
-                                                         description="Jam density (veh/m)",
-                                                         orientation='horizontal',
-                                                         style={'description_width': '1.25in'}))
-                parameterVBox[-1].observe(self.response, names="value")
-                self.__widgetIDtoField[parameterVBox[-1].model_id] = ('densityMax', row.Index)
-                roadNetworkParameters.append(widgets.VBox(parameterVBox))
+                if ~np.isnan(row.densityMax):
+                    parameterVBox.append(widgets.FloatSlider(value=row.densityMax, min=0.1, max=0.2, step=0.002,
+                                                             description="Jam density (veh/m)",
+                                                             orientation='horizontal',
+                                                             style={'description_width': '1.25in'}))
+                    parameterVBox[-1].observe(self.response, names="value")
+                    self.__widgetIDtoField[parameterVBox[-1].model_id] = ('densityMax', row.Index)
+                    roadNetworkParameters.append(widgets.VBox(parameterVBox))
                 autoVBox.append(widgets.HBox(roadNetworkParameters))
             microtypeRoadNetworks.append(widgets.VBox(autoVBox))
             MFDstack.append(widgets.HBox(microtypeRoadNetworks))
