@@ -1019,7 +1019,11 @@ class Network:
 
     @property
     def jamDensity(self):
-        return self.__data[self.dataColumnToIdx["densityMax"]]
+        densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+        if np.isnan(densityMax) | (densityMax <= 0.0):
+            return self.__data[self.dataColumnToIdx["capacityFlow"]] / self.__data[self.dataColumnToIdx["vMax"]] * 4.
+        else:
+            return densityMax
 
     @property
     def L(self):
