@@ -82,8 +82,8 @@ AutoBus.drop(columns='Microtype', inplace=True)
 Bus = subNetworks[['MicrotypeID']].set_index('MicrotypeID')
 Bus['Length'] = 0.0
 Bus['vMax'] = 16
-Bus['densityMax'] = 0.145
-Bus['capacityFlow'] = 0.8
+Bus['densityMax'] = np.nan
+Bus['capacityFlow'] = 0.6
 Bus['smoothingFactor'] = np.nan
 Bus['waveSpeed'] = np.nan
 Bus['MFD'] = "bottleneck"
