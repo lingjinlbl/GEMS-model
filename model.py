@@ -8,6 +8,7 @@ from sys import stdout
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
+from mock.mock import Mock
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
 
@@ -1361,6 +1362,10 @@ def startBar():
 
 if __name__ == "__main__":
     model = Model("input-data-losangeles", 2, True)
+    obj = Mock()
+    obj.new = 15.0
+
+    model.interact.modifyModel(('vMax', '0'), obj)
     # display(model.interact.grid)
     # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
@@ -1382,10 +1387,7 @@ if __name__ == "__main__":
     # print('-----0.0------')
     # optimizer.evaluate([0.0])
     # print('done')
-    # obj = Mock()
-    # obj.new = 0.25
-    #
-    # model.interact.modifyModel(('dedicated', 'A'), obj)
+
     # model.collectAllCharacteristics()
     # userCostDf = model.userCostDataFrame(vectorUserCosts)
     outcome = optimizer.minimize()

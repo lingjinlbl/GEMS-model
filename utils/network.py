@@ -939,6 +939,9 @@ class Network:
         else:
             self.__diameter = diameter
 
+    def recompileMFD(self):
+        self.MFD = self.defineMFD()
+
     def defineMFD(self):
         if self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "loder":
             vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]

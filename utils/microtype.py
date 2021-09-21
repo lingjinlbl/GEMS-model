@@ -298,6 +298,11 @@ class MicrotypeCollection:
                 # assert isinstance(n, Network)
                 n.updateScenarioInputs()
 
+    def recompileMFDs(self):
+        for m in self.__microtypes.values():
+            for modes, n in m.networks:
+                n.recompileMFD()
+
     def __setitem__(self, key: str, value: Microtype):
         self.__microtypes[key] = value
 
