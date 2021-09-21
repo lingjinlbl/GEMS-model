@@ -9,7 +9,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 7,A_2,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 8,A_2,Rail,True,8665233.799837481,fixed,Rail,,,,20.0,,50.0
 9,A_2,Walk,True,157780096.0957177,fixed,Sidewalk,,,,1.4,,50.0
-10,A_3,Auto-Bus-Bike,False,289513133.1303912,bottleneck,Road,0.6,16.0,,28.0,,50.0
+10,A_3,Auto-Bus-Bike,False,289513133.1303912,bottleneck,Road,0.4,16.0,,28.0,,50.0
 11,A_3,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 12,A_3,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 13,A_3,Rail,True,12719976.974415863,fixed,Rail,,,,20.0,,50.0
@@ -39,7 +39,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 37,B_2,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 38,B_2,Rail,True,536638.1763175668,fixed,Rail,,,,20.0,,50.0
 39,B_2,Walk,True,194170317.89400366,fixed,Sidewalk,,,,1.4,,50.0
-40,B_3,Auto-Bus-Bike,False,403571151.34444314,bottleneck,Road,0.6,16.0,,28.0,,50.0
+40,B_3,Auto-Bus-Bike,False,403571151.34444314,bottleneck,Road,0.4,16.0,,28.0,,50.0
 41,B_3,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 42,B_3,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 43,B_3,Rail,True,892295.7495082759,fixed,Rail,,,,20.0,,50.0
@@ -67,7 +67,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 66,C_2,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 67,C_2,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 69,C_2,Walk,True,120303229.46597087,fixed,Sidewalk,,,,1.4,,50.0
-70,C_3,Auto-Bus-Bike,False,350667146.20599985,bottleneck,Road,0.6,16.0,,28.0,,50.0
+70,C_3,Auto-Bus-Bike,False,350667146.20599985,bottleneck,Road,0.4,16.0,,28.0,,50.0
 71,C_3,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 72,C_3,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 74,C_3,Walk,True,280533716.9647999,fixed,Sidewalk,,,,1.4,,50.0
@@ -93,7 +93,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 97,D_2,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 98,D_2,Rail,True,3.634314575488812,fixed,Rail,,,,20.0,,50.0
 99,D_2,Walk,True,16405070.439582136,fixed,Sidewalk,,,,1.4,,50.0
-100,D_3,Auto-Bus-Bike,False,45450623.68035709,bottleneck,Road,0.6,16.0,,28.0,,50.0
+100,D_3,Auto-Bus-Bike,False,45450623.68035709,bottleneck,Road,0.4,16.0,,28.0,,50.0
 101,D_3,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 102,D_3,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 103,D_3,Rail,True,8.055161468031402,fixed,Rail,,,,20.0,,50.0
@@ -121,7 +121,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 126,E_2,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 127,E_2,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 129,E_2,Walk,True,8530096.770361882,fixed,Sidewalk,,,,1.4,,50.0
-130,E_3,Auto-Bus-Bike,False,22256951.18451461,bottleneck,Road,0.6,16.0,,28.0,,50.0
+130,E_3,Auto-Bus-Bike,False,22256951.18451461,bottleneck,Road,0.4,16.0,,28.0,,50.0
 131,E_3,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 132,E_3,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 134,E_3,Walk,True,17805560.947611686,fixed,Sidewalk,,,,1.4,,50.0
@@ -145,7 +145,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 156,F_2,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 157,F_2,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 159,F_2,Walk,True,18376979.54706419,fixed,Sidewalk,,,,1.4,,50.0
-160,F_3,Auto-Bus-Bike,False,53772579.74503119,bottleneck,Road,0.6,16.0,,28.0,,50.0
+160,F_3,Auto-Bus-Bike,False,53772579.74503119,bottleneck,Road,0.4,16.0,,28.0,,50.0
 161,F_3,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 162,F_3,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 164,F_3,Walk,True,43018063.796024956,fixed,Sidewalk,,,,1.4,,50.0

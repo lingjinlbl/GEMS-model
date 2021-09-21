@@ -9,7 +9,7 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 7,2,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 8,2,Rail,True,8665233.799837481,fixed,Rail,,,,20.0,,50.0
 9,2,Walk,True,157780096.09571767,fixed,Sidewalk,,,,1.4,,50.0
-10,3,Auto-Bus-Bike,False,289513133.13039124,bottleneck,Road,0.6,16.0,,28.0,,50.0
+10,3,Auto-Bus-Bike,False,289513133.13039124,bottleneck,Road,0.4,16.0,,28.0,,50.0
 11,3,Bike,True,0.0,fixed,Road,,,,4.2,,50.0
 12,3,Bus,True,0.0,bottleneck,Road,0.8,0.145,,16.0,,50.0
 13,3,Rail,True,12719976.974415865,fixed,Rail,,,,20.0,,50.0
