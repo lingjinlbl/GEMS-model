@@ -452,7 +452,7 @@ class Model:
         self.__networkStateData = dict()
         self.__printLoc = stdout
         self.__interactive = interactive
-        self.__tolerance = 1e-9
+        self.__tolerance = 1e-8
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
@@ -597,8 +597,6 @@ class Model:
         return {a: self.__timePeriods.getTimePeriodName(a) for a, _ in self.__timePeriods}
 
     def findEquilibrium(self):
-        diff = 1000.
-        i = 0
 
         """
         Initial conditions
@@ -614,8 +612,9 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        if np.linalg.norm(self.g(startingPoint)) < (self.__tolerance / 10.):
+        if np.linalg.norm(self.g(startingPoint)) < self.__tolerance:
             fixedPointModeSplit = self.fromObjectiveFunction(startingPoint)
+            success = True
         else:
             sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
                        options={'maxfev': 500, 'maxiter': 500, 'line_search': 'cheng', 'sigma_0': -0.8})
@@ -623,7 +622,8 @@ class Model:
             self.g(sol.x)
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
             # print(self.g(sol.x))
-            self.__successful = self.__successful & sol.success
+            success = sol.success
+        self.__successful = self.__successful & success
 
         """
         Finalize
@@ -726,6 +726,7 @@ class Model:
         init = True
         utilities = []
         keepGoing = True
+        self.__successful = True
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, init)
             if keepGoing:
@@ -1361,11 +1362,18 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 2, True)
-    obj = Mock()
-    obj.new = 15.0
-
-    model.interact.modifyModel(('vMax', '0'), obj)
+    model = Model("input-data", 2, True)
+    model.collectAllCharacteristics()
+    model.collectAllCharacteristics()
+    # print(model.getModeSpeeds())
+    # model.collectAllCharacteristics()
+    # print(model.getModeSpeeds())
+    # obj = Mock()
+    # obj.new = 17.5
+    #
+    # model.interact.modifyModel(('vMax', '0'), obj)
+    # model.collectAllCharacteristics()
+    # print(model.getModeSpeeds())
     # display(model.interact.grid)
     # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
@@ -1373,20 +1381,20 @@ if __name__ == "__main__":
     # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
     # optimizer.evaluate(optimizer.x0())
     print('-----0.0------')
-    optimizer.evaluate([0.8])
+    optimizer.evaluate([0.1])
     model.interact.updatePlots()
     print('-----0.15------')
-    optimizer.evaluate([0.15])
+    optimizer.evaluate([0.0])
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
     # print('-----0.0------')
     # optimizer.evaluate([0.0])
-    # print('-----0.0------')
-    # optimizer.evaluate([0.0])
-    # print('-----0.0------')
-    # optimizer.evaluate([0.0])
-    # print('done')
+    print('done')
 
     # model.collectAllCharacteristics()
     # userCostDf = model.userCostDataFrame(vectorUserCosts)
