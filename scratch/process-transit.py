@@ -69,14 +69,14 @@ AutoBus.loc[AutoBus['Microtype'] == '2', 'MFD'] = "loder"
 AutoBus.loc[AutoBus['Microtype'] == '3', 'vMax'] = 28.0
 AutoBus.loc[AutoBus['Microtype'] == '3', 'capacityFlow'] = 0.4
 AutoBus.loc[AutoBus['Microtype'] == '3', 'MFD'] = "bottleneck"
-AutoBus.loc[AutoBus['Microtype'] == '4', 'vMax'] = 20.0
-AutoBus.loc[AutoBus['Microtype'] == '4', 'capacityFlow'] = 0.4
+AutoBus.loc[AutoBus['Microtype'] == '4', 'vMax'] = 18.8
+AutoBus.loc[AutoBus['Microtype'] == '4', 'capacityFlow'] = 0.38
 AutoBus.loc[AutoBus['Microtype'] == '4', 'MFD'] = "bottleneck"
-AutoBus.loc[AutoBus['Microtype'] == '5', 'vMax'] = 20.0
-AutoBus.loc[AutoBus['Microtype'] == '5', 'capacityFlow'] = 0.4
+AutoBus.loc[AutoBus['Microtype'] == '5', 'vMax'] = 18.8
+AutoBus.loc[AutoBus['Microtype'] == '5', 'capacityFlow'] = 0.38
 AutoBus.loc[AutoBus['Microtype'] == '5', 'MFD'] = "bottleneck"
-AutoBus.loc[AutoBus['Microtype'] == '6', 'vMax'] = 20.0
-AutoBus.loc[AutoBus['Microtype'] == '6', 'capacityFlow'] = 0.4
+AutoBus.loc[AutoBus['Microtype'] == '6', 'vMax'] = 18.8
+AutoBus.loc[AutoBus['Microtype'] == '6', 'capacityFlow'] = 0.38
 AutoBus.loc[AutoBus['Microtype'] == '6', 'MFD'] = "bottleneck"
 AutoBus.drop(columns='Microtype', inplace=True)
 Bus = subNetworks[['MicrotypeID']].set_index('MicrotypeID')
