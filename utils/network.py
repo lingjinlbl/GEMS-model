@@ -940,15 +940,16 @@ class Network:
             self.__diameter = diameter
 
     def recompileMFD(self):
+        self.__data = self.data.iloc[self._idx, :].to_numpy()
         self.MFD = self.defineMFD()
 
     def defineMFD(self):
         if self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "loder":
-            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
-            densityMax = self.characteristics.iat[self._idx, self.charColumnToIdx["densityMax"]]
-            capacityFlow = self.characteristics.iat[self._idx, self.charColumnToIdx["capacityFlow"]]
-            smoothingFactor = self.characteristics.iat[self._idx, self.charColumnToIdx["smoothingFactor"]]
-            waveSpeed = self.characteristics.iat[self._idx, self.charColumnToIdx["waveSpeed"]]
+            vMax = self.__data[self.dataColumnToIdx["vMax"]]
+            densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+            capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
+            smoothingFactor = self.__data[self.dataColumnToIdx["smoothingFactor"]]
+            waveSpeed = self.__data[self.dataColumnToIdx["waveSpeed"]]
 
             @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
             def _MFD(density):
@@ -962,16 +963,16 @@ class Network:
                 return max(min(speedLinear, speedExp), 0.05)
 
         elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "quadratic":
-            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
-            densityMax = self.characteristics.iat[self._idx, self.charColumnToIdx["densityMax"]]
+            vMax = self.__data[self.dataColumnToIdx["vMax"]]
+            densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
 
             @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
             def _MFD(density):
                 return max(vMax * (1. - density / densityMax), 0.05)
 
         elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "bottleneck":
-            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
-            capacityFlow = self.characteristics.iat[self._idx, self.charColumnToIdx["capacityFlow"]]
+            vMax = self.__data[self.dataColumnToIdx["vMax"]]
+            capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
 
             @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
             def _MFD(density):
@@ -981,7 +982,7 @@ class Network:
                     return vMax
 
         else:
-            vMax = self.characteristics.iat[self._idx, self.charColumnToIdx["vMax"]]
+            vMax = self.__data[self.dataColumnToIdx["vMax"]]
 
             @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
             def _MFD(_):
