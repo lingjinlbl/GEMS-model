@@ -477,45 +477,45 @@ class Demand:
     def resetCounter(self):
         self.__counter = 1
 
-    def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-                        originDestination: OriginDestination, oldModeSplit: ModeSplit = None):
-        newUtils = utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
-
-        newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
-        if self.__previousUtilityInput.size > 0:
-            if collectedChoiceCharacteristics.isBroken():
-                # Oops, we really went off the deep end there
-                x_next = self.__currentUtility
-                fx_next = newUtils
-
-                output = 0.95 * x_next + 0.05 * fx_next
-
-                err = np.linalg.norm(x_next - fx_next)
-
-                self.__previousUtilityInput = self.__currentUtility.copy()
-                self.__previousUtilityOutput = newUtils
-            else:
-                # Start by mostly adoping the next mode split as a starting point
-                x_next = self.__currentUtility
-                fx_next = newUtils
-
-                output = 0.1 * x_next + 0.9 * fx_next
-
-                err = np.linalg.norm(x_next - fx_next)
-
-                self.__previousUtilityInput = self.__currentUtility.copy()
-                self.__previousUtilityOutput = newUtils
-        else:
-            output = newModeSplit
-            self.__previousUtilityInput = self.__currentUtility.copy()
-            self.__previousUtilityOutput = newUtils
-            err = 1e6
-        if np.any(np.isnan(self.__modeSplitData)):
-            print("why nan")
-
-        self.__currentUtility = output.copy()
-        np.copyto(self.__modeSplitData, modeSplitFromUtils(output))
-        return err
+    # def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
+    #                     originDestination: OriginDestination, oldModeSplit: ModeSplit = None):
+    #     newUtils = utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
+    #
+    #     newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
+    #     if self.__previousUtilityInput.size > 0:
+    #         if collectedChoiceCharacteristics.isBroken():
+    #             # Oops, we really went off the deep end there
+    #             x_next = self.__currentUtility
+    #             fx_next = newUtils
+    #
+    #             output = 0.95 * x_next + 0.05 * fx_next
+    #
+    #             err = np.linalg.norm(x_next - fx_next)
+    #
+    #             self.__previousUtilityInput = self.__currentUtility.copy()
+    #             self.__previousUtilityOutput = newUtils
+    #         else:
+    #             # Start by mostly adoping the next mode split as a starting point
+    #             x_next = self.__currentUtility
+    #             fx_next = newUtils
+    #
+    #             output = 0.1 * x_next + 0.9 * fx_next
+    #
+    #             err = np.linalg.norm(x_next - fx_next)
+    #
+    #             self.__previousUtilityInput = self.__currentUtility.copy()
+    #             self.__previousUtilityOutput = newUtils
+    #     else:
+    #         output = newModeSplit
+    #         self.__previousUtilityInput = self.__currentUtility.copy()
+    #         self.__previousUtilityOutput = newUtils
+    #         err = 1e6
+    #     if np.any(np.isnan(self.__modeSplitData)):
+    #         print("why nan")
+    #
+    #     self.__currentUtility = output.copy()
+    #     np.copyto(self.__modeSplitData, modeSplitFromUtils(output))
+    #     return err
 
     def currentUtilities(self):
         return self.__currentUtility

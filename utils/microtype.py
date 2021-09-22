@@ -495,47 +495,39 @@ class MicrotypeCollection:
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
         # print(n_other)
         dt = self.__timeStepInSeconds
-        if False:
+        # if False:
+        #
+        #     X = np.transpose(self.transitionMatrix.matrix.values)
+        #
+        #     ts = np.arange(0, durationInHours * 3600., dt)
+        #     ns = np.zeros((len(self), np.size(ts)), dtype=float)
+        #     vs = np.zeros((len(self), np.size(ts)), dtype=float)
+        #     inflows = np.zeros((len(self), np.size(ts)), dtype=float)
+        #     outflows = np.zeros((len(self), np.size(ts)), dtype=float)
+        #     flowMats = np.zeros((len(self), len(self), np.size(ts)), dtype=float)
+        #     n_t = n_init.copy()
+        #     # Define queue of vehicles waiting to get into a given microtype
+        #     q_t = np.zeros_like(n_t)
+        #
+        #     for i, ti in enumerate(ts):
+        #         infl, flowMatrix = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
+        #         outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
+        #         stay = stayInSame(n_t, X, characteristicL, V_0, N_0, n_other)
+        #         n_t = spillback(n_t, tripStartRate, infl, outfl, dt)  # CHANGE BACK TO n_other
+        #         n_t[n_t < 0] = 0.0
+        #         ns[:, i] = n_t
+        #         vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
+        #         inflows[:, i] = infl + tripStartRate - stay
+        #         outflows[:, i] = outfl - stay
+        #         flowMats[:, :, i] = flowMatrix
 
-            X = np.transpose(self.transitionMatrix.matrix.values)
-
-            ts = np.arange(0, durationInHours * 3600., dt)
-            ns = np.zeros((len(self), np.size(ts)), dtype=float)
-            vs = np.zeros((len(self), np.size(ts)), dtype=float)
-            inflows = np.zeros((len(self), np.size(ts)), dtype=float)
-            outflows = np.zeros((len(self), np.size(ts)), dtype=float)
-            flowMats = np.zeros((len(self), len(self), np.size(ts)), dtype=float)
-            n_t = n_init.copy()
-            # Define queue of vehicles waiting to get into a given microtype
-            q_t = np.zeros_like(n_t)
-
-            for i, ti in enumerate(ts):
-                # deltaN = dn(n_t, tripStartRate, characteristicL, X, V_0, N_0, n_other, dt)
-                # otherval = deltaN + n_t
-                # n_t += deltaN
-                infl, flowMatrix = inflow(n_t, X, characteristicL, V_0, N_0, n_other)
-                outfl = outflow(n_t, characteristicL, V_0, N_0, n_other)
-                stay = stayInSame(n_t, X, characteristicL, V_0, N_0, n_other)
-                n_t = spillback(n_t, tripStartRate, infl, outfl, dt)  # CHANGE BACK TO n_other
-                # ends = tripEndingRate(n_t, X, characteristicL, V_0, N_0, n_other)
-                # print(otherval, n_t)
-                # n_t[n_t > (N_0 - n_other)] = N_0[n_t > (N_0 - n_other)]
-                n_t[n_t < 0] = 0.0
-                # pct = n_t / N_0
-                ns[:, i] = n_t
-                vs[:, i] = np.squeeze(v(n_t, V_0, N_0, n_other))
-                inflows[:, i] = infl + tripStartRate - stay
-                outflows[:, i] = outfl - stay
-                flowMats[:, :, i] = flowMatrix
-                # BELOW: This works
-                # inflows[:, i] = infl + turnedBack + tripStartRate - stay
-                # outflows[:, i] = outfl - turnedBack - stay
-
-        else:
+        if True:
             ts = np.arange(0, durationInHours * 3600., dt)
             ns = np.zeros((len(self), np.size(ts)), dtype=float)
             ns = doMatrixCalcs(ns, n_init, self.transitionMatrix.matrix.values, tripStartRate, characteristicL, V_0,
                                N_0, L_eff, n_other, dt, speedFunctions)
+            if np.any(np.isnan(ns)):
+                print('hmmmm')
             vs = vectorV(ns, V_0, N_0, n_other, L_eff, speedFunctions)
             inflows = vs.copy()
             outflows = vs.copy()
