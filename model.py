@@ -756,10 +756,10 @@ class Model:
             modeSplitData[timePeriod] = msd
 
             sd = self.__microtypes[timePeriod].dataByModeDataFrame()
-            sd['TotalTripStarts'] = sd['TripStartsPerHour'] * durationInHours / self.nSubBins
-            sd['TotalTripEnds'] = sd['TripEndsPerHour'] * durationInHours / self.nSubBins
-            sd['TotalPassengerDistance'] = sd['PassengerDistancePerHour'] * durationInHours / self.nSubBins
-            sd['TotalVehicleDistance'] = sd['VehicleDistancePerHour'] * durationInHours / self.nSubBins
+            sd['TotalTripStarts'] = sd['TripStartsPerHour'] * durationInHours
+            sd['TotalTripEnds'] = sd['TripEndsPerHour'] * durationInHours
+            sd['TotalPassengerDistance'] = sd['PassengerDistancePerHour'] * durationInHours
+            sd['TotalVehicleDistance'] = sd['VehicleDistancePerHour'] * durationInHours
             speedData[timePeriod] = sd
 
             ud = self.__choice[timePeriod].toDataFrame()
@@ -1362,16 +1362,16 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 2, True)
-    model.collectAllCharacteristics()
-    model.collectAllCharacteristics()
-    # print(model.getModeSpeeds())
+    model = Model("input-data-losangeles", 2, True)
     # model.collectAllCharacteristics()
+    # model.collectAllCharacteristics()
+    # print(model.getModeSpeeds())
+    model.collectAllCharacteristics()
     # print(model.getModeSpeeds())
     # obj = Mock()
     # obj.new = 17.5
     #
-    # model.interact.modifyModel(('vMax', '0'), obj)
+    # model.interact.modifyModel(('vMax', 1), obj)
     # model.collectAllCharacteristics()
     # print(model.getModeSpeeds())
     # display(model.interact.grid)
@@ -1381,7 +1381,7 @@ if __name__ == "__main__":
     # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
     # optimizer.evaluate(optimizer.x0())
     print('-----0.0------')
     optimizer.evaluate([0.1])
