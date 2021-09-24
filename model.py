@@ -649,6 +649,26 @@ class Model:
                 modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID], :]
         return modeSplit / np.sum(modeSplit)
 
+    def getModePMT(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
+        # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
+        if timePeriod is None:
+            modeSplit = np.zeros(len(self.modeToIdx))
+            for tp, weight in self.__timePeriods:
+                if tp in self.__demand:
+                    if microtypeID is None:
+                        modeSplit += self.__microtypes[tp].passengerDistanceByMode.sum(axis=0) * weight
+                    else:
+                        modeSplit += self.__microtypes[tp].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID],
+                                     :] * weight
+        else:
+            if microtypeID is None:
+                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode.sum(axis=0) * self.__timePeriods[
+                    timePeriod]
+            else:
+                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID],
+                            :] * self.__timePeriods[timePeriod]
+        return modeSplit
+
     def getUserCosts(self, mode=None):
         return self.demand.getUserCosts(self.choice, self.__originDestination, mode)
 
@@ -788,7 +808,6 @@ class Model:
         inflows = []
         outflows = []
         matrices = []
-        runningTotal = 0.0
         for id, dur in self.__timePeriods:
             # out = self.getMicrotypeCollection(id).transitionMatrixMFD(dur, self.getNetworkStateData(id),
             #                                                           self.getMicrotypeCollection(
@@ -843,6 +862,17 @@ class Model:
                     [self.getModeSplit('0', microtypeID=microtype)] + [self.getModeSplit(p, microtypeID=microtype) for p
                                                                        in self.timePeriods().keys()])
                 return x, y
+        elif type.lower() == "cartrips":
+            autoProdsMFD = [0.]
+            autoProdsDemand = [0.]
+            for p in self.timePeriods().keys():
+                sd = self.getNetworkStateData(p)
+                autoProdsMFD.append(sd.getAutoProduction().sum(axis=1).sum() / 1609.34)
+                autoProdsDemand.append(self.getModePMT(p)[self.modeToIdx['auto']])
+
+            x = np.cumsum([0] + [val for val in self.timePeriods().values()])
+            y = np.vstack([autoProdsMFD, autoProdsDemand]).transpose()
+            return x, y
         elif type.lower() == "modespeeds":
             x = np.cumsum([0] + [val for val in self.timePeriods().values()])
             y = pd.concat([self.getModeSpeeds('0').stack()] + [self.getModeSpeeds(val).stack() for val in
@@ -1362,11 +1392,12 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 2, True)
-    # model.collectAllCharacteristics()
+    model = Model("input-data-geotype-A", 4, False)
+    model.collectAllCharacteristics()
     # model.collectAllCharacteristics()
     # print(model.getModeSpeeds())
-    model.collectAllCharacteristics()
+    # model.collectAllCharacteristics()
+    x, y = model.plotAllDynamicStats('cartrips')
     # print(model.getModeSpeeds())
     # obj = Mock()
     # obj.new = 17.5
