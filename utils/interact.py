@@ -457,7 +457,7 @@ class Interact:
             self.__microtypeToBusService[mID] = busServiceData
             headwayStack.append(widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description="Microtype " + mID))
             headwayStack[-1].observe(self.response, names="value")
-            self.__widgetIDtoField[headwayStack[-1].model_id] = ('headway', mID)
+            self.__widgetIDtoField[headwayStack[-1].model_id] = ('headway', (mID, 'Bus'))
 
         coverageStack = []
 
@@ -568,7 +568,7 @@ class Interact:
             self.model.scenarioData['subNetworkData'].loc[modeDF.index[1], 'Length'] = newDedicatedLength
         if changeType[0] == 'headway':
             microtype, modeName = changeType[1]
-            self.model.scenarioData['modeData'][modeName].loc[microtype, 'Headway'] = newValue
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
         if changeType[0] == 'coverage':
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
             self.model.readFiles()
