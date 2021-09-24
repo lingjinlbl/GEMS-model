@@ -222,6 +222,10 @@ class MicrotypeCollection:
         self.__diameters = np.ndarray([0])
 
     @property
+    def autoThroughDistance(self):
+        return self.__numpyDemand[:, self.modeToIdx['auto'], -1]
+
+    @property
     def diToIdx(self):
         return self.__scenarioData.diToIdx
 
@@ -532,7 +536,8 @@ class MicrotypeCollection:
             inflows = vs.copy()
             outflows = vs.copy()
             flowMats = np.zeros((len(self), len(self), np.size(ts)), dtype=float)
-
+        # print(['MFD: ', str((ns * vs * dt).sum(axis=1) / 1609.34),
+        #        (ns * vs * dt).sum(axis=1).sum() / 1609000000.34])
         # self.transitionMatrix.setAverageSpeeds(np.mean(vs, axis=1))
         # averageSpeeds = np.sum(ns * vs, axis=1) / np.sum(ns, axis=1)
         averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
@@ -594,11 +599,11 @@ class MicrotypeCollection:
         for _, nsd in self.collectedNetworkStateData:
             nsd.reset()
 
-    def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
-        if self.transitionMatrix.names == transitionMatrix.names:
-            self.transitionMatrix = transitionMatrix
-        else:
-            print("MICROTYPE NAMES IN TRANSITION MATRIX DON'T MATCH")
+    # def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
+    #     if self.transitionMatrix.names == transitionMatrix.names:
+    #         self.transitionMatrix = transitionMatrix
+    #     else:
+    #         print("MICROTYPE NAMES IN TRANSITION MATRIX DON'T MATCH")
 
     def emptyTransitionMatrix(self):
         return TransitionMatrix(self.transitionMatrix.names)
