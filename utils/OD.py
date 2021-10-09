@@ -701,6 +701,8 @@ class TransitionMatrices:
             X5 = np.hstack([X4, 1 - X4.sum(axis=1).reshape((-1, 1))])
             _, vec = eigs(X5.transpose(), k=1, which='LM')
             tripDistribution = np.real_if_close(vec[:-1]) / np.real_if_close(vec[:-1]).sum()
+            if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
+                print('Something went wrong in loading transition matrices')
             self.__assignmentMatrices[self.odiToIdx[odi], :] = np.squeeze(tripDistribution)
             # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
             #             np.ones((len(microtypeIDs), 1))

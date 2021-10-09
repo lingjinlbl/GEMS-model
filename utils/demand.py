@@ -344,13 +344,15 @@ class Demand:
                 self.__toStarts[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.o]] = 1.0
                 self.__toEnds[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.d]] = 1.0
                 # TODO: Expand through distance to have a mode dimension, then filter and reallocate
-                # for mID, pct in trip.allocation:
-                #     # NOTE: THis doesn't actually need to be indexed by currentPopIndex
-                #     self.__toThroughDistance[
-                #     :, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[odi.distBin]
-                #     self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
-                self.__toThroughDistance[:, currentODindex, :] = transitionMatrices.assignmentMatrix(odi) * \
-                                                                 distanceBins[odi.distBin]
+                if False:
+                    for mID, pct in trip.allocation:
+                        # NOTE: THis doesn't actually need to be indexed by currentPopIndex
+                        self.__toThroughDistance[:, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[
+                            odi.distBin]
+                        self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
+                else:
+                    self.__toThroughDistance[:, currentODindex, :] = transitionMatrices.assignmentMatrix(odi) * \
+                                                                     distanceBins[odi.distBin]
                 self[demandIndex, odi] = ModeSplit(demandForTrips=tripRatePerHour, demandForPMT=demandForPMT,
                                                    data=self.__modeSplitData[currentPopIndex, currentODindex, :],
                                                    modeToIdx=self.modeToIdx)
@@ -564,12 +566,14 @@ class Demand:
 
     def getMatrixUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
-        costByMode = utils(self.__population.numpyCost, collectedChoiceCharacteristics.numpy)
+        costByMode = - utils(self.__population.numpyCost, collectedChoiceCharacteristics.numpy)
         return startsByMode * costByMode
 
     def getSummedCharacteristics(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
         totalsByModeAndCharacteristic = np.einsum('ijk,jkl->kl', startsByMode, collectedChoiceCharacteristics.numpy)
+        if np.any(np.isnan(totalsByModeAndCharacteristic)):
+            print('Something went wrong')
         return totalsByModeAndCharacteristic
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,

@@ -714,7 +714,7 @@ class BusMode(Mode):
 
     def getAccessDistance(self) -> float:
         """Order of magnitude estimate for average walking distance to nearest stop"""
-        return self.stopSpacingInMeters / 4.0 / self.routeDistanceToNetworkDistance
+        return self.stopSpacingInMeters / 4.0 / self.routeDistanceToNetworkDistance / 2.0
 
     def getDemandForVmtPerHour(self):
         return self.getRouteLength() / self.headwayInSec * 3600. / 1609.34
@@ -944,47 +944,55 @@ class Network:
         self.MFD = self.defineMFD()
 
     def defineMFD(self):
-        if self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "loder":
-            vMax = self.__data[self.dataColumnToIdx["vMax"]]
-            densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
-            capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
-            smoothingFactor = self.__data[self.dataColumnToIdx["smoothingFactor"]]
-            waveSpeed = self.__data[self.dataColumnToIdx["waveSpeed"]]
+        if (self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]] == "Road") & ~self.characteristics.iat[
+            self._idx, self.charColumnToIdx["Dedicated"]]:
+            if self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "loder":
+                vMax = self.__data[self.dataColumnToIdx["vMax"]]
+                densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+                capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
+                smoothingFactor = self.__data[self.dataColumnToIdx["smoothingFactor"]]
+                waveSpeed = self.__data[self.dataColumnToIdx["waveSpeed"]]
 
-            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
-            def _MFD(density):
-                if density == 0:
+                @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+                def _MFD(density):
+                    if density == 0:
+                        return vMax
+                    else:
+                        speedExp = smoothingFactor / density * np.log(
+                            np.exp(- vMax * density / smoothingFactor) + np.exp(
+                                -capacityFlow / smoothingFactor) + np.exp(
+                                - (density - densityMax) * waveSpeed / smoothingFactor))
+                        speedLinear = vMax * (1. - density / densityMax)
+                    return max(min(speedLinear, speedExp), 0.05)
+
+            elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "quadratic":
+                vMax = self.__data[self.dataColumnToIdx["vMax"]]
+                densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+
+                @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+                def _MFD(density):
+                    return max(vMax * (1. - density / densityMax), 0.05)
+
+            elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "bottleneck":
+                vMax = self.__data[self.dataColumnToIdx["vMax"]]
+                capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
+
+                @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+                def _MFD(density):
+                    if density > (capacityFlow / vMax):
+                        return capacityFlow / density
+                    else:
+                        return vMax
+
+            else:
+                vMax = self.__data[self.dataColumnToIdx["vMax"]]
+
+                @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+                def _MFD(_):
                     return vMax
-                else:
-                    speedExp = smoothingFactor / density * np.log(
-                        np.exp(- vMax * density / smoothingFactor) + np.exp(-capacityFlow / smoothingFactor) + np.exp(
-                            - (density - densityMax) * waveSpeed / smoothingFactor))
-                    speedLinear = vMax * (1. - density / densityMax)
-                return max(min(speedLinear, speedExp), 0.05)
-
-        elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "quadratic":
-            vMax = self.__data[self.dataColumnToIdx["vMax"]]
-            densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
-
-            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
-            def _MFD(density):
-                return max(vMax * (1. - density / densityMax), 0.05)
-
-        elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "bottleneck":
-            vMax = self.__data[self.dataColumnToIdx["vMax"]]
-            capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
-
-            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
-            def _MFD(density):
-                if density > (capacityFlow / vMax):
-                    return capacityFlow / density
-                else:
-                    return vMax
-
         else:
             vMax = self.__data[self.dataColumnToIdx["vMax"]]
 
-            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
             def _MFD(_):
                 return vMax
 
