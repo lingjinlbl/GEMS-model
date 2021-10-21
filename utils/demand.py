@@ -293,6 +293,7 @@ class Demand:
         # newTransitionMatrix = microtypes.emptyTransitionMatrix()
         # weights = transitionMatrices.emptyWeights()
         weights = np.zeros(len(self.odiToIdx), dtype=float)
+        distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
         # counter = 0
         # for demandIndex, _ in population:
         #     for _, _ in originDestination[demandIndex].items():
@@ -343,11 +344,15 @@ class Demand:
                 self.__toStarts[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.o]] = 1.0
                 self.__toEnds[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.d]] = 1.0
                 # TODO: Expand through distance to have a mode dimension, then filter and reallocate
-                for mID, pct in trip.allocation:
-                    # NOTE: THis doesn't actually need to be indexed by currentPopIndex
-                    self.__toThroughDistance[
-                    :, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[odi.distBin]
-                    self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
+                if False:
+                    for mID, pct in trip.allocation:
+                        # NOTE: THis doesn't actually need to be indexed by currentPopIndex
+                        self.__toThroughDistance[:, currentODindex, self.microtypeIdToIdx[mID]] = pct * distanceBins[
+                            odi.distBin]
+                        self.__toThroughCounts[currentPopIndex, currentODindex, self.microtypeIdToIdx[mID]] = 1.0
+                else:
+                    self.__toThroughDistance[:, currentODindex, :] = transitionMatrices.assignmentMatrix(odi) * \
+                                                                     distanceBins[odi.distBin]
                 self[demandIndex, odi] = ModeSplit(demandForTrips=tripRatePerHour, demandForPMT=demandForPMT,
                                                    data=self.__modeSplitData[currentPopIndex, currentODindex, :],
                                                    modeToIdx=self.modeToIdx)
@@ -360,7 +365,7 @@ class Demand:
             # self.diToIdx[demandIndex] = popCounter
             # popCounter += 1
 
-        otherMatrix = transitionMatrices.averageMatrix(weights)
+        otherMatrix = transitionMatrices.averageMatrix(weights, distances)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
         # self.__previousModeSplitInput = self.__modeSplitData.copy()
 
@@ -369,6 +374,7 @@ class Demand:
         self.pop = 0.0
         self.demandForPMT = 0.0
         weights = np.zeros(len(self.odiToIdx), dtype=float)
+        distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
 
         for demandIndex, utilityParams in self.__population:
             od = self.__originDestination[demandIndex]
@@ -389,7 +395,7 @@ class Demand:
                 weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
 
-        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
+        otherMatrix = self.__transitionMatrices.averageMatrix(weights, distances)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
     # @profile
@@ -402,12 +408,15 @@ class Demand:
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
         totalDemandForTrips = 0.0
+        distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
         startsByOrigin = np.einsum('ijk,ijl->lk', startsByMode, self.__toStarts)
         startsByDestination = np.einsum('ijk,ijl->lk', startsByMode, self.__toEnds)
         passengerMilesByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughDistance)
         throughCountsByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughCounts)
         vehicleMilesByMicrotype = passengerMilesByMicrotype.copy()
+        # print(['Demand: ', str(vehicleMilesByMicrotype[:, self.modeToIdx['auto']]),
+        #        vehicleMilesByMicrotype[:, self.modeToIdx['auto']].sum() / 1e6])
         for mode, modeIdx in self.modeToIdx.items():
             for mID, mIdx in self.microtypeIdToIdx.items():
                 if microtypes[mID].networks.getMode(mode).fixedVMT:
@@ -442,7 +451,7 @@ class Demand:
         Step one: Update transition matrix (depends only on mode split)
         """
 
-        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
+        otherMatrix = self.__transitionMatrices.averageMatrix(weights, distances)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
         """
@@ -471,54 +480,51 @@ class Demand:
             for microtypeID, microtype in microtypes:
                 microtype.updateNetworkSpeeds()
 
-        # autoProductionInMeters = microtypes.collectedNetworkStateData.getAutoProduction()
-        # print(autoProductionInMeters)
-
     def utility(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics):
         return utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
 
     def resetCounter(self):
         self.__counter = 1
 
-    def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-                        originDestination: OriginDestination, oldModeSplit: ModeSplit = None):
-        newUtils = utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
-
-        newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
-        if self.__previousUtilityInput.size > 0:
-            if collectedChoiceCharacteristics.isBroken():
-                # Oops, we really went off the deep end there
-                x_next = self.__currentUtility
-                fx_next = newUtils
-
-                output = 0.95 * x_next + 0.05 * fx_next
-
-                err = np.linalg.norm(x_next - fx_next)
-
-                self.__previousUtilityInput = self.__currentUtility.copy()
-                self.__previousUtilityOutput = newUtils
-            else:
-                # Start by mostly adoping the next mode split as a starting point
-                x_next = self.__currentUtility
-                fx_next = newUtils
-
-                output = 0.1 * x_next + 0.9 * fx_next
-
-                err = np.linalg.norm(x_next - fx_next)
-
-                self.__previousUtilityInput = self.__currentUtility.copy()
-                self.__previousUtilityOutput = newUtils
-        else:
-            output = newModeSplit
-            self.__previousUtilityInput = self.__currentUtility.copy()
-            self.__previousUtilityOutput = newUtils
-            err = 1e6
-        if np.any(np.isnan(self.__modeSplitData)):
-            print("why nan")
-
-        self.__currentUtility = output.copy()
-        np.copyto(self.__modeSplitData, modeSplitFromUtils(output))
-        return err
+    # def updateModeSplit(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
+    #                     originDestination: OriginDestination, oldModeSplit: ModeSplit = None):
+    #     newUtils = utils(self.__population.numpy, collectedChoiceCharacteristics.numpy)
+    #
+    #     newModeSplit = modeSplitMatrixCalc(self.__population.numpy, collectedChoiceCharacteristics.numpy)
+    #     if self.__previousUtilityInput.size > 0:
+    #         if collectedChoiceCharacteristics.isBroken():
+    #             # Oops, we really went off the deep end there
+    #             x_next = self.__currentUtility
+    #             fx_next = newUtils
+    #
+    #             output = 0.95 * x_next + 0.05 * fx_next
+    #
+    #             err = np.linalg.norm(x_next - fx_next)
+    #
+    #             self.__previousUtilityInput = self.__currentUtility.copy()
+    #             self.__previousUtilityOutput = newUtils
+    #         else:
+    #             # Start by mostly adoping the next mode split as a starting point
+    #             x_next = self.__currentUtility
+    #             fx_next = newUtils
+    #
+    #             output = 0.1 * x_next + 0.9 * fx_next
+    #
+    #             err = np.linalg.norm(x_next - fx_next)
+    #
+    #             self.__previousUtilityInput = self.__currentUtility.copy()
+    #             self.__previousUtilityOutput = newUtils
+    #     else:
+    #         output = newModeSplit
+    #         self.__previousUtilityInput = self.__currentUtility.copy()
+    #         self.__previousUtilityOutput = newUtils
+    #         err = 1e6
+    #     if np.any(np.isnan(self.__modeSplitData)):
+    #         print("why nan")
+    #
+    #     self.__currentUtility = output.copy()
+    #     np.copyto(self.__modeSplitData, modeSplitFromUtils(output))
+    #     return err
 
     def currentUtilities(self):
         return self.__currentUtility
@@ -560,12 +566,14 @@ class Demand:
 
     def getMatrixUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
-        costByMode = utils(self.__population.numpyCost, collectedChoiceCharacteristics.numpy)
+        costByMode = - utils(self.__population.numpyCost, collectedChoiceCharacteristics.numpy)
         return startsByMode * costByMode
 
     def getSummedCharacteristics(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
         totalsByModeAndCharacteristic = np.einsum('ijk,jkl->kl', startsByMode, collectedChoiceCharacteristics.numpy)
+        if np.any(np.isnan(totalsByModeAndCharacteristic)):
+            print('Something went wrong')
         return totalsByModeAndCharacteristic
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,

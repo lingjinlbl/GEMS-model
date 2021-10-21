@@ -1,8 +1,7 @@
-MicrotypeID,PerStartCost,PerEndCost,PerMileCost,VehicleSize,SpeedInMetersPerSecond
-1,0,0,0,0,4.2
-2,0,0,0,0,4.2
-3,0,0,0,0,4.2
-4,0,0,0,0,4.2
-5,0,0,0,0,4.2
-6,0,0,0,0,4.2
-7,0,0,0,0,4.2
+MicrotypeID,PerStartCost,PerEndCost,PerMileCost,VehicleSize,SpeedInMetersPerSecond,DedicatedLanePreference
+1,0,0,0,0.1,4.2,0.7
+2,0,0,0,0.1,4.2,0.6
+3,0,0,0,0.1,4.2,0.5
+4,0,0,0,0.1,4.2,0.4
+5,0,0,0,0.1,4.2,0.3
+6,0,0,0,0.1,4.2,0.2

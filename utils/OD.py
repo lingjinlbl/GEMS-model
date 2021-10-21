@@ -430,7 +430,7 @@ class TripGeneration:
         self.tripClasses[key] = value
 
     def __getitem__(self, item: (str, str)):
-        return self.tripClasses[item]
+        return self.tripClasses.get(item, 0.0)
 
     def __contains__(self, item):
         return item in self.__tripClasses
@@ -599,13 +599,19 @@ class TransitionMatrix:
     def updateMatrix(self, other):
         self.__matrix = other.matrix
 
-    def getSteadyState(self) -> (float, np.ndarray):
-        X = np.transpose(self.matrix.to_numpy())
-        val, vec = np.real_if_close(eigs(X, k=1, which='LM'))
-        dists = self.diameters / (1 - np.real_if_close(val))
-        weights = np.real_if_close(vec / np.sum(vec))
-        dist = np.average(dists, weights=weights.reshape(len(dists), ))
-        return dist, np.squeeze(weights)
+    def getSteadyState(self, tripStartRate) -> (float, np.ndarray):
+        X = np.transpose(self.matrix.to_numpy())  # Q: Should this be transposed?
+        X2 = np.hstack([X, (tripStartRate / tripStartRate.sum()).reshape(-1, 1)])
+        X3 = np.vstack([X2, 1 - X2.sum(axis=0)])
+        # val, vec = eigs(X, k=1, which='LM')
+        # dists = self.diameters / (1 - np.real_if_close(val))
+        dists3 = self.diameters / (X3[-1, :-1])
+        val2, vec2 = eigs(X3, k=1, which='LM')
+        # weights = np.real_if_close(vec / np.sum(vec))
+        weights2 = np.real_if_close(vec2[:-1] / np.sum(vec2[:-1]))
+        # dist = np.average(dists, weights=weights.reshape(len(dists), ))
+        dist3 = np.average(dists3, weights=weights2.reshape(len(dists3), ))
+        return dist3, np.squeeze(weights2)
 
 
 class TransitionMatrices:
@@ -618,6 +624,7 @@ class TransitionMatrices:
         self.__currentTimePeriod = 0
         self.__numpy = np.zeros(
             (len(scenarioData.odiToIdx), len(scenarioData.microtypeIdToIdx), len(scenarioData.microtypeIdToIdx)))
+        self.__assignmentMatrices = np.zeros((len(scenarioData.odiToIdx), len(scenarioData.microtypeIdToIdx)))
         self.__baseIdx = dict()
 
     @property
@@ -638,6 +645,9 @@ class TransitionMatrices:
     #         return self.__idx[self.__currentTimePeriod]
     #     else:
     #         return dict()
+
+    def assignmentMatrix(self, item: ODindex):
+        return self.__assignmentMatrices[self.odiToIdx[item], :]
 
     def __getitem__(self, item: ODindex):
         if (item.o, item.d, item.distBin) in self.__transitionMatrices:
@@ -671,7 +681,7 @@ class TransitionMatrices:
     def emptyWeights(self) -> np.ndarray:
         return np.zeros(self.numpy.shape[0])
 
-    def averageMatrix(self, weights: np.ndarray):
+    def averageMatrix(self, weights: np.ndarray, distances: np.ndarray):
         if np.sum(weights) > 0.0:
             return TransitionMatrix(self.microtypeIdToIdx, np.average(self.numpy, axis=0, weights=weights),
                                     diameters=self.__diameters)
@@ -685,5 +695,19 @@ class TransitionMatrices:
             odi = ODindex(*key)
             self.__data[odi] = df  # TODO: Delete this
             self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
+            startVec = np.zeros((1, len(microtypeIDs)))
+            startVec[0, self.microtypeIdToIdx[odi.o]] = 1
+            X4 = np.vstack([df.values, startVec])
+            X5 = np.hstack([X4, 1 - X4.sum(axis=1).reshape((-1, 1))])
+            _, vec = eigs(X5.transpose(), k=1, which='LM')
+            if vec.shape[1] > 1:
+                # Something weird about eigs?
+                vec = vec[:, 0]
+            tripDistribution = np.real_if_close(vec[:-1]) / np.real_if_close(vec[:-1]).sum()
+            if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
+                print('Something went wrong in loading transition matrices')
+            self.__assignmentMatrices[self.odiToIdx[odi], :] = np.squeeze(tripDistribution)
+            # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
+            #             np.ones((len(microtypeIDs), 1))
         print("|  Loaded ", str(matrices.size), " transition probabilities")
         print("-------------------------------")

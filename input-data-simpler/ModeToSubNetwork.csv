@@ -1,5 +1,7 @@
 ﻿SubnetworkID,ModeTypeID
 1,Auto
 1,Bus
-1,Walk
+1,Bike
 2,Bus
+3,Walk
+4,Bike
