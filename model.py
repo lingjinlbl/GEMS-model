@@ -1141,9 +1141,9 @@ class Optimizer:
             x0 = self.x0()
         if self.__method == "shgo":
             return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
-        elif self.__method == "sklearn":
-            b = self.getBounds()
-            return gp_minimize(self.evaluate, self.getBounds(), n_calls=1000, verbose=True)
+        # elif self.__method == "sklearn":
+        #     b = self.getBounds()
+        #     return gp_minimize(self.evaluate, self.getBounds(), n_calls=1000, verbose=True)
         elif self.__method == "noisy":
             # scaling = [1.0] * self.nSubNetworks() + [1000.0] * self.nModes()
             return minimizeCompass(self.evaluate, x0, bounds=self.getBounds(), paired=False, deltainit=1.0,
