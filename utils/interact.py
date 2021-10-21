@@ -384,12 +384,34 @@ class Interact:
                                      )
                 parameterVBox[-1].observe(self.response, names="value")
                 self.__widgetIDtoField[parameterVBox[-1].model_id] = ('vMax', row.Index)
-                parameterVBox.append(widgets.FloatSlider(value=row.densityMax, min=0.1, max=0.2, step=0.002,
-                                                         description="Jam density (veh/m)",
-                                                         orientation='horizontal',
-                                                         style={'description_width': '1.25in'}))
-                parameterVBox[-1].observe(self.response, names="value")
-                self.__widgetIDtoField[parameterVBox[-1].model_id] = ('densityMax', row.Index)
+                if ~np.isnan(row.densityMax):
+                    parameterVBox.append(widgets.FloatSlider(value=row.densityMax, min=0.1, max=0.3, step=0.002,
+                                                             description="Jam density (veh/m)",
+                                                             orientation='horizontal',
+                                                             style={'description_width': '1.25in'}))
+                    parameterVBox[-1].observe(self.response, names="value")
+                    self.__widgetIDtoField[parameterVBox[-1].model_id] = ('densityMax', row.Index)
+                if ~np.isnan(row.capacityFlow):
+                    parameterVBox.append(widgets.FloatSlider(value=row.capacityFlow, min=0.1, max=0.6, step=0.002,
+                                                             description="Capacity flow (veh/s)",
+                                                             orientation='horizontal',
+                                                             style={'description_width': '1.25in'}))
+                    parameterVBox[-1].observe(self.response, names="value")
+                    self.__widgetIDtoField[parameterVBox[-1].model_id] = ('capacityFlow', row.Index)
+                if ~np.isnan(row.waveSpeed):
+                    parameterVBox.append(widgets.FloatSlider(value=row.waveSpeed, min=0.1, max=0.6, step=0.002,
+                                                             description="Backwards wave spd (m/s)",
+                                                             orientation='horizontal',
+                                                             style={'description_width': '1.25in'}))
+                    parameterVBox[-1].observe(self.response, names="value")
+                    self.__widgetIDtoField[parameterVBox[-1].model_id] = ('waveSpeed', row.Index)
+                if ~np.isnan(row.smoothingFactor):
+                    parameterVBox.append(widgets.FloatSlider(value=row.smoothingFactor, min=0.1, max=0.6, step=0.002,
+                                                             description="Smoothing Factor",
+                                                             orientation='horizontal',
+                                                             style={'description_width': '1.25in'}))
+                    parameterVBox[-1].observe(self.response, names="value")
+                    self.__widgetIDtoField[parameterVBox[-1].model_id] = ('smoothingFactor', row.Index)
                 roadNetworkParameters.append(widgets.VBox(parameterVBox))
                 autoVBox.append(widgets.HBox(roadNetworkParameters))
             microtypeRoadNetworks.append(widgets.VBox(autoVBox))
@@ -435,7 +457,7 @@ class Interact:
             self.__microtypeToBusService[mID] = busServiceData
             headwayStack.append(widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description="Microtype " + mID))
             headwayStack[-1].observe(self.response, names="value")
-            self.__widgetIDtoField[headwayStack[-1].model_id] = ('headway', mID)
+            self.__widgetIDtoField[headwayStack[-1].model_id] = ('headway', (mID, 'Bus'))
 
         coverageStack = []
 
@@ -546,7 +568,7 @@ class Interact:
             self.model.scenarioData['subNetworkData'].loc[modeDF.index[1], 'Length'] = newDedicatedLength
         if changeType[0] == 'headway':
             microtype, modeName = changeType[1]
-            self.model.scenarioData['modeData'][modeName].loc[microtype, 'Headway'] = newValue
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
         if changeType[0] == 'coverage':
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
             self.model.readFiles()
@@ -558,8 +580,19 @@ class Interact:
                 self.model.updatePopulation()
         if changeType[0] == 'vMax':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'vMax'] = newValue
+            self.model.microtypes.recompileMFDs()  # TODO: simplify to only microtyype
         if changeType[0] == 'densityMax':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'densityMax'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'capacityFlow':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'smoothingFactor':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'smoothingFactor'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'waveSpeed':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'waveSpeed'] = newValue
+            self.model.microtypes.recompileMFDs()
         if changeType[0] == 'cost':
             mID, costType = changeType[1]
             if costType == "System":
@@ -696,8 +729,15 @@ class Interact:
                 if len(yRef) == 0:
                     plot.y = yCurrent * 0.0
                 elif len(yRef) < len(yCurrent):
-                    plot.y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
-                    plot.y[len(yRef):] = np.nan
+                    y = plot.y.copy()
+                    y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
+                    y[len(yRef):] = np.nan
+                    plot.y = y
+                elif len(yCurrent) < len(yRef):
+                    y = plot.y.copy()
+                    y[:len(yCurrent)] = yCurrent - yRef[:len(yCurrent)]
+                    y[len(yCurrent):] = np.nan
+                    plot.y = y
                 else:
                     plot.y = yCurrent - yRef
                 plot.x = self.__dataToHandle['modeSplit']['current'][mode][mID].x
@@ -708,8 +748,15 @@ class Interact:
             if len(yRef) == 0:
                 plot.y = yCurrent * 0.0
             elif len(yRef) < len(yCurrent):
-                plot.y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
-                plot.y[len(yRef):] = np.nan
+                y = plot.y.copy()
+                y[:len(yRef)] = yCurrent[:len(yRef)] - yRef
+                y[len(yRef):] = np.nan
+                plot.y = y
+            elif len(yCurrent) < len(yRef):
+                y = plot.y.copy()
+                y[:len(yCurrent)] = yCurrent - yRef[:len(yCurrent)]
+                y[len(yCurrent):] = np.nan
+                plot.y = y
             else:
                 plot.y = yCurrent - yRef
             plot.x = self.__dataToHandle['speed']['current'][mID].x

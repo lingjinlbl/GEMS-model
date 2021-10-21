@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 
-miles2meters = 1609.34 # TODO: Change back to right number
+miles2meters = 1609.34  # TODO: Change back to right number
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 path = os.path.join(ROOT_DIR, "..", "input-data-transgeo", "SubNetworks-raw.csv")
@@ -12,8 +12,8 @@ transitService = pd.read_csv(path)
 transitService["ServicePerMile"] = transitService["veh_revenue_miles"] / transitService["dir_route_miles"] / 365.0
 
 path = os.path.join(ROOT_DIR, "..", "input-data-production", "TransitSystemCosts.csv")
-transitCosts = pd.read_csv(path)[["Geotype","Mode","Intercept","BetaFleetSize"]]
-transitCosts["costPerVehicleHour"] = transitCosts["BetaFleetSize"]/365.0/18.0
+transitCosts = pd.read_csv(path)[["Geotype", "Mode", "Intercept", "BetaFleetSize"]]
+transitCosts["costPerVehicleHour"] = transitCosts["BetaFleetSize"] / 365.0 / 18.0
 
 subNetworks["Geotype"] = subNetworks["MicrotypeID"].str[0]
 subNetworks["Microtype"] = subNetworks["MicrotypeID"].str[2]
@@ -33,55 +33,57 @@ railDists = railDists.merge(
 )
 railDists["NetworkFraction"] = railDists["dir_route_miles"] / railDists["LengthNetwork"] / miles2meters
 
-subNetworks = subNetworks.merge(geoDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile","costPerVehicleHour"]], left_on="Geotype",
+subNetworks = subNetworks.merge(geoDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile", "costPerVehicleHour"]],
+                                left_on="Geotype",
                                 right_on="geotype", how='left')
 
-subNetworks = subNetworks.merge(railDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile","costPerVehicleHour"]], left_on="Geotype",
-                                right_on="geotype", suffixes=('', '_rail'), how='left').fillna(0)
+subNetworks = subNetworks.merge(
+    railDists.loc[:, ["geotype", "NetworkFraction", "ServicePerMile", "costPerVehicleHour"]], left_on="Geotype",
+    right_on="geotype", suffixes=('', '_rail'), how='left').fillna(0)
 
 # vMax,densityMax,capacityFlow,smoothingFactor,waveSpeed,MFD
 
 
-AutoBus = subNetworks[['MicrotypeID','Microtype']].set_index('MicrotypeID')
+AutoBus = subNetworks[['MicrotypeID', 'Microtype']].set_index('MicrotypeID')
 AutoBus['Length'] = subNetworks['LengthNetwork'].values * miles2meters
 AutoBus['vMax'] = 16
-AutoBus['densityMax'] = 16
+AutoBus['densityMax'] = np.nan
 AutoBus['capacityFlow'] = np.nan
 AutoBus['smoothingFactor'] = np.nan
 AutoBus['waveSpeed'] = np.nan
 AutoBus['MFD'] = "bottleneck"
 AutoBus['Type'] = "Road"
 AutoBus['Dedicated'] = False
-AutoBus.loc[AutoBus['Microtype'] == '1','vMax'] = 17.0
-AutoBus.loc[AutoBus['Microtype'] == '1','densityMax'] = 0.15
-AutoBus.loc[AutoBus['Microtype'] == '1','capacityFlow'] = 0.18
-AutoBus.loc[AutoBus['Microtype'] == '1','smoothingFactor'] = 0.13
-AutoBus.loc[AutoBus['Microtype'] == '1','waveSpeed'] = 3.78
-AutoBus.loc[AutoBus['Microtype'] == '1','MFD'] = "loder"
-AutoBus.loc[AutoBus['Microtype'] == '2','vMax'] = 17.0
-AutoBus.loc[AutoBus['Microtype'] == '2','densityMax'] = 0.15
-AutoBus.loc[AutoBus['Microtype'] == '2','capacityFlow'] = 0.18
-AutoBus.loc[AutoBus['Microtype'] == '2','smoothingFactor'] = 0.13
-AutoBus.loc[AutoBus['Microtype'] == '2','waveSpeed'] = 3.78
-AutoBus.loc[AutoBus['Microtype'] == '2','MFD'] = "loder"
-AutoBus.loc[AutoBus['Microtype'] == '3','vMax'] = 28.0
-AutoBus.loc[AutoBus['Microtype'] == '3','capacityFlow'] = 0.6
-AutoBus.loc[AutoBus['Microtype'] == '3','MFD'] = "bottleneck"
-AutoBus.loc[AutoBus['Microtype'] == '4','vMax'] = 20.0
-AutoBus.loc[AutoBus['Microtype'] == '4','capacityFlow'] = 0.4
-AutoBus.loc[AutoBus['Microtype'] == '4','MFD'] = "bottleneck"
-AutoBus.loc[AutoBus['Microtype'] == '5','vMax'] = 20.0
-AutoBus.loc[AutoBus['Microtype'] == '5','capacityFlow'] = 0.4
-AutoBus.loc[AutoBus['Microtype'] == '5','MFD'] = "bottleneck"
-AutoBus.loc[AutoBus['Microtype'] == '6','vMax'] = 20.0
-AutoBus.loc[AutoBus['Microtype'] == '6','capacityFlow'] = 0.4
-AutoBus.loc[AutoBus['Microtype'] == '6','MFD'] = "bottleneck"
+AutoBus.loc[AutoBus['Microtype'] == '1', 'vMax'] = 17.0
+AutoBus.loc[AutoBus['Microtype'] == '1', 'densityMax'] = 0.15
+AutoBus.loc[AutoBus['Microtype'] == '1', 'capacityFlow'] = 0.18
+AutoBus.loc[AutoBus['Microtype'] == '1', 'smoothingFactor'] = 0.13
+AutoBus.loc[AutoBus['Microtype'] == '1', 'waveSpeed'] = 3.78
+AutoBus.loc[AutoBus['Microtype'] == '1', 'MFD'] = "loder"
+AutoBus.loc[AutoBus['Microtype'] == '2', 'vMax'] = 17.0
+AutoBus.loc[AutoBus['Microtype'] == '2', 'densityMax'] = 0.15
+AutoBus.loc[AutoBus['Microtype'] == '2', 'capacityFlow'] = 0.18
+AutoBus.loc[AutoBus['Microtype'] == '2', 'smoothingFactor'] = 0.13
+AutoBus.loc[AutoBus['Microtype'] == '2', 'waveSpeed'] = 3.78
+AutoBus.loc[AutoBus['Microtype'] == '2', 'MFD'] = "loder"
+AutoBus.loc[AutoBus['Microtype'] == '3', 'vMax'] = 28.0
+AutoBus.loc[AutoBus['Microtype'] == '3', 'capacityFlow'] = 0.4
+AutoBus.loc[AutoBus['Microtype'] == '3', 'MFD'] = "bottleneck"
+AutoBus.loc[AutoBus['Microtype'] == '4', 'vMax'] = 18.8
+AutoBus.loc[AutoBus['Microtype'] == '4', 'capacityFlow'] = 0.38
+AutoBus.loc[AutoBus['Microtype'] == '4', 'MFD'] = "bottleneck"
+AutoBus.loc[AutoBus['Microtype'] == '5', 'vMax'] = 18.8
+AutoBus.loc[AutoBus['Microtype'] == '5', 'capacityFlow'] = 0.38
+AutoBus.loc[AutoBus['Microtype'] == '5', 'MFD'] = "bottleneck"
+AutoBus.loc[AutoBus['Microtype'] == '6', 'vMax'] = 18.8
+AutoBus.loc[AutoBus['Microtype'] == '6', 'capacityFlow'] = 0.38
+AutoBus.loc[AutoBus['Microtype'] == '6', 'MFD'] = "bottleneck"
 AutoBus.drop(columns='Microtype', inplace=True)
 Bus = subNetworks[['MicrotypeID']].set_index('MicrotypeID')
 Bus['Length'] = 0.0
 Bus['vMax'] = 16
-Bus['densityMax'] = 0.145
-Bus['capacityFlow'] = 0.8
+Bus['densityMax'] = np.nan
+Bus['capacityFlow'] = 0.6
 Bus['smoothingFactor'] = np.nan
 Bus['waveSpeed'] = np.nan
 Bus['MFD'] = "bottleneck"
@@ -110,7 +112,7 @@ Rail['Dedicated'] = True
 Bike = subNetworks[['MicrotypeID']].set_index('MicrotypeID')
 Bike['Length'] = 0.0
 Bike['vMax'] = 4.2
-Bike['densityMax'] = np.nan
+Bike['densityMax'] = 0.15
 Bike['capacityFlow'] = np.nan
 Bike['smoothingFactor'] = np.nan
 Bike['waveSpeed'] = np.nan

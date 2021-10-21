@@ -8,8 +8,10 @@ from sys import stdout
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
+from mock.mock import Mock
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
+# from skopt import gp_minimize, forest_minimize
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
@@ -132,7 +134,7 @@ class Optimizer:
     """
 
     def x0(self) -> np.ndarray:
-        network = [10.0] * self.nSubNetworks()
+        network = [0.01] * self.nSubNetworks()
         headways = [300.0] * self.nModes()
         return np.array(network + headways)
 
@@ -596,8 +598,6 @@ class Model:
         return {a: self.__timePeriods.getTimePeriodName(a) for a, _ in self.__timePeriods}
 
     def findEquilibrium(self):
-        diff = 1000.
-        i = 0
 
         """
         Initial conditions
@@ -613,8 +613,9 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        if np.linalg.norm(self.g(startingPoint)) < (self.__tolerance / 10.):
+        if np.linalg.norm(self.g(startingPoint)) < self.__tolerance * 10.:
             fixedPointModeSplit = self.fromObjectiveFunction(startingPoint)
+            success = True
         else:
             sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
                        options={'maxfev': 500, 'maxiter': 500, 'line_search': 'cheng', 'sigma_0': -0.8})
@@ -622,7 +623,8 @@ class Model:
             self.g(sol.x)
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
             # print(self.g(sol.x))
-            self.__successful = self.__successful & sol.success
+            success = sol.success
+        self.__successful = self.__successful & success
 
         """
         Finalize
@@ -647,6 +649,26 @@ class Model:
             else:
                 modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID], :]
         return modeSplit / np.sum(modeSplit)
+
+    def getModePMT(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
+        # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
+        if timePeriod is None:
+            modeSplit = np.zeros(len(self.modeToIdx))
+            for tp, weight in self.__timePeriods:
+                if tp in self.__demand:
+                    if microtypeID is None:
+                        modeSplit += self.__microtypes[tp].passengerDistanceByMode.sum(axis=0) * weight
+                    else:
+                        modeSplit += self.__microtypes[tp].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID],
+                                     :] * weight
+        else:
+            if microtypeID is None:
+                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode.sum(axis=0) * self.__timePeriods[
+                    timePeriod]
+            else:
+                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID],
+                            :] * self.__timePeriods[timePeriod]
+        return modeSplit
 
     def getUserCosts(self, mode=None):
         return self.demand.getUserCosts(self.choice, self.__originDestination, mode)
@@ -725,6 +747,7 @@ class Model:
         init = True
         utilities = []
         keepGoing = True
+        self.__successful = True
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, init)
             if keepGoing:
@@ -754,10 +777,10 @@ class Model:
             modeSplitData[timePeriod] = msd
 
             sd = self.__microtypes[timePeriod].dataByModeDataFrame()
-            sd['TotalTripStarts'] = sd['TripStartsPerHour'] * durationInHours / self.nSubBins
-            sd['TotalTripEnds'] = sd['TripEndsPerHour'] * durationInHours / self.nSubBins
-            sd['TotalPassengerDistance'] = sd['PassengerDistancePerHour'] * durationInHours / self.nSubBins
-            sd['TotalVehicleDistance'] = sd['VehicleDistancePerHour'] * durationInHours / self.nSubBins
+            sd['TotalTripStarts'] = sd['TripStartsPerHour'] * durationInHours
+            sd['TotalTripEnds'] = sd['TripEndsPerHour'] * durationInHours
+            sd['TotalPassengerDistance'] = sd['PassengerDistancePerHour'] * durationInHours
+            sd['TotalVehicleDistance'] = sd['VehicleDistancePerHour'] * durationInHours
             speedData[timePeriod] = sd
 
             ud = self.__choice[timePeriod].toDataFrame()
@@ -786,7 +809,6 @@ class Model:
         inflows = []
         outflows = []
         matrices = []
-        runningTotal = 0.0
         for id, dur in self.__timePeriods:
             # out = self.getMicrotypeCollection(id).transitionMatrixMFD(dur, self.getNetworkStateData(id),
             #                                                           self.getMicrotypeCollection(
@@ -841,6 +863,17 @@ class Model:
                     [self.getModeSplit('0', microtypeID=microtype)] + [self.getModeSplit(p, microtypeID=microtype) for p
                                                                        in self.timePeriods().keys()])
                 return x, y
+        elif type.lower() == "cartrips":
+            autoProdsMFD = [0.]
+            autoProdsDemand = [0.]
+            for p in self.timePeriods().keys():
+                sd = self.getNetworkStateData(p)
+                autoProdsMFD.append(sd.getAutoProduction().sum(axis=1).sum() / 1609.34)
+                autoProdsDemand.append(self.getModePMT(p)[self.modeToIdx['auto']])
+
+            x = np.cumsum([0] + [val for val in self.timePeriods().values()])
+            y = np.vstack([autoProdsMFD, autoProdsDemand]).transpose()
+            return x, y
         elif type.lower() == "modespeeds":
             x = np.cumsum([0] + [val for val in self.timePeriods().values()])
             y = pd.concat([self.getModeSpeeds('0').stack()] + [self.getModeSpeeds(val).stack() for val in
@@ -936,9 +969,9 @@ class Optimizer:
         self.__fromToSubNetworkIDs = fromToSubNetworkIDs
         self.__modesAndMicrotypes = modesAndMicrotypes
         self.__method = method
-        self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)),
+        self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)) * 20.,
                          "Operator": np.ones(len(model.microtypeIdToIdx)),
-                         "Externality": np.ones(len(model.microtypeIdToIdx)),
+                         "Externality": np.ones(len(model.microtypeIdToIdx)) * 3.,
                          "Dedication": np.ones(len(model.microtypeIdToIdx))}
         self.__trialParams = []
         self.__objectiveFunctionValues = []
@@ -1030,7 +1063,7 @@ class Optimizer:
         dedicationCostsByMicrotype = pd.Series(0.0, index=sorted(self.model.microtypeIdToIdx))
         for _, val in dedication.iterrows():
             costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
-                (val.MicrotypeID, val.ModesAllowed), 0.0)
+                (val.MicrotypeID, val.ModesAllowed.lower()), 0.0)
             dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
@@ -1041,13 +1074,20 @@ class Optimizer:
         return pd.concat(output, axis=1)
 
     def evaluate(self, reallocations: np.ndarray) -> float:
+        if np.any(np.isnan(reallocations)):
+            print('SOMETHING WENT WRONG')
         scaling = self.scaling()
+        if np.any([np.allclose(reallocations, trial) for trial in self.__trialParams]):
+            outcome = self.__objectiveFunctionValues[
+                [ind for ind, val in enumerate(self.__trialParams) if np.allclose(val, reallocations)][0]]
+            print([str(reallocations), outcome])
+            return outcome
         self.updateAndRunModel(reallocations / scaling)
         # operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
         if self.model.choice.broken | (not self.model.successful):
             print('SKIPPING!')
             print(reallocations)
-            return 1e12
+            return 1e10
         # dedicationCosts = self.getDedicationCost(reallocations / scaling)
         # print(reallocations / scaling, self.model.sumAllCosts(operatorCosts, vectorUserCosts, externalities) + dedicationCosts)
         # print({a: b.sum() for a, b in vectorUserCosts.items()})
@@ -1061,247 +1101,35 @@ class Optimizer:
             self.__isImprovement.append(True)
         self.__trialParams.append(reallocations)
         self.__objectiveFunctionValues.append(outcome)
+        if np.isnan(outcome):
+            self.model.interact.hardReset()
+        print([str(reallocations), outcome])
         return outcome
 
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
-            upperBoundsROW = [0.25] * len(self.fromSubNetworkIDs())
-            lowerBoundsROW = [0.0] * len(self.fromSubNetworkIDs())
-        else:
-            upperBoundsROW = []
-            lowerBoundsROW = []
-        upperBoundsHeadway = [3.600] * self.nModes()
-        lowerBoundsHeadway = [0.03] * self.nModes()
-        defaultHeadway = [0.300] * self.nModes()
-        bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
-        if self.__method == "shgo":
-            return bounds
-        elif self.__method == "sklearn":
-            return list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway, defaultHeadway))
-        elif (self.__method == "noisy") | (self.__method == "SPSA"):
-            return bounds
-        else:
-            return Bounds(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway)
-
-    def x0(self) -> np.ndarray:
-        network = [0.0] * self.nSubNetworks()
-        headways = [300.0] * self.nModes()
-        return np.array(network + headways) * self.scaling()
-
-    def minimize(self, x0=None):
-        self.__objectiveFunctionValues = []
-        self.__trialParams = []
-        self.__isImprovement = []
-        if x0 is None:
-            x0 = self.x0()
-        if self.__method == "shgo":
-            return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
-        # elif self.__method == "sklearn":
-        #    b = self.getBounds()
-        #    return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
-        elif self.__method == "noisy":
-            # scaling = [1.0] * self.nSubNetworks() + [1000.0] * self.nModes()
-            return minimizeCompass(self.evaluate, x0, bounds=self.getBounds(), paired=False, deltainit=1.0,
-                                   errorcontrol=False, disp=True, deltatol=1e-4)
-        elif self.__method == "SPSA":
-            # scaling = [1.0] * self.nSubNetworks() + [1000.0] * self.nModes()
-            return minimizeSPSA(self.evaluate, x0, bounds=self.getBounds(), paired=False, disp=True, a=0.02, c=0.02)
-
-        else:
-            # return minimize(self.evaluate, self.x0(), bounds=self.getBounds(), options={'eps':1e-1})
-            # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
-            return minimize(self.evaluate, x0, method='TNC', bounds=self.getBounds(),
-                            options={'eps': 0.002, 'eta': 0.1, 'disp': True, 'ftol': 10, 'xtol': 0.005})
-            # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
-            #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
-
-    def plotConvergence(self):
-        params = np.array(self.__trialParams)
-        outcomes = np.array(self.__objectiveFunctionValues)
-        mask = np.array(self.__isImprovement)
-        return params, outcomes, mask
-
-    def emptyOptimizer(self):
-        return Optimizer(model=self)
-
-
-class Optimizer:
-    """
-    Wrapper for the Model opject that allows model inputs to be optimized over.
-
-    Attributes
-    ----------
-    model : Model
-        model object
-    fromToSubNetworkIDs : dict | None
-        1:1 mapping of subnetworks between which ROW can be reassigned, e.g. mixed traffic -> bus only
-    modesAndMicrotypes : dict | None
-        List of tuples of mode/microtype pairs for which we will optimize headways
-        e.g. [('A', 'bus'), ('B','rail')]
-    method : str
-        Optimization method
-
-    Methods
-    ---------
-    evaluate(reallocations):
-        Evaluate the objective funciton given a set of modifications to the transportation system
-    minimize():
-        Minimize the objective function using the set method
-    """
-
-    def __init__(self, model: Model, fromToSubNetworkIDs=None, modesAndMicrotypes=None, method="shgo"):
-        self.__fromToSubNetworkIDs = fromToSubNetworkIDs
-        self.__modesAndMicrotypes = modesAndMicrotypes
-        self.__method = method
-        self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)),
-                         "Operator": np.ones(len(model.microtypeIdToIdx)),
-                         "Externality": np.ones(len(model.microtypeIdToIdx)),
-                         "Dedication": np.ones(len(model.microtypeIdToIdx))}
-        self.__trialParams = []
-        self.__objectiveFunctionValues = []
-        self.__isImprovement = []
-        self.model = model
-
-    def updateAlpha(self, costType, newValue, mID=None):
-        if mID is None:
-            if costType in self.__alphas:
-                self.__alphas[costType][:] = newValue
-            else:
-                print("BAD INPUT")
-        else:
-            if costType in self.__alphas:
-                self.__alphas[costType][self.model.microtypeIdToIdx[mID]] = newValue
-            else:
-                print("BAD INPUT")
-
-    def nSubNetworks(self):
-        if self.__fromToSubNetworkIDs is not None:
-            return len(self.__fromToSubNetworkIDs)
-        else:
-            return 0
-
-    def nModes(self):
-        if self.__modesAndMicrotypes is not None:
-            return len(self.__modesAndMicrotypes)
-        else:
-            return 0
-
-    def toSubNetworkIDs(self):  # RENAME TO Microtypes
-        return [toID for fromID, toID in self.__fromToSubNetworkIDs]
-
-    def fromSubNetworkIDs(self):  # Rename to modes
-        return [fromID for fromID, toID in self.__fromToSubNetworkIDs]
-
-    def getDedicationCost(self, reallocations: np.ndarray) -> float:
-        if self.nSubNetworks() > 0:
-            microtypes = self.fromSubNetworkIDs()  # self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
-            modes = self.toSubNetworkIDs()
-            # self.model.scenarioData["modeToSubNetworkData"].loc[
-            # self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(
-            #     self.toSubNetworkIDs()), "ModeTypeID"]
-            perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
-                pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
-            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)  # TODO: Convert back to real numbers
-            if np.isnan(cost):
-                return np.inf
-            else:
-                return cost
-        else:
-            return 0.0
-
-    def updateAndRunModel(self, reallocations: np.ndarray):
-        if self.__fromToSubNetworkIDs is not None:
-            networkModification = NetworkModification(reallocations[:self.nSubNetworks()], self.__fromToSubNetworkIDs)
-        else:
-            networkModification = None
-        if self.__modesAndMicrotypes is not None:
-            transitModification = TransitScheduleModification(reallocations[-self.nModes():],
-                                                              self.__modesAndMicrotypes)
-        else:
-            transitModification = None
-        if self.model.choice.broken | (not self.model.successful):
-            print("Starting from a bad place so I'll reset")
-            self.model.microtypes.resetStateData()
-            self.model.initializeAllTimePeriods(True)
-        self.model.modifyNetworks(networkModification, transitModification)
-        self.model.collectAllCharacteristics()
-
-    def scaling(self):
-        return np.array([1.0] * self.nSubNetworks() + [0.001] * self.nModes())
-
-    def sumAllCosts(self):
-        operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
-        if self.model.choice.broken | (not self.model.successful):
-            return np.nan
-        operatorCostsByMicrotype = operatorCosts.toDataFrame().sum(axis=1)
-        userCostsByMicrotype = self.model.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
-            level='homeMicrotype').sum(axis=0)
-        externalityCostsByMicrotype = pd.Series(sum([e.sum(axis=1) for e in externalities.values()]),
-                                                index=sorted(self.model.microtypeIdToIdx))
-        dedication = self.model.scenarioData['subNetworkDataFull'].loc[
-            self.model.scenarioData['subNetworkDataFull'].Dedicated & (
-                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), ["ModesAllowed", "MicrotypeID"]]
-        dedication['Distance'] = self.model.scenarioData['subNetworkData'].loc[
-            self.model.scenarioData['subNetworkDataFull'].Dedicated & (
-                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), "Length"]
-        dedicationCostsByMicrotype = pd.Series(0.0, index=sorted(self.model.microtypeIdToIdx))
-        for _, val in dedication.iterrows():
-            costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
-                (val.MicrotypeID, val.ModesAllowed), 0.0)
-            dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
-        output = dict()
-        # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
-        output['User'] = userCostsByMicrotype * self.__alphas['User']
-        output['Operator'] = operatorCostsByMicrotype * self.__alphas['Operator']
-        output['Externality'] = externalityCostsByMicrotype * self.__alphas['Externality']
-        output['Dedication'] = dedicationCostsByMicrotype * self.__alphas['Dedication']
-        return pd.concat(output, axis=1)
-
-    def evaluate(self, reallocations: np.ndarray) -> float:
-        scaling = self.scaling()
-        self.updateAndRunModel(reallocations / scaling)
-        # operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
-        if self.model.choice.broken | (not self.model.successful):
-            print('SKIPPING!')
-            print(reallocations)
-            return np.nan
-        # dedicationCosts = self.getDedicationCost(reallocations / scaling)
-        # print(reallocations / scaling, self.model.sumAllCosts(operatorCosts, vectorUserCosts, externalities) + dedicationCosts)
-        # print({a: b.sum() for a, b in vectorUserCosts.items()})
-        # print(operatorCosts)
-        # print({a: b.sum() for a, b in externalities.items()})
-        allCosts = self.sumAllCosts()
-        outcome = allCosts.to_numpy().sum()
-        if self.__objectiveFunctionValues:
-            self.__isImprovement.append(outcome < min(self.__objectiveFunctionValues))
-        else:
-            self.__isImprovement.append(True)
-        self.__trialParams.append(reallocations)
-        self.__objectiveFunctionValues.append(outcome)
-        return outcome
-
-    def getBounds(self):
-        if self.__fromToSubNetworkIDs is not None:
-            upperBoundsROW = [0.4] * len(self.fromSubNetworkIDs())
+            upperBoundsROW = [0.3] * len(self.fromSubNetworkIDs())
             lowerBoundsROW = [0.0] * len(self.fromSubNetworkIDs())
         else:
             upperBoundsROW = []
             lowerBoundsROW = []
         upperBoundsHeadway = [3.600] * self.nModes()
         lowerBoundsHeadway = [0.06] * self.nModes()
+        defaultAllocation = [0.01] * len(self.fromSubNetworkIDs())
         defaultHeadway = [0.300] * self.nModes()
-        bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
+        bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway,
+                          defaultAllocation + defaultHeadway))
         if self.__method == "shgo":
             return bounds
         elif self.__method == "sklearn":
-            return list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway, defaultHeadway))
+            return list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
         elif (self.__method == "noisy") | (self.__method == "SPSA"):
             return bounds
         else:
             return Bounds(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway)
 
     def x0(self) -> np.ndarray:
-        network = [0.05] * self.nSubNetworks()
+        network = [0.01] * self.nSubNetworks()
         headways = [300.0] * self.nModes()
         return np.array(network + headways) * self.scaling()
 
@@ -1314,8 +1142,8 @@ class Optimizer:
         if self.__method == "shgo":
             return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
         # elif self.__method == "sklearn":
-        #    b = self.getBounds()
-        #    return gp_minimize(self.evaluate, self.getBounds(), n_calls=100)
+        #     b = self.getBounds()
+        #     return gp_minimize(self.evaluate, self.getBounds(), n_calls=1000, verbose=True)
         elif self.__method == "noisy":
             # scaling = [1.0] * self.nSubNetworks() + [1000.0] * self.nModes()
             return minimizeCompass(self.evaluate, x0, bounds=self.getBounds(), paired=False, deltainit=1.0,
@@ -1327,8 +1155,10 @@ class Optimizer:
         else:
             # return minimize(self.evaluate, self.x0(), bounds=self.getBounds(), options={'eps':1e-1})
             # return dual_annealing(self.evaluate, self.getBounds(), no_local_search=False, initial_temp=150.)
+            # return minimize(self.evaluate, x0, method='L-BFGS-B', bounds=self.getBounds(),
+            #                 options={'eps': 0.002, 'iprint': 1})
             return minimize(self.evaluate, x0, method='TNC', bounds=self.getBounds(),
-                            options={'eps': 0.005, 'eta': 0.15, 'disp': True})
+                            options={'eps': 0.001, 'eta': 0.5, 'disp': True})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -1341,46 +1171,64 @@ class Optimizer:
 
 def startBar():
     modelInput = widgets.Dropdown(
-        options=['One microtype toy model', '4 microtype toy model', 'Geotype A', 'Geotype B', 'Geotype C'],
-        value='4 microtype toy model',
+        options=['One microtype toy model', '4 microtype toy model', 'Los Angeles', 'Geotype A', 'Geotype B',
+                 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
+        value='Los Angeles',
         description='Input data:',
         disabled=False,
     )
     lookup = {'One microtype toy model': 'input-data-simpler',
               '4 microtype toy model': 'input-data',
+              'Los Angeles': 'input-data-losangeles',
               'Geotype A': 'input-data-geotype-A',
               'Geotype B': 'input-data-geotype-B',
-              'Geotype C': 'input-data-geotype-C'}
+              'Geotype C': 'input-data-geotype-C',
+              'Geotype D': 'input-data-geotype-D',
+              'Geotype E': 'input-data-geotype-E',
+              'Geotype F': 'input-data-geotype-F'}
     return modelInput, lookup
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 2, True)
+    model = Model("input-data-geotype-A", 1, False)
+    # optimizer = Optimizer(model, modesAndMicrotypes=None,
+    #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
+    # optimizer.evaluate([0.1])
+    # model.collectAllCharacteristics()
+    # # model.collectAllCharacteristics()
+    # # print(model.getModeSpeeds())
+    # # model.collectAllCharacteristics()
+    # x, y = model.plotAllDynamicStats('cartrips')
+    # print(model.getModeSpeeds())
+    # obj = Mock()
+    # obj.new = 17.5
+    #
+    # model.interact.modifyModel(('vMax', 1), obj)
+    # model.collectAllCharacteristics()
+    # print(model.getModeSpeeds())
     # display(model.interact.grid)
     # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
     # a, b = model.collectAllCharacteristics()
     # a, b = model.collectAllCharacteristics()
-    # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
-    #                       fromToSubNetworkIDs=[('A', 'Bus'), ('B', 'Bus'), ('A', 'Bike'), ('B', 'Bike')], method="min")
-    optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
+    optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'bus'), ('2', 'bus')],
+                          fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike'), ('2', 'Bus'), ('2', 'Bike')],
+                          method="min")
+
     # optimizer.evaluate(optimizer.x0())
+    optimizer.minimize()
     print('-----0.0------')
-    optimizer.evaluate([0.8])
+    optimizer.evaluate([0.1])
     model.interact.updatePlots()
     print('-----0.15------')
-    optimizer.evaluate([0.15])
+    optimizer.evaluate([0.0])
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
+    print('-----0.0------')
+    optimizer.evaluate([0.0])
     # print('-----0.0------')
     # optimizer.evaluate([0.0])
-    # print('-----0.0------')
-    # optimizer.evaluate([0.0])
-    # print('-----0.0------')
-    # optimizer.evaluate([0.0])
-    # print('done')
-    # obj = Mock()
-    # obj.new = 0.25
-    #
-    # model.interact.modifyModel(('dedicated', 'A'), obj)
+    print('done')
+
     # model.collectAllCharacteristics()
     # userCostDf = model.userCostDataFrame(vectorUserCosts)
     outcome = optimizer.minimize()

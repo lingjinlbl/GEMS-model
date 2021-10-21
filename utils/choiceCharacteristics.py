@@ -263,7 +263,9 @@ def mixedPortion(mixedPortionByMicrotype: np.ndarray, toThroughDistance: np.ndar
     assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
     mixedTrafficDistance = assignmentMatrix @ mixedPortionByMicrotype
     full = np.ones_like(mixedPortionByMicrotype)
-    return mixedTrafficDistance / (assignmentMatrix @ full)
+    out = mixedTrafficDistance / (assignmentMatrix @ full)
+    out[np.isnan(out)] = 1.0
+    return out
 
 
 def filterAllocation(mode: str, inputAllocation, microtypes):
