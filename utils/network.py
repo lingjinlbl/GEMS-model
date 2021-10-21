@@ -910,10 +910,7 @@ class BusMode(Mode):
                 self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength,
                                      self.getRouteLength() / n.avgLinkLength / 2)  # Why was this divided by 100?
                 self.__networkAccumulation[n][0] = min(VMT / self._speed[n],
-                                     self.getRouteLength() / n.avgLinkLength / 2 * self.relativeLength)
-                out1.append(VMT / self._speed[n] * self.relativeLength)
-                out2.append(self.getRouteLength() / n.avgLinkLength)
-                out3.append(self._speed[n])
+                                                       self.getRouteLength() / n.avgLinkLength / 2 * self.relativeLength)
                 n.setN(self.name, self._N_eff[n])
                 # n.getNetworkStateData().nonAutoAccumulation += self._N_eff[n]
         # print(out1, out2, out3)
