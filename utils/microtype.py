@@ -225,6 +225,7 @@ class MicrotypeCollection:
         self.__numpyNetworkOccupancy = np.ndarray([0])
         self.__numpyNetworkSpeed = np.ndarray([0])
         self.__numpyNetworkBlockedDistance = np.ndarray([0])
+        self.__transitionMatrixNetworkIdx = np.array([], dtype=int)
 
     @property
     def autoThroughDistance(self):
@@ -360,9 +361,9 @@ class MicrotypeCollection:
             self.__numpyNetworkAccumulation = np.zeros((len(self.__scenarioData['subNetworkData'].index),
                                                         len(self.modeToIdx)), dtype=float)
             self.__numpyNetworkOccupancy = np.zeros((len(self.__scenarioData['subNetworkData'].index),
-                                                        len(self.modeToIdx)), dtype=float)
+                                                     len(self.modeToIdx)), dtype=float)
             self.__numpyNetworkBlockedDistance = np.zeros((len(self.__scenarioData['subNetworkData'].index),
-                                                        len(self.modeToIdx)), dtype=float)
+                                                           len(self.modeToIdx)), dtype=float)
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
@@ -383,6 +384,9 @@ class MicrotypeCollection:
                                          self.__numpyNetworkOccupancy[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkBlockedDistance[self.__networkIdToIdx[subNetworkId], :],
                                          self.modeToIdx)
+                    if 'auto' in subNetwork.modesAllowed.lower():  # Simple fix for now while we just have 1 auto network per microtype
+                        self.__transitionMatrixNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
+                                                                      self.__networkIdToIdx[subNetworkId])
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())
@@ -515,6 +519,9 @@ class MicrotypeCollection:
                     n_init[idx] = networkStateData.initialAccumulation
                     speedFunctions[idx] = autoNetwork.MFD
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
+        N_other = self.__numpyNetworkAccumulation[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
+        V_other = self.__numpyNetworkSpeed[self.__transitionMatrixNetworkIdx, self.modeToIdx['auto']]
+        L_blocked = self.__numpyNetworkBlockedDistance[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
         # print(n_other)
         dt = self.__timeStepInSeconds
         # if False:
