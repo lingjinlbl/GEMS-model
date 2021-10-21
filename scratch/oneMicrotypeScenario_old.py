@@ -61,7 +61,8 @@ newdf.to_csv(newPath, index=False)
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "OriginDestination.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "OriginDestination.csv")
 df = pd.read_csv(oldPath)
-newdf = df.loc[df.HomeMicrotypeID.str.startswith(geotype) & df.OriginMicrotypeID.str.startswith(geotype) & df.DestinationMicrotypeID.str.startswith(geotype), :]
+newdf = df.loc[df.HomeMicrotypeID.str.startswith(geotype) & df.OriginMicrotypeID.str.startswith(
+    geotype) & df.DestinationMicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "HomeMicrotypeID"] = newdf.loc[:, "HomeMicrotypeID"].str.split('_').str[1].values
 newdf.loc[:, "OriginMicrotypeID"] = newdf.loc[:, "OriginMicrotypeID"].str.split('_').str[1].values
 newdf.loc[:, "DestinationMicrotypeID"] = newdf.loc[:, "DestinationMicrotypeID"].str.split('_').str[1].values
@@ -84,8 +85,8 @@ newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].
 newdf.to_csv(newPath, index=False)
 
 # %% SubNetworks
-oldPath = os.path.join(ROOT_DIR, "..", inFolder, "SubNetworks.csv")
-newPath = os.path.join(ROOT_DIR, "..", outFolder, "SubNetworks.csv")
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "SubNetworks-original.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "SubNetworks-original.csv")
 df = pd.read_csv(oldPath)
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values

@@ -20,7 +20,7 @@ demandForPMTByMode = []
 ldCosts = []
 allCosts = []
 allCostObjects = []
-sn = pd.read_csv(ROOT_DIR + "/../input-data-geotype-A/SubNetworks.csv", index_col="SubnetworkID",
+sn = pd.read_csv(ROOT_DIR + "/../input-data-geotype-A/SubNetworks-original.csv", index_col="SubnetworkID",
                  dtype={"MicrotypeID": str})
 mask = (sn.ModesAllowed == 'Auto-Bus-Bike')
 jamDensity = np.linspace(0.12, 0.2, num=20)
