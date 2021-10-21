@@ -700,6 +700,9 @@ class TransitionMatrices:
             X4 = np.vstack([df.values, startVec])
             X5 = np.hstack([X4, 1 - X4.sum(axis=1).reshape((-1, 1))])
             _, vec = eigs(X5.transpose(), k=1, which='LM')
+            if vec.shape[1] > 1:
+                # Something weird about eigs?
+                vec = vec[:, 0]
             tripDistribution = np.real_if_close(vec[:-1]) / np.real_if_close(vec[:-1]).sum()
             if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
                 print('Something went wrong in loading transition matrices')
