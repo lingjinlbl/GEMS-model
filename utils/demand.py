@@ -337,7 +337,7 @@ class Demand:
 
                 currentODindex = self.odiToIdx[odi]
                 currentPopIndex = self.diToIdx[demandIndex]
-                weights[currentODindex] += demandForPMT  # tripRatePerHour  # demandForPMT # CHANGED
+                weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
                 self.__validOD[currentODindex] = True
                 self.__validDI[currentPopIndex] = True
