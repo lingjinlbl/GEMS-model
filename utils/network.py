@@ -892,7 +892,8 @@ class BusMode(Mode):
 
 class Network:
     def __init__(self, data, characteristics, idx, diameter=None, microtypeID=None, microtypeSpeed=None,
-                 modeSpeed=None, modeAccumulation=None, modeBlockedDistance=None, networkLength=None, modeToIdx=None):
+                 modeSpeed=None, modeAccumulation=None, modeBlockedDistance=None, modeVehicleSize=None,
+                 networkLength=None, modeToIdx=None):
         self.data = data
 
         self.characteristics = characteristics
@@ -923,6 +924,7 @@ class Network:
         self.__microtypeSpeed = microtypeSpeed
         self.__modeSpeed = modeSpeed
         self.__modeAccumulation = modeAccumulation
+        self.__modeVehicleSize = modeVehicleSize
         self.__networkLength = networkLength
         self.__modeBlockedDistance = modeBlockedDistance
         np.copyto(self.__networkLength, self.__data[self.dataColumnToIdx["Length"]])
@@ -949,6 +951,9 @@ class Network:
 
     def setModeBlockedDistance(self, mode, blockedDistance: float):
         np.copyto(self.__modeBlockedDistance[self.__modeToIdx[mode], None], blockedDistance)
+
+    def setModeVehicleSize(self, mode, vehicleSize: float):
+        np.copyto(self.__modeVehicleSize[self.__modeToIdx[mode], None], vehicleSize)
 
     def recompileMFD(self):
         self.__data = self.data.iloc[self._idx, :].to_numpy()
@@ -1184,6 +1189,7 @@ class Network:
             return 0.0
 
     def addMode(self, mode: Mode):
+        self.setModeVehicleSize(mode.name, mode.relativeLength)
         self._modes[mode.name] = mode
         self.L_blocked[mode.name] = 0.0
         self._VMT[mode.name] = 0.0
