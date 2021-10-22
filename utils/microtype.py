@@ -222,7 +222,8 @@ class MicrotypeCollection:
         self.__numpyMixedTrafficDistance = np.ndarray([0])
         self.__diameters = np.ndarray([0])
         self.__numpyNetworkAccumulation = np.ndarray([0])
-        self.__numpyNetworkOccupancy = np.ndarray([0])
+        self.__numpyNetworkLength = np.ndarray([0])
+        self.__numpyVehicleSize = np.ndarray([0])
         self.__numpyNetworkSpeed = np.ndarray([0])
         self.__numpyNetworkBlockedDistance = np.ndarray([0])
         self.__transitionMatrixNetworkIdx = np.array([], dtype=int)
@@ -360,10 +361,12 @@ class MicrotypeCollection:
                                                  len(self.modeToIdx)), dtype=float)
             self.__numpyNetworkAccumulation = np.zeros((len(self.__scenarioData['subNetworkData'].index),
                                                         len(self.modeToIdx)), dtype=float)
-            self.__numpyNetworkOccupancy = np.zeros((len(self.__scenarioData['subNetworkData'].index),
-                                                     len(self.modeToIdx)), dtype=float)
+            self.__numpyVehicleSize = np.zeros((len(self.__scenarioData['subNetworkData'].index),
+                                                len(self.modeToIdx)), dtype=float)
             self.__numpyNetworkBlockedDistance = np.zeros((len(self.__scenarioData['subNetworkData'].index),
                                                            len(self.modeToIdx)), dtype=float)
+            self.__numpyNetworkLength = np.zeros((len(self.__scenarioData['subNetworkData'].index),
+                                                  1), dtype=float)
             self.__modeToMicrotype = dict()
 
         for microtypeID, diameter in microtypeData.itertuples(index=False):
@@ -381,8 +384,8 @@ class MicrotypeCollection:
                                          self.__numpySpeed[self.microtypeIdToIdx[microtypeID], :],
                                          self.__numpyNetworkSpeed[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkAccumulation[self.__networkIdToIdx[subNetworkId], :],
-                                         self.__numpyNetworkOccupancy[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkBlockedDistance[self.__networkIdToIdx[subNetworkId], :],
+                                         self.__numpyNetworkLength[self.__networkIdToIdx[subNetworkId], :],
                                          self.modeToIdx)
                     if 'auto' in subNetwork.modesAllowed.lower():  # Simple fix for now while we just have 1 auto network per microtype
                         self.__transitionMatrixNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
@@ -519,7 +522,8 @@ class MicrotypeCollection:
                     n_init[idx] = networkStateData.initialAccumulation
                     speedFunctions[idx] = autoNetwork.MFD
         #            tripStartRate[idx] = microtype.getModeStartRate("auto") / 3600.
-        N_other = self.__numpyNetworkAccumulation[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
+        N_other = self.__numpyNetworkAccumulation[self.__transitionMatrixNetworkIdx, :].sum(
+            axis=1)  # TODO: filter out car accumulation
         V_other = self.__numpyNetworkSpeed[self.__transitionMatrixNetworkIdx, self.modeToIdx['auto']]
         L_blocked = self.__numpyNetworkBlockedDistance[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
         # print(n_other)

@@ -78,7 +78,8 @@ class Costs:
 
 
 class Mode:
-    def __init__(self, networks=None, params=None, microtypeID=None, name=None, travelDemandData=None, speedData=None):
+    def __init__(self, networks=None, params=None, microtypeID=None, name=None, travelDemandData=None, speedData=None,
+                 numpySubnetworkSpeed=None, numpySubnetworkAccumulation=None, numpySubnetworkBlockedDistance=None):
         self.name = name
         self.params = params
         self.microtypeID = microtypeID
@@ -90,7 +91,6 @@ class Mode:
         # self._N_tot = 0.0
         self._N_eff = dict()
         self._networkAccumulation = dict()
-        self._networkOccupancy = dict()
         self._networkBlockedDistance = dict()
         self._networkSpeed = dict()
         self._L_blocked = dict()
@@ -216,7 +216,6 @@ class WalkMode(Mode):
         for n in networks:
             n.addMode(self)
             self._networkAccumulation[n] = n.modeAccumulation(self.name)
-            self._networkOccupancy[n] = n.modeOccupancy(self.name)
             self._networkSpeed[n] = n.modeSpeed(self.name)
             self._networkBlockedDistance[n] = n.modeBlockedDistance(self.name)
             self._L_blocked[n] = 0.0
@@ -267,7 +266,6 @@ class BikeMode(Mode):
             n.addMode(self)
             # self._N[n] = 0.0
             self._networkAccumulation[n] = n.modeAccumulation(self.name)
-            self._networkOccupancy[n] = n.modeOccupancy(self.name)
             self._networkSpeed[n] = n.modeSpeed(self.name)
             self._networkBlockedDistance[n] = n.modeBlockedDistance(self.name)
             self._L_blocked[n] = 0.0
@@ -369,7 +367,6 @@ class RailMode(Mode):
             n.addMode(self)
             # self._N[n] = 0.0
             self._networkAccumulation[n] = n.modeAccumulation(self.name)
-            self._networkOccupancy[n] = n.modeOccupancy(self.name)
             self._networkSpeed[n] = n.modeSpeed(self.name)
             self._networkBlockedDistance[n] = n.modeBlockedDistance(self.name)
             self._L_blocked[n] = 0.0
@@ -474,7 +471,6 @@ class AutoMode(Mode):
         for n in networks:
             n.addMode(self)
             self._networkAccumulation[n] = n.modeAccumulation(self.name)
-            self._networkOccupancy[n] = n.modeOccupancy(self.name)
             self._networkSpeed[n] = n.modeSpeed(self.name)
             self._networkBlockedDistance[n] = n.modeBlockedDistance(self.name)
             # self._N[n] = 0.0
@@ -612,7 +608,6 @@ class BusMode(Mode):
         for n in networks:
             n.addMode(self)
             self._networkAccumulation[n] = n.modeAccumulation(self.name)
-            self._networkOccupancy[n] = n.modeOccupancy(self.name)
             self._networkSpeed[n] = n.modeSpeed(self.name)
             self._networkBlockedDistance[n] = n.modeBlockedDistance(self.name)
             self._L_blocked[n] = 0.0
@@ -826,7 +821,8 @@ class BusMode(Mode):
             self._L_blocked[n] = L_blocked
             n.L_blocked[self.name] = L_blocked  # * self.getRouteLength() / n.L
             n.getNetworkStateData().blockedDistance = L_blocked  # HACK: Only one mode can block distance at a time
-            self._networkBlockedDistance[n][0] = L_blocked
+            assert isinstance(n, Network)
+            n.setModeBlockedDistance('bus', L_blocked)
             if n.getNetworkStateData().blockedDistance > self.getRouteLength():
                 print('HMMMMM')
 
@@ -895,14 +891,15 @@ class BusMode(Mode):
 
 
 class Network:
-    def __init__(self, data, characteristics, idx, diameter=None, microtypeID=None, modeToMicrotypeSpeed=None,
-                 modeSpeed=None, modeAccumulation=None, modeOccupancy=None, modeBlockedDistance=None, modeToIdx=None):
+    def __init__(self, data, characteristics, idx, diameter=None, microtypeID=None, microtypeSpeed=None,
+                 modeSpeed=None, modeAccumulation=None, modeBlockedDistance=None, networkLength=None, modeToIdx=None):
         self.data = data
 
         self.characteristics = characteristics
         self.charColumnToIdx = {i: characteristics.columns.get_loc(i) for i in characteristics.columns}
         self.dataColumnToIdx = {i: data.columns.get_loc(i) for i in data.columns}
         self.microtypeID = microtypeID
+        self.subNetworkId = idx
         self._idx = data.index.get_loc(idx)
         self.__data = data.iloc[self._idx, :].to_numpy()
         self.type = self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
@@ -923,11 +920,12 @@ class Network:
         self._V_final = self.freeFlowSpeed
         self._V_steadyState = self.freeFlowSpeed
         self.__modeToIdx = modeToIdx
-        self.__modeToMicrotypeSpeed = modeToMicrotypeSpeed
+        self.__microtypeSpeed = microtypeSpeed
         self.__modeSpeed = modeSpeed
         self.__modeAccumulation = modeAccumulation
-        self.__modeOccupancy = modeOccupancy
+        self.__networkLength = networkLength
         self.__modeBlockedDistance = modeBlockedDistance
+        np.copyto(self.__networkLength, self.__data[self.dataColumnToIdx["Length"]])
         self.MFD = self.defineMFD()
         if diameter is None:
             self.__diameter = 1.0
@@ -937,14 +935,20 @@ class Network:
     def modeAccumulation(self, mode):
         return self.__modeAccumulation[self.__modeToIdx[mode], None]
 
+    def setModeAccumulation(self, mode, accumulation: float):
+        np.copyto(self.__modeAccumulation[self.__modeToIdx[mode], None], accumulation)
+
     def modeSpeed(self, mode):
         return self.__modeSpeed[self.__modeToIdx[mode]]
 
-    def modeOccupancy(self, mode):
-        return self.__modeOccupancy[self.__modeToIdx[mode], None]
+    def setModeSpeed(self, mode, speed: float):
+        np.copyto(self.__modeSpeed[self.__modeToIdx[mode], None], speed)
 
     def modeBlockedDistance(self, mode):
         return self.__modeBlockedDistance[self.__modeToIdx[mode], None]
+
+    def setModeBlockedDistance(self, mode, blockedDistance: float):
+        np.copyto(self.__modeBlockedDistance[self.__modeToIdx[mode], None], blockedDistance)
 
     def recompileMFD(self):
         self.__data = self.data.iloc[self._idx, :].to_numpy()
@@ -1019,7 +1023,7 @@ class Network:
 
     @property
     def autoSpeed(self):
-        return self.__modeToMicrotypeSpeed[self.__modeToIdx['auto']]
+        return self.__microtypeSpeed[self.__modeToIdx['auto']]
 
     @base_speed.setter
     def base_speed(self, spd):
@@ -1043,7 +1047,8 @@ class Network:
 
     @property
     def L(self):
-        return self.__data[self.dataColumnToIdx["Length"]]
+        return self.__networkLength
+        # return self.__data[self.dataColumnToIdx["Length"]]
 
     @property
     def diameter(self):
@@ -1113,7 +1118,7 @@ class Network:
         if self.type == 'Road':
             if 'auto' in self.getModeNames() and not overrideMatrix:
                 # print("THIS WILL BREAK THINGS")
-                return self.__modeToMicrotypeSpeed[self.__modeToIdx['auto']]
+                return self.__microtypeSpeed[self.__modeToIdx['auto']]
                 # return self._networkStateData.averageSpeed
             else:
                 if Q is None:
@@ -1268,6 +1273,8 @@ class NetworkCollection:
             assert (isinstance(modeName, str))
             assert (isinstance(networks, List))
             params = modeToModeData[modeName]
+
+            # numpySubnetworkSpeed=None, numpySubnetworkAccumulation=None, numpySubnetworkBlockedDistance=None
 
             if modeName == "bus":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].base_speed
