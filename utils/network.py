@@ -1348,12 +1348,14 @@ class NetworkCollection:
             m.updateDemand(self.demands[m.name])
 
         for m in self.modes.values():  # uniqueModes:
+            # replace this with assign accumulation to networks
             m.assignVmtToNetworks()
             for n in m.networks:
-                n.updateBaseSpeed()
+                n.updateBaseSpeed()  # this will now be taken care of in microtype mfd calculations
             m.updateModeBlockedDistance()
             m.updateRouteAveragedSpeed()
 
+        # we can get rid of this
         for modes, n in self:
             nonAutoAccumulation = sum([self.modes[m]._N_eff[n] for m in modes if m in {'bus'}])
             n.getNetworkStateData().nonAutoAccumulation = nonAutoAccumulation

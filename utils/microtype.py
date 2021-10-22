@@ -227,6 +227,7 @@ class MicrotypeCollection:
         self.__numpyNetworkSpeed = np.ndarray([0])
         self.__numpyNetworkBlockedDistance = np.ndarray([0])
         self.__transitionMatrixNetworkIdx = np.array([], dtype=int)
+        self.__individualMFDNetworkIdx = np.array([], dtype=int)
         self.__nonAutoModes = np.array([True] * len(self.modeToIdx))
         self.__nonAutoModes[self.modeToIdx['auto']] = False
 
@@ -397,6 +398,9 @@ class MicrotypeCollection:
                     if 'auto' in subNetwork.modesAllowed.lower():  # Simple fix for now while we just have 1 auto network per microtype
                         self.__transitionMatrixNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
                                                                       self.__networkIdToIdx[subNetworkId])
+                    else:
+                        self.__individualMFDNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
+                                                                   self.__networkIdToIdx[subNetworkId])
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())
@@ -570,7 +574,7 @@ class MicrotypeCollection:
                     networkStateData.v = np.squeeze(vs[idx, :])
                     networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
         return {"t": np.transpose(ts), "v": np.transpose(vs), "n": np.transpose(ns),
-                "max_accumulation": np.nan}
+                "max_accumulation": 100}
 
     def __iter__(self) -> (str, Microtype):
         return iter(self.__microtypes.items())
