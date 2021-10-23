@@ -383,6 +383,7 @@ class MicrotypeCollection:
                 subNetworkToModes = OrderedDict()
                 modeToModeData = OrderedDict()
                 allModes = set()
+                collectMatrixIds = (len(self.__transitionMatrixNetworkIdx) == 0)
                 for subNetworkId in subNetworkCharacteristics.loc[
                     subNetworkCharacteristics["MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
@@ -395,12 +396,13 @@ class MicrotypeCollection:
                                          self.__numpyVehicleSize[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkLength[self.__networkIdToIdx[subNetworkId], :],
                                          self.modeToIdx)
-                    if 'auto' in subNetwork.modesAllowed.lower():  # Simple fix for now while we just have 1 auto network per microtype
-                        self.__transitionMatrixNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
-                                                                      self.__networkIdToIdx[subNetworkId])
-                    else:
-                        self.__individualMFDNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
-                                                                   self.__networkIdToIdx[subNetworkId])
+                    if collectMatrixIds:
+                        if 'auto' in subNetwork.modesAllowed.lower():  # Simple fix for now while we just have 1 auto network per microtype
+                            self.__transitionMatrixNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
+                                                                          self.__networkIdToIdx[subNetworkId])
+                        else:
+                            self.__individualMFDNetworkIdx = np.append(self.__transitionMatrixNetworkIdx,
+                                                                       self.__networkIdToIdx[subNetworkId])
                     for n in joined.itertuples():
                         subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
                         allModes.add(n.ModeTypeID.lower())
