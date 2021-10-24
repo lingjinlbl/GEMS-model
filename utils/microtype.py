@@ -95,13 +95,6 @@ class Microtype:
     def addModeEnds(self, mode, demand):
         self.networks.demands.addModeEnds(mode, demand)
 
-    def addModeDemandForPMT(self, mode, demand, trip_distance_in_miles):
-        self.networks.demands.addModeThroughTrips(mode, demand, trip_distance_in_miles)
-
-    # def setModeDemand(self, mode, demand, trip_distance_in_miles):
-    #     self.networks.demands.setSingleDemand(mode, demand, trip_distance_in_miles)
-    #     self.networks.updateModes()
-
     def resetDemand(self):
         self.networks.resetModes()
         self.networks.demands.resetDemand()
@@ -115,17 +108,6 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    # def getThroughTimeCostWait(self, mode: str, distanceInMiles: float) -> ChoiceCharacteristics:
-    #     speedMilesPerHour = np.max([self.getModeSpeed(mode), 0.01]) * 2.23694
-    #     if np.isnan(speedMilesPerHour):
-    #         speedMilesPerHour = self.getModeSpeed("auto")
-    #     timeInHours = distanceInMiles / speedMilesPerHour
-    #     cost = distanceInMiles * self.networks.modes[mode].perMile
-    #     wait = 0.
-    #     accessTime = 0.
-    #     protectedDistance = self.networks.modes[mode].getPortionDedicated() * distanceInMiles
-    #     return ChoiceCharacteristics(timeInHours, cost, wait, accessTime, protectedDistance, distanceInMiles)
-
     def addStartTimeCostWait(self, mode: str, cc: ChoiceCharacteristics):
         if mode in self:
             cc.cost += self.networks.modes[mode].perStart
@@ -135,17 +117,6 @@ class Microtype:
             cc.access_time += self.networks.modes[
                                   mode].getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
 
-    # def addThroughTimeCostWait(self, mode: str, distanceInMiles: float, cc: ChoiceCharacteristics):
-    #     if mode in self:
-    #         speedMilesPerHour = max([self.getModeSpeed(mode), 0.01]) * 2.23694
-    #         if np.isnan(speedMilesPerHour):
-    #             speedMilesPerHour = self.getModeSpeed("auto")
-    #         timeInHours = distanceInMiles / speedMilesPerHour
-    #         cc.travel_time += timeInHours
-    #         cc.cost += distanceInMiles * self.networks.modes[mode].perMile
-    #         cc.distance += distanceInMiles
-    #         cc.protected_distance += self.networks.modes[mode].getPortionDedicated() * distanceInMiles
-
     def addEndTimeCostWait(self, mode: str, cc: ChoiceCharacteristics):
         if mode in self:
             cc.cost += self.networks.modes[mode].perEnd
@@ -153,29 +124,6 @@ class Microtype:
                 cc.wait_time += self.networks.modes['bus'].headwayInSec / 3600. / 4.
             cc.access_time += self.networks.modes[mode].getAccessDistance() * self.networks.modes[
                 'walk'].speedInMetersPerSecond / 3600.0
-
-    # def getStartTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
-    #     time = 0.
-    #     cost = self.networks.modes[mode].perStart
-    #     if mode in ['bus', 'rail']:
-    #         wait = self.networks.modes[
-    #                    'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
-    #     else:
-    #         wait = 0.
-    #     walkAccessTime = self.networks.modes[mode].getAccessDistance() * self.networks.modes[
-    #         'walk'].speedInMetersPerSecond / 3600.0
-    #     return ChoiceCharacteristics(time, cost, wait, walkAccessTime)
-    #
-    # def getEndTimeCostWait(self, mode: str) -> ChoiceCharacteristics:
-    #     time = 0.
-    #     cost = self.networks.modes[mode].perEnd
-    #     if mode == 'bus':
-    #         wait = self.networks.modes['bus'].headwayInSec / 3600. / 4.
-    #     else:
-    #         wait = 0.
-    #     walkEgressTime = self.networks.modes[mode].getAccessDistance() * self.networks.modes[
-    #         'walk'].speedInMetersPerSecond / 3600.0
-    #     return ChoiceCharacteristics(time, cost, wait, walkEgressTime)
 
     def getFlows(self):
         return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
@@ -186,22 +134,6 @@ class Microtype:
     def getDemandsForPMT(self):
         return [mode.getPassengerFlow() for mode in
                 self.networks.modes.values()]
-
-    # def getPassengerOccupancy(self):
-    #     return [self.getModeOccupancy(mode) for mode in self.modes]
-
-    # def getTravelTimes(self):
-    #     speeds = np.array(self.getSpeeds())
-    #     speeds[~(speeds > 0)] = np.nan
-    #     distances = np.array([self.getModeMeanDistance(mode) for mode in self.modes])
-    #     return distances / speeds
-
-    # def getTotalTimes(self):
-    #     speeds = np.array(self.getSpeeds())
-    #     demands = np.array(self.getDemandsForPMT())
-    #     times = speeds * demands
-    #     times[speeds == 0.] = np.inf
-    #     return times
 
     def __str__(self):
         return 'Demand: ' + str(self.getFlows()) + ' , Speed: ' + str(self.getSpeeds())

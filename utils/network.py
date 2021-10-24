@@ -148,9 +148,11 @@ class Mode:
     def assignVmtToNetworks(self):
         Ltot = sum([n.L for n in self.networks])
         for n in self.networks:
+            assert (isinstance(n, Network))
             VMT = self._VMT_tot * n.L / Ltot
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
+            n.setModeAccumulation(self.name, VMT / n.modeSpeed(self.name))
             # self._speed[n] = n.NEF()  # n.NEF(VMT * mph2mps, self.name)
             self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
             n.setN(self.name, self._N_eff[n])
@@ -222,6 +224,7 @@ class WalkMode(Mode):
             self._VMT[n] = 0.0
             self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
+            n.setModeSpeed(self.name, n.base_speed)
 
     @property
     def perStart(self):
@@ -272,6 +275,7 @@ class BikeMode(Mode):
             self._VMT[n] = 0.0
             self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
+            n.setModeSpeed(self.name, n.base_speed)
         self.bikeLanePreference = 2.0
 
     @property
@@ -330,6 +334,7 @@ class BikeMode(Mode):
                     VMT = VMT_mixed * n.L * n.jamDensity / capacityMixed
             self._VMT[n] = VMT
             n.setVMT(self.name, self._VMT[n])
+            n.setModeAccumulation(self.name, VMT / n.modeSpeed(self.name))
             self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
             n.setN(self.name, self._N_eff[n])
 
@@ -373,6 +378,7 @@ class RailMode(Mode):
             self._VMT[n] = 0.0
             self._N_eff[n] = 0.0
             self._speed[n] = n.base_speed
+            n.setModeSpeed(self.name, n.base_speed)
 
     @property
     def perStart(self):
@@ -441,15 +447,15 @@ class RailMode(Mode):
     def getDemandForVmtPerHour(self):
         return self.getRouteLength() / self.headwayInSec * 3600.
 
-    def assignVmtToNetworks(self):
-        Ltot = sum([n.L for n in self.networks])
-        for n in self.networks:
-            VMT = self._VMT_tot * n.L / Ltot
-            self._VMT[n] = VMT
-            n.setVMT(self.name, self._VMT[n])
-            self._speed[n] = self.routeAveragedSpeed
-            self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
-            n.setN(self.name, self._N_eff[n])
+    # def assignVmtToNetworks(self):
+    #     Ltot = sum([n.L for n in self.networks])
+    #     for n in self.networks:
+    #         VMT = self._VMT_tot * n.L / Ltot
+    #         self._VMT[n] = VMT
+    #         n.setVMT(self.name, self._VMT[n])
+    #         self._speed[n] = self.routeAveragedSpeed
+    #         self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
+    #         n.setN(self.name, self._N_eff[n])
 
     def updateScenarioInputs(self):
         self._params = self.params.to_numpy()
@@ -526,6 +532,7 @@ class AutoMode(Mode):
                 # self._speed[n] = n.NEF(self._VMT_tot * mph2mps, self.name, self.override)
                 n.setVMT(self.name, self._VMT[n])
                 self._N_eff[n] = self._VMT_tot / self._speed[n] * self.relativeLength
+
                 self._networkAccumulation[n][0] = self._VMT_tot / self._speed[n]
                 n.setN(self.name, self._N_eff[n])
             else:
@@ -846,6 +853,7 @@ class BusMode(Mode):
                 n.setVMT(self.name, self._VMT[n])
                 n.updateBaseSpeed()
                 self._speed[n] = self.getSubNetworkSpeed(n)
+                n.setModeSpeed(self.name, self.getSubNetworkSpeed(n))
                 self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength,
                                      self.getRouteLength() / n.avgLinkLength / 2)  # Why was this divided by 100?
                 self._networkAccumulation[n][0] = min(
@@ -1208,6 +1216,8 @@ class Network:
         # self._networkStateData.averageSpeed = np.mean(v)
 
     def getVMT(self, mode):
+        vmt1 = self._VMT.get(mode, 0.0)
+        vmt2 = self.modeAccumulation(mode) * self.modeSpeed(mode)
         return self._VMT.get(mode, 0.0)
 
     # def getTransitionMatrixMeanSpeed(self):

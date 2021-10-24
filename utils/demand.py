@@ -407,7 +407,7 @@ class Demand:
             np.copyto(self.__modeSplitData, modeSplitArray)
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
-        totalDemandForTrips = 0.0
+
         distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
         startsByOrigin = np.einsum('ijk,ijl->lk', startsByMode, self.__toStarts)
@@ -415,8 +415,7 @@ class Demand:
         passengerMilesByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughDistance)
         throughCountsByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughCounts)
         vehicleMilesByMicrotype = passengerMilesByMicrotype.copy()
-        # print(['Demand: ', str(vehicleMilesByMicrotype[:, self.modeToIdx['auto']]),
-        #        vehicleMilesByMicrotype[:, self.modeToIdx['auto']].sum() / 1e6])
+
         for mode, modeIdx in self.modeToIdx.items():
             for mID, mIdx in self.microtypeIdToIdx.items():
                 if microtypes[mID].networks.getMode(mode).fixedVMT:
@@ -427,25 +426,6 @@ class Demand:
 
         microtypes.updateNumpyDemand(newData)
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
-
-        # for di, odi in self.keys():
-        #     if (di, odi) not in self:
-        #         continue
-        #     else:
-        #         ms = self[(di, odi)]
-        #     for mode, split in ms:
-        #         if split > 0:
-        #             microtypes[odi.o].addModeStarts(mode, ms.demandForTripsPerHour * split)
-        #             microtypes[odi.d].addModeEnds(mode, ms.demandForTripsPerHour * split)
-        #             if mode == "auto":
-        #                 weights[self.__transitionMatrices.idx(odi)] += ms.demandForTripsPerHour * split
-        #                 totalDemandForTrips += ms.demandForTripsPerHour * split
-        #             else:
-        #                 newAllocation = microtypes.filterAllocation(mode, self.__trips[odi].allocation)
-        #                 for k, portion in newAllocation.items():
-        #                     microtypes[k].addModeDemandForPMT(mode, ms.demandForTripsPerHour * split,
-        #                                                       self.__distanceBins[odi.distBin])
-        # print(autoDemandInMeters / microtypes.collectedNetworkStateData.getAutoProduction())
 
         """
         Step one: Update transition matrix (depends only on mode split)
