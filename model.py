@@ -629,7 +629,8 @@ class Model:
         """
         Finalize
         """
-        self.demand.updateMFD(self.microtypes, modeSplitArray=fixedPointModeSplit)
+        self.demand.updateMFD(self.microtypes,
+                              modeSplitArray=fixedPointModeSplit)  # Blocked distance n ot working still
         self.choice.updateChoiceCharacteristics(self.microtypes, self.__trips)
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
@@ -1190,7 +1191,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-geotype-A", 1, False)
+    model = Model("input-data", 1, True)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])

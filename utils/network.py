@@ -858,7 +858,8 @@ class BusMode(Mode):
                 # self._VMT[n] = VMT
                 # n.setVMT(self.name, self._VMT[n])
                 # n.updateBaseSpeed()
-                n.runSingleNetworkMFD()
+                if n.dedicated:
+                    n.runSingleNetworkMFD()
                 # self._speed[n] = self.getSubNetworkSpeed(n)
                 n.setModeSpeed(self.name, self.getSubNetworkSpeed(n))
                 # self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength,
@@ -1051,11 +1052,11 @@ class Network:
 
     @property
     def autoSpeed(self):
-        return self.__microtypeSpeed[self.__modeToIdx['auto']]
+        return self.__modeSpeed[self.__modeToIdx['auto']]
 
     @autoSpeed.setter
     def autoSpeed(self, newSpeed):
-        self.__microtypeSpeed[self.__modeToIdx['auto']] = newSpeed
+        self.__modeSpeed[self.__modeToIdx['auto']] = newSpeed
 
     @base_speed.setter
     def base_speed(self, spd):

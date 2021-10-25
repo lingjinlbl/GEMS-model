@@ -308,6 +308,7 @@ class MicrotypeCollection:
                                                   1), dtype=float)
             self.__modeToMicrotype = dict()
 
+        collectMatrixIds = (len(self.__transitionMatrixNetworkIdx) == 0)
         for microtypeID, diameter in microtypeData.itertuples(index=False):
             if (microtypeID in self) & ~override:
                 self[microtypeID].resetDemand()
@@ -315,7 +316,6 @@ class MicrotypeCollection:
                 subNetworkToModes = OrderedDict()
                 modeToModeData = OrderedDict()
                 allModes = set()
-                collectMatrixIds = (len(self.__transitionMatrixNetworkIdx) == 0)
                 for subNetworkId in subNetworkCharacteristics.loc[
                     subNetworkCharacteristics["MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
@@ -404,6 +404,8 @@ class MicrotypeCollection:
 
         self.__numpySpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)
+        for idx, spd in zip(self.__transitionMatrixNetworkIdx, averageSpeeds):
+            self.__numpyNetworkSpeed[idx, self.modeToIdx['auto']] = spd
 
         for microtypeID, microtype in self:
             idx = self.transitionMatrix.idx(microtypeID)
