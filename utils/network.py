@@ -906,7 +906,7 @@ class BusMode(Mode):
 
 
 class Network:
-    def __init__(self, data, characteristics, idx, diameter=None, microtypeID=None, microtypeSpeed=None,
+    def __init__(self, data, characteristics, subNetworkId, diameter=None, microtypeID=None, microtypeSpeed=None,
                  modeSpeed=None, modeAccumulation=None, modeBlockedDistance=None, modeVehicleSize=None,
                  networkLength=None, modeToIdx=None):
         self.data = data
@@ -915,13 +915,13 @@ class Network:
         self.charColumnToIdx = {i: characteristics.columns.get_loc(i) for i in characteristics.columns}
         self.dataColumnToIdx = {i: data.columns.get_loc(i) for i in data.columns}
         self.microtypeID = microtypeID
-        self.subNetworkId = idx
-        self._idx = data.index.get_loc(idx)
-        self.__data = data.iloc[self._idx, :].to_numpy()
-        self.type = self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]]
+        self.subNetworkId = subNetworkId
+        self._iloc = data.index.get_loc(subNetworkId)
+        self.__data = data.iloc[self._iloc, :].to_numpy()
+        self.type = self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]]
         # self.L_blocked = dict()
         self._modes = dict()
-        self.dedicated = characteristics.loc[idx, "Dedicated"]
+        self.dedicated = characteristics.loc[subNetworkId, "Dedicated"]
         self.isJammed = False
         # self._VMT = dict()
         # self._N_eff = dict()
@@ -979,13 +979,13 @@ class Network:
         np.copyto(self.__modeVehicleSize[self.__modeToIdx[mode], None], vehicleSize)
 
     def recompileMFD(self):
-        self.__data = self.data.iloc[self._idx, :].to_numpy()
+        self.__data = self.data.iloc[self._iloc, :].to_numpy()
         self.MFD = self.defineMFD()
 
     def defineMFD(self):
-        if (self.characteristics.iat[self._idx, self.charColumnToIdx["Type"]] == "Road") & ~self.characteristics.iat[
-            self._idx, self.charColumnToIdx["Dedicated"]]:
-            if self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "loder":
+        if (self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road") & ~self.characteristics.iat[
+            self._iloc, self.charColumnToIdx["Dedicated"]]:
+            if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "loder":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
                 densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
                 capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
@@ -1004,7 +1004,7 @@ class Network:
                         speedLinear = vMax * (1. - density / densityMax)
                     return max(min(speedLinear, speedExp), 0.05)
 
-            elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "quadratic":
+            elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "quadratic":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
                 densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
 
@@ -1012,7 +1012,7 @@ class Network:
                 def _MFD(density):
                     return max(vMax * (1. - density / densityMax), 0.05)
 
-            elif self.characteristics.iat[self._idx, self.charColumnToIdx["MFD"]] == "bottleneck":
+            elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "bottleneck":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
                 capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
 
@@ -1038,7 +1038,7 @@ class Network:
         return _MFD
 
     def updateNetworkData(self):  # CONSOLIDATE
-        np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
+        np.copyto(self.__data, self.data.iloc[self._iloc, :].to_numpy())
         self.MFD = self.defineMFD()
 
     # @property
@@ -1088,7 +1088,7 @@ class Network:
 
     @property
     def modesAllowed(self):
-        return self.characteristics.loc[self._idx, 'ModesAllowed']
+        return self.characteristics['ModesAllowed'].iloc[self._iloc]
 
     def __str__(self):
         return str(tuple(self._VMT.keys()))
@@ -1097,7 +1097,7 @@ class Network:
         return mode in self._modes
 
     def updateScenarioInputs(self):
-        np.copyto(self.__data, self.data.iloc[self._idx, :].to_numpy())
+        np.copyto(self.__data, self.data.iloc[self._iloc, :].to_numpy())
 
     def resetAll(self):
         # self.L_blocked = dict()
