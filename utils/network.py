@@ -951,7 +951,7 @@ class Network:
             self.__diameter = diameter
 
     def runSingleNetworkMFD(self):
-        Ntot = (self.__modeSpeed * self.__modeVehicleSize).sum()
+        Ntot = (self.__modeAccumulation * self.__modeVehicleSize).sum()
         Leff = self.L - self.__modeBlockedDistance.sum()
         self.autoSpeed = self.MFD(Ntot / Leff)
 
