@@ -290,19 +290,9 @@ class Demand:
         self.__tripGeneration = tripGeneration
         self.timePeriodDuration = timePeriods[currentTimePeriod]
 
-        # newTransitionMatrix = microtypes.emptyTransitionMatrix()
-        # weights = transitionMatrices.emptyWeights()
         weights = np.zeros(len(self.odiToIdx), dtype=float)
         distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
-        # counter = 0
-        # for demandIndex, _ in population:
-        #     for _, _ in originDestination[demandIndex].items():
-        #         counter += 1
-        for demandIndex, _ in population:
-            od = originDestination[demandIndex]
-            for odi, _ in od.items():
-                # TODO: Make smoother
-                trip = trips[odi]
+
         self.__modeSplitData = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.modeToIdx)), dtype=float)
         self.__shape = self.__modeSplitData.shape
         self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.7
@@ -580,17 +570,6 @@ class Demand:
                                                                 outVehicle * demandForTripsPerHour,
                                                                 demandForTripsPerHour,
                                                                 demandForTripsPerHour * distance)
-                # cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
-                #                                                                                             modes)
-                # # costDefault = demandClass.getCostPerCapita(mcc, ms, modes) * ms.demandForTripsPerHour  # TODO: Add default
-                # totalCost -= cost * demandForTripsPerHour
-                # totalInVehicle += inVehicle * demandForTripsPerHour
-                # totalOutVehicle += outVehicle * demandForTripsPerHour
-                # totalCostDefault -= 0.0
-                # totalDemandForTripsPerHour += demandForTripsPerHour
-                # totalDemandForPMTPerHour += distance * demandForTripsPerHour
-            # out[demandIndex] = TotalUserCosts(totalCost, totalCostDefault, totalInVehicle, totalOutVehicle,
-            # totalDemandForTripsPerHour, totalDemandForPMTPerHour)
         return out.updateTotals()
 
     def __str__(self):

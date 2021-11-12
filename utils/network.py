@@ -241,7 +241,7 @@ class WalkMode(Mode):
             # self._VMT[n] = 0.0
             # self._N_eff[n] = 0.0
             # self._speed[n] = n.base_speed
-            n.setModeSpeed(self.name, n.base_speed)
+            n.setModeSpeed(self.name, self.speedInMetersPerSecond)
 
     @property
     def perStart(self):
@@ -283,7 +283,7 @@ class BikeMode(Mode):
             # self._VMT[n] = 0.0
             # self._N_eff[n] = 0.0
             # self._speed[n] = n.base_speed
-            n.setModeSpeed(self.name, n.base_speed)
+            n.setModeSpeed(self.name, self.speedInMetersPerSecond)
         self.bikeLanePreference = 2.0
 
     @property
@@ -315,13 +315,11 @@ class BikeMode(Mode):
 
     def distanceOnDedicatedLanes(self, capacityTot, capacityDedicated) -> (float, float):
         capacityMixed = capacityTot - capacityDedicated
-        effectiveDedicatedCapacity = capacityDedicated + (1 - self.dedicatedLanePreference) * capacityMixed
-        N = self._PMT / self.speedInMetersPerSecond
-        if N >= effectiveDedicatedCapacity:
-            N_dedicated, N_mixed = N, 0.
-        else:
-            N_dedicated = N / effectiveDedicatedCapacity * capacityDedicated
-            N_mixed = N - N_dedicated
+        portionMixed = (
+                capacityDedicated / capacityTot + self.dedicatedLanePreference * capacityMixed / capacityTot)
+        N = self._PMT[0] / self.speedInMetersPerSecond
+        N_dedicated = min([capacityDedicated, (1 - portionMixed) * N])
+        N_mixed = N - N_dedicated
         return N_dedicated * self.speedInMetersPerSecond, N_mixed * self.speedInMetersPerSecond
 
     def assignVmtToNetworks(self):
@@ -330,7 +328,7 @@ class BikeMode(Mode):
         capacityMixed = capacityTot - capacityDedicated
         VMT_dedicated, VMT_mixed = self.distanceOnDedicatedLanes(capacityTot, capacityDedicated)
         for n in self.networks:
-            if n.dedicated:
+            if n.dedicated | (n.L == 0):
                 if VMT_dedicated == 0:
                     VMT = 0
                 else:
@@ -342,6 +340,8 @@ class BikeMode(Mode):
                     VMT = VMT_mixed * n.L * n.jamDensity / capacityMixed
             # self._VMT[n] = VMT
             # n.setVMT(self.name, self._VMT[n])
+            if np.isnan(VMT / n.modeSpeed(self.name)):
+                print('STOPPPPP')
             n.setModeAccumulation(self.name, VMT / n.modeSpeed(self.name))
             # self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
             # n.setN(self.name, self._N_eff[n])
@@ -862,10 +862,11 @@ class BusMode(Mode):
                     n.runSingleNetworkMFD()
                 # self._speed[n] = self.getSubNetworkSpeed(n)
                 n.setModeSpeed(self.name, self.getSubNetworkSpeed(n))
+                networkAccumulation = self.__N * times[ind] / sum(times)
                 # self._N_eff[n] = min(VMT / self._speed[n] * self.relativeLength,
                 #                      self.getRouteLength() / n.avgLinkLength / 2)  # Why was this divided by 100?
                 self._networkAccumulation[n][0] = min(
-                    self.__N, self.getRouteLength() / n.avgLinkLength / 2 * self.relativeLength)
+                    networkAccumulation, self.getRouteLength() / n.avgLinkLength / 2 * self.relativeLength)
                 # n.setN(self.name, self._N_eff[n])
 
     # def updateCommercialSpeed(self):
@@ -1080,7 +1081,7 @@ class Network:
 
     @property
     def L(self):
-        return self.__networkLength
+        return self.__networkLength[0]
         # return self.__data[self.dataColumnToIdx["Length"]]
 
     @property
