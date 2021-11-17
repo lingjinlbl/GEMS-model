@@ -119,13 +119,13 @@ class Population:
     Class for storing and representing population of microtypes.
     """
 
-    def __init__(self, scenarioData):
+    def __init__(self, scenarioData, choiceParameters, choiceParametersFixed):
         self.__scenarioData = scenarioData
         self.__populationGroups = dict()
         self.__demandClasses = dict()
         self.__totalCosts = dict()
         self.totalPopulation = 0
-        self.__numpy = np.zeros((len(scenarioData.diToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)))
+        self.__numpy = choiceParameters
         self.__numpyCost = np.zeros(
             (len(scenarioData.diToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)))
         self.__modes = scenarioData.getModes()

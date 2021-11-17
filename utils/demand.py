@@ -193,7 +193,7 @@ class Demand:
         self.__population = None
         self.__originDestination = None
         self.__tripGeneration = None
-        self.__trips = TripCollection()
+        # self.__trips = TripCollection()
         self.__distanceBins = DistanceBins()
         self.__transitionMatrices = None
 
@@ -279,11 +279,11 @@ class Demand:
             return False
 
     def initializeDemand(self, population: Population, originDestination: OriginDestination,
-                         tripGeneration: TripGeneration, trips: TripCollection, microtypes: MicrotypeCollection,
+                         tripGeneration: TripGeneration, microtypes: MicrotypeCollection,
                          distanceBins: DistanceBins, transitionMatrices: TransitionMatrices, timePeriods: TimePeriods,
                          currentTimePeriod: int, multiplier=1.0):
         self.__population = population
-        self.__trips = trips
+        # self.__trips = trips
         self.__distanceBins = distanceBins
         self.__transitionMatrices = transitionMatrices
         self.__originDestination = originDestination
@@ -317,7 +317,6 @@ class Demand:
             pop = population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
 
             for odi, portion in od.items():
-                trip = trips[odi]
                 tripRatePerHour = ratePerHourPerCapita * pop * portion
                 self.tripRate += tripRatePerHour
                 demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]

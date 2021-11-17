@@ -58,13 +58,14 @@ class CollectedTotalOperatorCosts:
 
 
 class Microtype:
-    def __init__(self, microtypeID: str, networks: NetworkCollection, costs=None):
+    def __init__(self, microtypeID: str, networks: NetworkCollection, paramToIdx: dict, costs=None):
         self.microtypeID = microtypeID
         if costs is None:
             costs = dict()
         self.mode_names = set(networks.getModeNames())
         self.networks = networks
         self.updateModeCosts(costs)
+        self.paramToIdx = paramToIdx
 
     def __contains__(self, item):
         return item in self.mode_names
@@ -108,35 +109,40 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    def addStartTimeCostWait(self, mode: str, cc: ChoiceCharacteristics):
+    def addStartTimeCostWait(self, mode: str, cc: np.ndarray):  # Could eventually be vectorized
         if mode in self:
-            cc.cost += self.networks.modes[mode].perStart
+            cc[self.paramToIdx['cost']] += self.networks.modes[mode].perStart
             if mode in ['bus', 'rail']:
-                cc.wait_time += self.networks.modes[
-                                    'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
-            cc.access_time += self.networks.modes[
-                                  mode].getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
+                cc[self.paramToIdx['wait_time']] += self.networks.modes[
+                                                        'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
+                cc[self.paramToIdx['access_time']] += self.networks.modes[
+                                                          mode].getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
 
-    def addEndTimeCostWait(self, mode: str, cc: ChoiceCharacteristics):
+    def addEndTimeCostWait(self, mode: str, cc: np.ndarray):
         if mode in self:
-            cc.cost += self.networks.modes[mode].perEnd
+            cc[self.paramToIdx['cost']] += self.networks.modes[mode].perEnd
             if mode == 'bus':
-                cc.wait_time += self.networks.modes['bus'].headwayInSec / 3600. / 4.
-            cc.access_time += self.networks.modes[mode].getAccessDistance() * self.networks.modes[
-                'walk'].speedInMetersPerSecond / 3600.0
+                cc[self.paramToIdx['wait_time']] += self.networks.modes['bus'].headwayInSec / 3600. / 4.
+                cc[self.paramToIdx['access_time']] += self.networks.modes[mode].getAccessDistance() * \
+                                                      self.networks.modes[
+                                                          'walk'].speedInMetersPerSecond / 3600.0
 
-    def getFlows(self):
-        return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
 
-    def getSpeeds(self):
-        return [mode.getSpeed() for mode in self.networks.modes.values()]
+def getFlows(self):
+    return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
 
-    def getDemandsForPMT(self):
-        return [mode.getPassengerFlow() for mode in
-                self.networks.modes.values()]
 
-    def __str__(self):
-        return 'Demand: ' + str(self.getFlows()) + ' , Speed: ' + str(self.getSpeeds())
+def getSpeeds(self):
+    return [mode.getSpeed() for mode in self.networks.modes.values()]
+
+
+def getDemandsForPMT(self):
+    return [mode.getPassengerFlow() for mode in
+            self.networks.modes.values()]
+
+
+def __str__(self):
+    return 'Demand: ' + str(self.getFlows()) + ' , Speed: ' + str(self.getSpeeds())
 
 
 class MicrotypeCollection:
@@ -182,6 +188,10 @@ class MicrotypeCollection:
     @property
     def modeToIdx(self):
         return self.__scenarioData.modeToIdx
+
+    @property
+    def paramToIdx(self):
+        return self.__scenarioData.paramToIdx
 
     @property
     def dataToIdx(self):
@@ -345,7 +355,7 @@ class MicrotypeCollection:
                                                       self.__numpyDemand[self.microtypeIdToIdx[microtypeID], :, :],
                                                       self.__numpySpeed[self.microtypeIdToIdx[microtypeID], :],
                                                       self.dataToIdx, self.modeToIdx)
-                self[microtypeID] = Microtype(microtypeID, networkCollection)
+                self[microtypeID] = Microtype(microtypeID, networkCollection, self.paramToIdx)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeID])
 
                 # print("|  Loaded ",
