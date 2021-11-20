@@ -281,7 +281,7 @@ class Demand:
     def initializeDemand(self, population: Population, originDestination: OriginDestination,
                          tripGeneration: TripGeneration, microtypes: MicrotypeCollection,
                          distanceBins: DistanceBins, transitionMatrices: TransitionMatrices, timePeriods: TimePeriods,
-                         currentTimePeriod: int, multiplier=1.0):
+                         currentTimePeriod: int, numpyData: dict, multiplier=1.0):
         self.__population = population
         # self.__trips = trips
         self.__distanceBins = distanceBins
@@ -303,8 +303,6 @@ class Demand:
         self.__toEnds = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)), dtype=float)
         self.__toThroughDistance = np.zeros((len(self.diToIdx), len(self.odiToIdx), len(self.microtypeIdToIdx)),
                                             dtype=float)
-        self.__validOD = np.zeros(len(self.odiToIdx), dtype=bool)
-        self.__validDI = np.zeros(len(self.diToIdx), dtype=bool)
         for odi, idx in self.odiToIdx.items():
             self.__toThroughDistance[:, self.odiToIdx[odi], self.microtypeIdToIdx[odi.o]] += 0.5
             self.__toThroughDistance[:, self.odiToIdx[odi], self.microtypeIdToIdx[odi.d]] += 0.5
@@ -328,8 +326,6 @@ class Demand:
                 currentPopIndex = self.diToIdx[demandIndex]
                 weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
-                self.__validOD[currentODindex] = True
-                self.__validDI[currentPopIndex] = True
                 self.__toStarts[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.o]] = 1.0
                 self.__toEnds[currentPopIndex, currentODindex, self.microtypeIdToIdx[odi.d]] = 1.0
                 # TODO: Expand through distance to have a mode dimension, then filter and reallocate
@@ -342,9 +338,9 @@ class Demand:
                 else:
                     self.__toThroughDistance[:, currentODindex, :] = transitionMatrices.assignmentMatrix(odi) * \
                                                                      distanceBins[odi.distBin]
-                self[demandIndex, odi] = ModeSplit(demandForTrips=tripRatePerHour, demandForPMT=demandForPMT,
-                                                   data=self.__modeSplitData[currentPopIndex, currentODindex, :],
-                                                   modeToIdx=self.modeToIdx)
+                # self[demandIndex, odi] = ModeSplit(demandForTrips=tripRatePerHour, demandForPMT=demandForPMT,
+                #                                    data=self.__modeSplitData[currentPopIndex, currentODindex, :],
+                #                                    modeToIdx=self.modeToIdx)
 
                 # dist, alloc = transitionMatrices[odi].getSteadyState()
                 # distReal = self.__distanceBins[odi.distBin] * 1609.34

@@ -201,7 +201,7 @@ class ScenarioData:
         Return a new ScenarioData copy containing data.
     """
 
-    def __init__(self, path: str, data=None):
+    def __init__(self, path: str, timeStepInSeconds, data=None):
         """
         Constructs and loads all relevant data of the scenario into the instance.
 
@@ -219,6 +219,7 @@ class ScenarioData:
         self.__dataToIdx = dict()
         self.__microtypeIdToIdx = dict()
         self.__paramToIdx = dict()
+        self.timeStepInSeconds = timeStepInSeconds
         if data is None:
             self.data = dict()
             self.loadData()
@@ -334,13 +335,24 @@ class ScenarioData:
         homeMicrotypeIDs = self.data['populations'].MicrotypeID.unique()
         groupAndPurpose = self.data['tripGeneration'].groupby(
             ['PopulationGroupTypeID', 'TripPurposeID']).groups.keys()
-        nestedDIs = list(product(homeMicrotypeIDs, groupAndPurpose))
-        DIs = [(hID, popGroup, purpose) for hID, (popGroup, purpose) in nestedDIs]
+
+        odJoinedToDistance = self['originDestinations'].merge(self['distanceDistribution'],
+                                                              on=["OriginMicrotypeID", "DestinationMicrotypeID"],
+                                                              suffixes=("_OD", "_Dist"), how="right")
+        popGroupJoinedToTripGeneration = self.data['populations'].merge(self.data['tripGeneration'],
+                                                                        on=['PopulationGroupTypeID'],
+                                                                        suffixes=("_pop", "_trip"), how="right")
+        nestedDIs = popGroupJoinedToTripGeneration.groupby(
+            ['MicrotypeID', 'PopulationGroupTypeID', 'TripPurposeID']).groups
+        # nestedDIs = list(product(homeMicrotypeIDs, groupAndPurpose))
+        DIs = [(hID, popGroup, purpose) for hID, popGroup, purpose in nestedDIs]
         self.__diToIdx = {DemandIndex(*di): idx for idx, di in enumerate(DIs)}
 
-        allODIs = list(product(self["microtypeIDs"].MicrotypeID, self["microtypeIDs"].MicrotypeID,
-                               self["distanceBins"].DistanceBinID))
-        self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(allODIs)}
+        # allODIs = list(product(self["microtypeIDs"].MicrotypeID, self["microtypeIDs"].MicrotypeID,
+        #                        self["distanceBins"].DistanceBinID))
+        # self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(allODIs)}
+        self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(
+            odJoinedToDistance.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID']).groups)}
 
         self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'passengerDistance': 3,
                             'vehicleDistance': 4}
@@ -415,6 +427,8 @@ class Data:
         #############
 
         self.__microtypeSpeed = np.zeros((self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
+        self.__microtypeMixedTrafficDistance = np.zeros(
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
         self.__subNetworkAverageSpeed = np.zeros(
             (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
         self.__subNetworkAccumulation = np.zeros(
@@ -426,8 +440,11 @@ class Data:
         self.__subNetworkAutoSpeed = np.zeros((self.params.nTimePeriods, self.params.nSubNetworks))
         self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModes))
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
-        self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nTimeSteps, self.params.nSubNetworks))
-        self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nTimeSteps, self.params.nSubNetworks))
+        self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
+        self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
+        self.__transitionMatrixNetworkIdx = np.zeros(self.params.nSubNetworks, dtype=bool)
+        self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
+        self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
 
     def getStartAndEndInd(self, timePeriodIdx):
         currentTimePeriodIndex = int(timePeriodIdx / self.params.nSubBins)
@@ -436,14 +453,15 @@ class Data:
         startTimeInHours = (timePeriodIdx % self.params.nSubBins) / float(
             self.params.nSubBins) * currentTimePeriodDuration + previousTimeInHours
         endTimeInHours = startTimeInHours + currentTimePeriodDuration / self.params.nSubBins
-        return startTimeInHours * 3600 / self.params.timeStepInSeconds, \
-               endTimeInHours * 3600 / self.params.timeStepInSeconds
+        return int(startTimeInHours * 3600 / self.params.timeStepInSeconds), \
+               int(endTimeInHours * 3600 / self.params.timeStepInSeconds)
 
-    def __getitem__(self, timePeriodIdx):
+    def getSupply(self, timePeriodIdx):
         startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
-
         supply = dict()
+        supply['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
         supply['microtypeSpeed'] = self.__microtypeSpeed[timePeriodIdx, :, :]
+        supply['microtypeMixedTrafficDistance'] = self.__microtypeSpeed[timePeriodIdx, :, :]
         supply['subNetworkAverageSpeed'] = self.__subNetworkAverageSpeed[timePeriodIdx, :, :]
         supply['subNetworkAccumulation'] = self.__subNetworkAccumulation[timePeriodIdx, :, :]
         supply['subNetworkBlockedDistance'] = self.__subNetworkBlockedDistance[timePeriodIdx, :, :]
@@ -451,12 +469,17 @@ class Data:
         supply['subNetworkAutoSpeed'] = self.__subNetworkAutoSpeed[timePeriodIdx, :]
         supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
         supply['subNetworkLength'] = self.__subNetworkLength
-        supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[startTimeStep:endTimeStep, :]
+        supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
         supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
-                                                            startTimeStep:endTimeStep, :]
-        supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
-                                                       startTimeStep - 1, :]
+                                                            :, startTimeStep:endTimeStep]
+        supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[:,
+                                                       startTimeStep - 1]
+        supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
+        supply['nonAutoModes'] = self.__nonAutoModes
 
+        return supply
+
+    def getDemand(self, timePeriodIdx):
         demand = dict()
         demand['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
         demand['modeSplit'] = self.__modeSplit[timePeriodIdx, :, :, :]
@@ -468,6 +491,7 @@ class Data:
         demand['choiceCharacteristics'] = self.__choiceCharacteristics[timePeriodIdx, :, :, :]
         demand['choiceParameters'] = self.__choiceParameters
         demand['choiceParametersFixed'] = self.__choiceParametersFixed
+        return demand
 
     def getInvariants(self):
         fixedData = dict()
@@ -478,6 +502,8 @@ class Data:
         fixedData['toThroughDistance'] = self.__toThroughDistance
         fixedData['choiceParameters'] = self.__choiceParameters
         fixedData['choiceParametersFixed'] = self.__choiceParametersFixed
+        fixedData['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
+        fixedData['nonAutoModes'] = self.__nonAutoModes
         return fixedData
 
 
@@ -552,23 +578,23 @@ class Model:
         self.__path = path
         self.__nSubBins = nSubBins
         self.__timeStepInSeconds = 60.0
-        self.scenarioData = ScenarioData(path)
+        self.scenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.data = Data(self.scenarioData, self.__nSubBins, self.__timeStepInSeconds)
         fixedData = self.data.getInvariants()
 
-        self.__initialScenarioData = ScenarioData(path)
+        self.__initialScenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.__currentTimePeriod = None
         self.__microtypes = dict()  # MicrotypeCollection(self.modeData.data)
         self.__demand = dict()  # Demand()
         self.__choice = dict()  # CollectedChoiceCharacteristics()
-        self.__population = Population(self.scenarioData, fixedData['choiceParameters'],
-                                       fixedData['choiceParametersFixed'])
-        # self.__trips = TripCollection()
+        self.__population = Population(self.scenarioData, fixedData)
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
         self.__tripGeneration = TripGeneration()
-        self.__originDestination = OriginDestination()
         self.__transitionMatrices = TransitionMatrices(self.scenarioData)
+        self.__originDestination = OriginDestination(self.__timePeriods, self.__distanceBins, self.__population,
+                                                     self.__transitionMatrices, self.data.getInvariants(),
+                                                     self.scenarioData)
         self.__externalities = Externalities(self.scenarioData)
         self.__networkStateData = dict()
         self.__printLoc = stdout
@@ -612,7 +638,8 @@ class Model:
     @property
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
-            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData)
+            self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData, self.data.getSupply(
+                self.__currentTimePeriod))
         return self.__microtypes[self.__currentTimePeriod]
 
     def getMicrotypeCollection(self, timePeriod) -> MicrotypeCollection:
@@ -651,14 +678,14 @@ class Model:
         self.__population.importPopulation(self.scenarioData["populations"], self.scenarioData["populationGroups"])
         self.__timePeriods.importTimePeriods(self.scenarioData["timePeriods"], nSubBins=self.__nSubBins)
         self.__distanceBins.importDistanceBins(self.scenarioData["distanceBins"])
-        self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
-                                                         self.scenarioData["distanceDistribution"])
-        self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
         self.__transitionMatrices.importTransitionMatrices(self.scenarioData["transitionMatrices"],
                                                            self.scenarioData["microtypeIDs"],
                                                            self.scenarioData["distanceBins"])
+        self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
+                                                         self.scenarioData["distanceDistribution"])
+        self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
 
-    def initializeTimePeriod(self, timePeriod: str, override=False):
+    def initializeTimePeriod(self, timePeriod: int, override=False):
         self.__currentTimePeriod = timePeriod
         # if timePeriod not in self.__microtypes:
         #     print("-------------------------------")
@@ -668,7 +695,7 @@ class Model:
         self.__tripGeneration.initializeTimePeriod(timePeriod, self.__timePeriods.getTimePeriodName(timePeriod))
         self.demand.initializeDemand(self.__population, self.__originDestination, self.__tripGeneration,
                                      self.microtypes, self.__distanceBins, self.__transitionMatrices,
-                                     self.__timePeriods, self.__currentTimePeriod, 1.0)
+                                     self.__timePeriods, self.__currentTimePeriod, dict(), 1.0)
         self.choice.initializeChoiceCharacteristics(self.microtypes, self.__distanceBins)
 
     def initializeAllTimePeriods(self, override=False):
@@ -975,13 +1002,13 @@ class Model:
         elif type.lower() == "modes":
             if microtype is None:
                 x = np.cumsum([0] + [val for val in self.timePeriods().values()])
-                y = np.vstack([self.getModeSplit('0')] + [self.getModeSplit(p) for p in self.timePeriods().keys()])
+                y = np.vstack([self.getModeSplit(0)] + [self.getModeSplit(p) for p in self.timePeriods().keys()])
                 return x, y
             else:
                 x = np.cumsum([0] + [val for val in self.timePeriods().values()])
                 y = np.vstack(
-                    [self.getModeSplit('0', microtypeID=microtype)] + [self.getModeSplit(p, microtypeID=microtype) for p
-                                                                       in self.timePeriods().keys()])
+                    [self.getModeSplit(0, microtypeID=microtype)] + [self.getModeSplit(p, microtypeID=microtype) for p
+                                                                     in self.timePeriods().keys()])
                 return x, y
         elif type.lower() == "cartrips":
             autoProdsMFD = [0.]
@@ -996,8 +1023,8 @@ class Model:
             return x, y
         elif type.lower() == "modespeeds":
             x = np.cumsum([0] + [val for val in self.timePeriods().values()])
-            y = pd.concat([self.getModeSpeeds('0').stack()] + [self.getModeSpeeds(val).stack() for val in
-                                                               self.timePeriods().keys()], axis=1)
+            y = pd.concat([self.getModeSpeeds(0).stack()] + [self.getModeSpeeds(val).stack() for val in
+                                                             self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
             operatorCosts, vectorUserCosts, externalities = self.collectAllCosts()

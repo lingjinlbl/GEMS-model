@@ -458,13 +458,19 @@ class OriginDestination:
     A class to import and store the origin and destination of trips.
     """
 
-    def __init__(self):
+    def __init__(self, timePeriods, distanceBins, population, transitionMatrices, modelData, scenarioData):
         self.__ods = pd.DataFrame()
         self.__distances = pd.DataFrame()
         self.__originDestination = dict()
         self.__currentTimePeriod = "BAD"
+        self.__timePeriods = timePeriods
+        self.__distanceBins = distanceBins
+        self.__population = population
+        self.__transitionMatrices = transitionMatrices
+        self.__modelData = modelData
+        self.__scenarioData = scenarioData
 
-    def setTimePeriod(self, timePeriod: str):
+    def setTimePeriod(self, timePeriod: int):
         self.__currentTimePeriod = timePeriod
 
     @property
@@ -477,6 +483,22 @@ class OriginDestination:
         self.__ods = ods
         self.__distances = distances
         print("|  Loaded ", len(ods), " ODs and ", len(distances), "unique distance bins")
+
+        for timePeriodId, duration in self.__timePeriods:
+            self.initializeTimePeriod(timePeriodId, self.__timePeriods.getTimePeriodName(timePeriodId))
+
+        for demandIndex, currentPopIndex in self.__scenarioData.diToIdx.items():
+            od = self[demandIndex]
+            # currentPopIndex = self.__scenarioData.diToIdx[demandIndex]
+            for odi, portion in od.items():
+                currentODindex = self.__scenarioData.odiToIdx[odi]
+                self.__modelData['toStarts'][
+                    currentPopIndex, currentODindex, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
+                self.__modelData['toEnds'][
+                    currentPopIndex, currentODindex, self.__scenarioData.microtypeIdToIdx[odi.d]] = 1.0
+                # TODO: Expand through distance to have a mode dimension, then filter and reallocate
+                self.__modelData['toThroughDistance'][:, currentODindex,
+                :] = self.__transitionMatrices.assignmentMatrix(odi) * self.__distanceBins[odi.distBin]
 
     def __len__(self):
         return len(self.originDestination)
@@ -691,23 +713,24 @@ class TransitionMatrices:
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
         default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)
         for key, val in matrices.groupby(level=[0, 1, 2]):
-            df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
             odi = ODindex(*key)
-            self.__data[odi] = df  # TODO: Delete this
-            self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
-            startVec = np.zeros((1, len(microtypeIDs)))
-            startVec[0, self.microtypeIdToIdx[odi.o]] = 1
-            X4 = np.vstack([df.values, startVec])
-            X5 = np.hstack([X4, 1 - X4.sum(axis=1).reshape((-1, 1))])
-            _, vec = eigs(X5.transpose(), k=1, which='LM')
-            if vec.shape[1] > 1:
-                # Something weird about eigs?
-                vec = vec[:, 0]
-            tripDistribution = np.real_if_close(vec[:-1]) / np.real_if_close(vec[:-1]).sum()
-            if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
-                print('Something went wrong in loading transition matrices')
-            self.__assignmentMatrices[self.odiToIdx[odi], :] = np.squeeze(tripDistribution)
-            # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
-            #             np.ones((len(microtypeIDs), 1))
+            if odi in self.odiToIdx:
+                df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
+                self.__data[odi] = df  # TODO: Delete this
+                self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
+                startVec = np.zeros((1, len(microtypeIDs)))
+                startVec[0, self.microtypeIdToIdx[odi.o]] = 1
+                X4 = np.vstack([df.values, startVec])
+                X5 = np.hstack([X4, 1 - X4.sum(axis=1).reshape((-1, 1))])
+                _, vec = eigs(X5.transpose(), k=1, which='LM')
+                if vec.shape[1] > 1:
+                    # Something weird about eigs?
+                    vec = vec[:, 0]
+                tripDistribution = np.real_if_close(vec[:-1]) / np.real_if_close(vec[:-1]).sum()
+                if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
+                    print('Something went wrong in loading transition matrices')
+                self.__assignmentMatrices[self.odiToIdx[odi], :] = np.squeeze(tripDistribution)
+                # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
+                #             np.ones((len(microtypeIDs), 1))
         print("|  Loaded ", str(matrices.size), " transition probabilities")
         print("-------------------------------")
