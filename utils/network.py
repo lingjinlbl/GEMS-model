@@ -831,11 +831,7 @@ class BusMode(Mode):
         for n in self.networks:
             L_blocked = self.calculateBlockedDistance(n)
             self._networkBlockedDistance[n] = L_blocked
-            # self._L_blocked[n] = L_blocked
-            # n.L_blocked[self.name] = L_blocked  # * self.getRouteLength() / n.L
             n.getNetworkStateData().blockedDistance = L_blocked  # HACK: Only one mode can block distance at a time
-            # assert isinstance(n, Network)
-            # n.setModeBlockedDistance('bus', L_blocked)
             if n.getNetworkStateData().blockedDistance > self.getRouteLength():
                 print('HMMMMM')
 

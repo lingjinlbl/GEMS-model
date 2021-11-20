@@ -354,8 +354,7 @@ class ScenarioData:
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(
             odJoinedToDistance.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID']).groups)}
 
-        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'passengerDistance': 3,
-                            'vehicleDistance': 4}
+        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'passengerDistance': 3, 'vehicleDistance': 4}
 
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
@@ -437,7 +436,6 @@ class Data:
             (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
         self.__subNetworkOperatingSpeed = np.zeros(
             (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
-        self.__subNetworkAutoSpeed = np.zeros((self.params.nTimePeriods, self.params.nSubNetworks))
         self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModes))
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
         self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
@@ -474,12 +472,11 @@ class Data:
         supply = dict()
         supply['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
         supply['microtypeSpeed'] = self.__microtypeSpeed[timePeriodIdx, :, :]
-        supply['microtypeMixedTrafficDistance'] = self.__microtypeSpeed[timePeriodIdx, :, :]
+        supply['microtypeMixedTrafficDistance'] = self.__microtypeMixedTrafficDistance[timePeriodIdx, :, :]
         supply['subNetworkAverageSpeed'] = self.__subNetworkAverageSpeed[timePeriodIdx, :, :]
         supply['subNetworkAccumulation'] = self.__subNetworkAccumulation[timePeriodIdx, :, :]
         supply['subNetworkBlockedDistance'] = self.__subNetworkBlockedDistance[timePeriodIdx, :, :]
         supply['subNetworkOperatingSpeed'] = self.__subNetworkOperatingSpeed[timePeriodIdx, :, :]
-        supply['subNetworkAutoSpeed'] = self.__subNetworkAutoSpeed[timePeriodIdx, :]
         supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
         supply['subNetworkLength'] = self.__subNetworkLength
         supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
@@ -661,13 +658,16 @@ class Model:
     @property
     def demand(self):
         if self.__currentTimePeriod not in self.__demand:
-            self.__demand[self.__currentTimePeriod] = Demand(self.scenarioData)
+            self.__demand[self.__currentTimePeriod] = Demand(self.scenarioData,
+                                                             self.data.getDemand(self.__currentTimePeriod))
         return self.__demand[self.__currentTimePeriod]
 
     @property
     def choice(self):
         if self.__currentTimePeriod not in self.__choice:
-            self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics(self.scenarioData, self.demand)
+            self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics(self.scenarioData, self.demand,
+                                                                                     self.data.getDemand(
+                                                                                         self.__currentTimePeriod))
         return self.__choice[self.__currentTimePeriod]
 
     @property

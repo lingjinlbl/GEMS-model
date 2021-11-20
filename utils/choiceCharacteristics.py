@@ -149,14 +149,13 @@ class ModalChoiceCharacteristics:
 
 
 class CollectedChoiceCharacteristics:
-    def __init__(self, scenarioData, demand):
+    def __init__(self, scenarioData, demand, numpyData):
         self.__scenarioData = scenarioData
         self.__demand = demand
         self.modes = scenarioData.getModes()
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
-        self.__numpy = np.zeros((len(scenarioData.odiToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)),
-                                dtype=float)
+        self.__numpy = numpyData['choiceCharacteristics']
         self.__broken = False
 
     @property
@@ -233,13 +232,6 @@ class CollectedChoiceCharacteristics:
                     microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex, mode])
                     microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex, mode])
 
-        #         newAllocation = microtypes.filterAllocation(mode, trip.allocation)
-        #         for microtypeID, allocation in newAllocation.items():
-        #             microtypes[microtypeID].addThroughTimeCostWait(mode,
-        #                                                            self.__distanceBins[odIndex.distBin] * allocation,
-        #                                                            self[odIndex][mode])
-        # otherTravelTime = self.__numpy[:,:, self.paramToIdx['travel_time']]
-        # print(travelTimeInHours - otherTravelTime)
         self.__numpy[:, :, self.paramToIdx['travel_time']] = travelTimeInHours
         self.__numpy[:, :, self.paramToIdx['unprotected_travel_time']] = travelTimeInHours * mixedTravelPortion
         return self.__numpy
