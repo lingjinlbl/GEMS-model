@@ -442,9 +442,22 @@ class Data:
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
         self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
+        self.__instantaneousTime = np.arange(self.params.nTimeSteps) * self.params.timeStepInSeconds
         self.__transitionMatrixNetworkIdx = np.zeros(self.params.nSubNetworks, dtype=bool)
         self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
+
+    @property
+    def t(self):
+        return self.__instantaneousTime
+
+    @property
+    def v(self):
+        return self.__subNetworkInstantaneousSpeed[self.__transitionMatrixNetworkIdx, :]
+
+    @property
+    def n(self):
+        return self.__subNetworkInstantaneousAutoAccumulation[self.__transitionMatrixNetworkIdx, :]
 
     def getStartAndEndInd(self, timePeriodIdx):
         currentTimePeriodIndex = int(timePeriodIdx / self.params.nSubBins)
@@ -971,19 +984,23 @@ class Model:
             matrices.append(matrix)
 
         if type.lower() == "n":
-            x = np.concatenate(ts) / 3600
-            y = np.concatenate(ns)
+            # x = np.concatenate(ts) / 3600
+            # y = np.concatenate(ns)
             # plt.plot(x, y)
-            return x, y
+            x = self.data.t
+            y = self.data.n
+            return x, y.transpose()
         elif type.lower().startswith('mat'):
             x = np.concatenate(ts) / 3600
             y = np.swapaxes(np.concatenate(matrices, axis=1), 0, 1)
             return x, y
         elif type.lower() == "v":
-            x = np.concatenate(ts) / 3600.
-            y = np.concatenate(vs) * 3600. / 1609.34
+            # x = np.concatenate(ts) / 3600.
+            # y = np.concatenate(vs) * 3600. / 1609.34
+            x = self.data.t
+            y = self.data.v
             # plt.plot(x, y)
-            return x, y
+            return x, y.transpose()
         elif type.lower() == "delay":
             y1 = np.cumsum(np.concatenate(inflows, axis=0), axis=0)
             y2 = np.cumsum(np.concatenate(outflows, axis=0), axis=0)
@@ -1345,7 +1362,7 @@ if __name__ == "__main__":
     # # model.collectAllCharacteristics()
     # # print(model.getModeSpeeds())
     # # model.collectAllCharacteristics()
-    # x, y = model.plotAllDynamicStats('cartrips')
+
     # print(model.getModeSpeeds())
     # obj = Mock()
     # obj.new = 17.5
@@ -1369,6 +1386,7 @@ if __name__ == "__main__":
     # optimizer.minimize()
     print('-----0.0------')
     optimizer.evaluate([0.1])
+    x, y = model.plotAllDynamicStats('v')
     # model.interact.updatePlots()
     print('-----0.15------')
     optimizer.evaluate([0.15])
