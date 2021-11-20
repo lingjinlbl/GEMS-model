@@ -1246,22 +1246,16 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, networksAndModes=None, modeToModeData=None, microtypeID=None, demandData=None, speedData=None,
-                 dataToIdx=None, modeToIdx=None, verbose=False):
+    def __init__(self, networksAndModes, modeToModeData, microtypeID, demandData, speedData, dataToIdx, modeToIdx,
+                 verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
         self.__modes = dict()
 
-        if demandData is None:
-            self.__demandData = np.ndarray(0)
-            self._speedData = np.ndarray(0)
-            self.__dataToIdx = dict()
-            self.__modeToIdx = dict()
-        else:
-            self.__demandData = demandData
-            self._speedData = speedData
-            self.__dataToIdx = dataToIdx
-            self.__modeToIdx = modeToIdx
+        self.__demandData = demandData
+        self._speedData = speedData
+        self.__dataToIdx = dataToIdx
+        self.__modeToIdx = modeToIdx
 
         if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
             self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)

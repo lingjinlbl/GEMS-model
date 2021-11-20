@@ -147,25 +147,6 @@ def __str__(self):
 
 class MicrotypeCollection:
     def __init__(self, scenarioData, supplyData):
-        """
-        supply['microtypeSpeed'] = self.__microtypeSpeed[timePeriodIdx, :, :]
-        supply['subNetworkAverageSpeed'] = self.__subNetworkAverageSpeed[timePeriodIdx, :, :]
-        supply['subNetworkAccumulation'] = self.__subNetworkAccumulation[timePeriodIdx, :, :]
-        supply['subNetworkBlockedDistance'] = self.__subNetworkBlockedDistance[timePeriodIdx, :, :]
-        supply['subNetworkOperatingSpeed'] = self.__subNetworkOperatingSpeed[timePeriodIdx, :, :]
-        supply['subNetworkAutoSpeed'] = self.__subNetworkAutoSpeed[timePeriodIdx, :]
-        supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
-        supply['subNetworkLength'] = self.__subNetworkLength
-        supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[startTimeStep:endTimeStep, :]
-        supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
-                                                            startTimeStep:endTimeStep, :]
-        supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
-                                                       startTimeStep - 1, :]
-
-        :param scenarioData:
-        :param numpyData:
-        """
-
         self.__timeStepInSeconds = scenarioData.timeStepInSeconds
         self.__microtypes = dict()
         self.__scenarioData = scenarioData
