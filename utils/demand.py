@@ -5,7 +5,7 @@ import numpy as np
 np.set_printoptions(precision=5)
 import pandas as pd
 
-from .OD import TripCollection, OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit, TransitionMatrices
+from .OD import OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit, TransitionMatrices
 from .choiceCharacteristics import CollectedChoiceCharacteristics
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins, TimePeriods
