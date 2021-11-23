@@ -342,7 +342,7 @@ class RailMode(Mode):
         for n in networks:
             n.addMode(self)
             n.setModeNetworkSpeed(self.name, n.base_speed)
-            n.setModeOperatingSpeed(self.name, self.speedInMetersPerSecond)
+            n.setModeOperatingSpeed(self.name, self.routeAveragedSpeed)
 
     @property
     def perStart(self):
@@ -901,7 +901,7 @@ class Network:
                                 -capacityFlow / smoothingFactor) + np.exp(
                                 - (density - densityMax) * waveSpeed / smoothingFactor))
                         speedLinear = vMax * (1. - density / densityMax)
-                    return max(min(speedLinear, speedExp), 0.05)
+                    return max(min(speedLinear, speedExp), 0.0222)
 
             elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "quadratic":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
@@ -909,7 +909,7 @@ class Network:
 
                 @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
                 def _MFD(density):
-                    return max(vMax * (1. - density / densityMax), 0.05)
+                    return max(vMax * (1. - density / densityMax), 0.0333)
 
             elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "bottleneck":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
