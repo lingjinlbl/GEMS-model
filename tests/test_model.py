@@ -10,7 +10,7 @@ from model import Model
 def test_find_equilibrium():
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     a = Model(ROOT_DIR + "/../input-data")
-    a.initializeTimePeriod('1')
+    a.initializeTimePeriod(1)
     a.findEquilibrium()
     busLaneDistance = np.arange(50, 3950, 100)
     busSpeed = []
@@ -30,7 +30,7 @@ def test_find_equilibrium():
         a.scenarioData['subNetworkData'].at[2, "Length"] = initialDistance - dist
         a.microtypes.updateNetworkData()
         a.findEquilibrium()
-        ms = a.getModeSplit('1')
+        ms = a.getModeSplit(1)
 
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
         busSpeed.append(speeds.loc["B", "bus"])
@@ -40,11 +40,10 @@ def test_find_equilibrium():
         carSpeedD.append(speeds.loc["D", "auto"])
         busModeShare.append(ms[a.scenarioData.modeToIdx["bus"]])
         carModeShare.append(ms[a.scenarioData.modeToIdx["auto"]])
-        uc = a.getUserCosts()
-        userCosts.append(a.getUserCosts().total)
-        operatorCosts.append(a.getOperatorCosts().total)
+        operatorCosts, vectorUserCosts, externalities = a.collectAllCosts()
         ldCosts.append(0.014 * dist)
-        allCosts.append(a.getUserCosts().totalEqualVOT + a.getOperatorCosts().total + 0.0 * dist)
+        x, y = a.plotAllDynamicStats("costs")
+        allCosts.append(y.sum().sum())
 
     plt.scatter(busLaneDistance, busSpeed, marker='<', label="Bus")
 
@@ -85,7 +84,7 @@ def test_find_equilibrium():
     #    assert busSpeed[-1] / busSpeed[0] > 1.005  # bus lanes speed up bus traffic by a real amount
 
     a = Model(ROOT_DIR + "/../input-data")
-    a.initializeTimePeriod('1')
+    a.initializeTimePeriod(1)
     a.findEquilibrium()
     headways = np.arange(60, 900, 60)
     busSpeed = []
@@ -101,7 +100,7 @@ def test_find_equilibrium():
         a.scenarioData["modeData"]["bus"].loc["A", "Headway"] = hw
         a.microtypes.updateNetworkData()
         a.findEquilibrium()
-        ms = a.getModeSplit('1')
+        ms = a.getModeSplit(1)
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
         busSpeed.append(speeds.loc["B", "bus"])
         carSpeedA.append(speeds.loc["A", "auto"])
@@ -110,10 +109,10 @@ def test_find_equilibrium():
         carSpeedD.append(speeds.loc["D", "auto"])
         busModeShare.append(ms[a.scenarioData.modeToIdx["bus"]])
         carModeShare.append(ms[a.scenarioData.modeToIdx["auto"]])
-        uc = a.getUserCosts()
-        oc = a.getOperatorCosts()
-        userCosts.append(a.getUserCosts().total + oc.total)
-        operatorCosts.append(a.getOperatorCosts().total)
+        operatorCostDF, vectorUserCosts, externalities = a.collectAllCosts()
+        x, y = a.plotAllDynamicStats("costs")
+        userCosts.append(y.loc['User'].sum())
+        operatorCosts.append(y.loc['Operator'].sum())
 
     plt.clf()
     plt.scatter(headways, busSpeed, marker='<', label="Bus")

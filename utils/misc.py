@@ -12,7 +12,7 @@ class TimePeriods:
         self.__timePeriods = OrderedDict()
         self.__ids = OrderedDict()
 
-    def __setitem__(self, key: str, value: float):
+    def __setitem__(self, key: int, value: float):
         self.__timePeriods[key] = value
 
     def __getitem__(self, item) -> float:
@@ -25,8 +25,8 @@ class TimePeriods:
         idx = 0
         for row in df.itertuples():
             for sub in range(nSubBins):
-                self[str(idx)] = row.DurationInHours / nSubBins
-                self.__ids[str(idx)] = row.TimePeriodID
+                self[idx] = row.DurationInHours / nSubBins
+                self.__ids[idx] = row.TimePeriodID
                 idx += 1
         print("|  Loaded ", len(df) * nSubBins, " time periods")
 

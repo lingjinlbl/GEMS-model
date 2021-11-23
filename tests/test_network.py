@@ -27,21 +27,19 @@ def test_mfd(model):
     totalTimesSpeed = []
     carSpeeds = []
     for ind, d in enumerate(demands):
-        model.updateTimePeriodDemand('1', d)
+        model.updateTimePeriodDemand(1, d)
         vectorUserCosts, _ = model.collectAllCharacteristics()
-        x, y = model.plotAllDynamicStats("delay")
-        totalTimesPlot.append(np.sum(y[:,0] - y[:,1]))
-        totalTimesSpeed.append(vectorUserCosts[2,1]*60)
-        carSpeeds.append(model.getModeSpeeds('1')['auto'][0])
-    assert(totalTimesSpeed[-1] > totalTimesSpeed[0])
-    print(np.abs((totalTimesPlot[0] - totalTimesSpeed[0]) / totalTimesPlot[0]))
+        # x, y = model.plotAllDynamicStats("delay")
+        # totalTimesPlot.append(np.sum(y[:, 0] - y[:, 1]))
+        totalTimesSpeed.append(vectorUserCosts[2, 1] * 60)
+        carSpeeds.append(model.getModeSpeeds(1)['auto'][0])
+    assert (totalTimesSpeed[-1] > totalTimesSpeed[0])
+    # print(np.abs((totalTimesPlot[0] - totalTimesSpeed[0]) / totalTimesPlot[0]))
     # assert(np.abs((totalTimesPlot[0] - totalTimesSpeed[0]) / totalTimesPlot[0]) < 0.025)
     print('Done')
     # model.scenarioData['modeData']['bus']['Headway'][0] = 300
     # vectorUserCosts = model.collectAllCharacteristics()
     # x, y = model.plotAllDynamicStats("delay")
-
-
 
     # net2 = Network(pd.DataFrame({"Length": {0: 6000}, "Dedicated": {0: True}}), 0.,
     #                NetworkFlowParams(0.068, 15.42, 1.88, 0.145, 0.177, 50))

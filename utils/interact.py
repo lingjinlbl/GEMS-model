@@ -564,6 +564,8 @@ class Interact:
             newDedicatedLength = totalLength * newValue
             newMixedLength = modeDF.sum() - newDedicatedLength
             # NOTE: Right now this relies on the ordering of the input csv
+            self.model.data.updateNetworkLength(modeDF.index[0], newMixedLength)
+            self.model.data.updateNetworkLength(modeDF.index[1], newDedicatedLength)
             self.model.scenarioData['subNetworkData'].loc[modeDF.index[0], 'Length'] = newMixedLength
             self.model.scenarioData['subNetworkData'].loc[modeDF.index[1], 'Length'] = newDedicatedLength
         if changeType[0] == 'headway':

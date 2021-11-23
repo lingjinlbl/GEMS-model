@@ -149,14 +149,13 @@ class ModalChoiceCharacteristics:
 
 
 class CollectedChoiceCharacteristics:
-    def __init__(self, scenarioData, demand):
+    def __init__(self, scenarioData, demand, numpyData):
         self.__scenarioData = scenarioData
         self.__demand = demand
         self.modes = scenarioData.getModes()
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
-        self.__numpy = np.zeros((len(scenarioData.odiToIdx), len(scenarioData.modeToIdx), len(scenarioData.paramToIdx)),
-                                dtype=float)
+        self.__numpy = numpyData['choiceCharacteristics']
         self.__broken = False
 
     @property
@@ -187,7 +186,9 @@ class CollectedChoiceCharacteristics:
         self.__choiceCharacteristics[key] = value
 
     def __getitem__(self, item) -> ModalChoiceCharacteristics:
-        return self.__choiceCharacteristics[item]
+        odi, mode = item
+        return self.__numpy[self.odiToIdx[odi], self.modeToIdx[mode], :]
+        # return self.__choiceCharacteristics[item]
 
     def toDataFrame(self):
         odis = [odi.toTuple() for odi in self.odiToIdx.keys()]
@@ -198,10 +199,10 @@ class CollectedChoiceCharacteristics:
             'originMicrotype', 'destinationMicrotype', 'distanceBin', 'mode', 'parameter'))
         return pd.DataFrame({"Value": self.__numpy.flatten()}, index=mi).unstack()
 
-    def initializeChoiceCharacteristics(self, trips, microtypes, distanceBins: DistanceBins):
+    def initializeChoiceCharacteristics(self, microtypes, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
         self.__numpy[:, :, self.paramToIdx['intercept']] = 1
-        for odIndex, trip in trips:
+        for odIndex in self.odiToIdx.keys():
             if odIndex.d != 'None' and odIndex.o != 'None':
                 common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
                 modes = set.intersection(*common_modes)
@@ -216,28 +217,21 @@ class CollectedChoiceCharacteristics:
         self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, self.paramToIdx['intercept']] = 1
 
-    def updateChoiceCharacteristics(self, microtypes, trips) -> np.ndarray:
+    def updateChoiceCharacteristics(self, microtypes) -> np.ndarray:
         self.resetChoiceCharacteristics()
         travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed, self.__demand.toThroughDistance)
         mixedTravelPortion = mixedPortion(microtypes.numpyMixedTrafficDistance,
                                           self.__demand.toThroughDistance)  # Right now it's a waste to recalculate it every time but it might come in handy at some point?
         self.__broken = broken
 
-        for odIndex, trip in trips:
+        for odIndex in self.odiToIdx.keys():
             if odIndex.d != 'None' and odIndex.o != 'None':
                 common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
                 modes = set.intersection(*common_modes)
                 for mode in modes:
-                    microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex][mode])
-                    microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex][mode])
+                    microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex, mode])
+                    microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex, mode])
 
-        #         newAllocation = microtypes.filterAllocation(mode, trip.allocation)
-        #         for microtypeID, allocation in newAllocation.items():
-        #             microtypes[microtypeID].addThroughTimeCostWait(mode,
-        #                                                            self.__distanceBins[odIndex.distBin] * allocation,
-        #                                                            self[odIndex][mode])
-        # otherTravelTime = self.__numpy[:,:, self.paramToIdx['travel_time']]
-        # print(travelTimeInHours - otherTravelTime)
         self.__numpy[:, :, self.paramToIdx['travel_time']] = travelTimeInHours
         self.__numpy[:, :, self.paramToIdx['unprotected_travel_time']] = travelTimeInHours * mixedTravelPortion
         return self.__numpy

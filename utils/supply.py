@@ -31,7 +31,7 @@ class TravelDemand:
 
     @property
     def rateOfPmtPerHour(self):
-        return self.__data[self.__dataToIdx['throughDistance']]
+        return self.__data[self.__dataToIdx['throughDistance'], None]
 
     @rateOfPmtPerHour.setter
     def rateOfPmtPerHour(self, value):
@@ -49,10 +49,17 @@ class TravelDemand:
     def averageDistanceInSystemInMiles(self):
         return self.rateOfPmtPerHour / self.throughTrips
 
+    @property
+    def data(self):
+        return self.__data
+
     def reset(self):
         self.tripStartRatePerHour = 0.0
         self.tripEndRatePerHour = 0.0
         self.rateOfPmtPerHour = 0.0
+
+    def adopt(self, other):
+        np.copyto(self.__data, other.data)
 
 
 class TravelDemands:
