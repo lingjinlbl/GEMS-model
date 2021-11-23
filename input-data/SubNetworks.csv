@@ -1,6 +1,6 @@
 ﻿SubnetworkID,MicrotypeID,ModesAllowed,Length,vMax,densityMax,capacityFlow,smoothingFactor,waveSpeed,MFD,Type,Dedicated,avgLinkLength
 1,A,Auto-Bus-Bike,10000,17,0.15,0.18,0.13,3.78,loder,Road,FALSE,50
-2,B,Auto-Bus-Bike,27000,12,0.14,,,,quadratic,Road,FALSE,50
+2,B,Auto-Bus-Bike,27000,12,0.4,,,,quadratic,Road,FALSE,50
 3,C,Auto-Bus-Bike,10000,25,0.14,1.58,,,bottleneck,Road,FALSE,50
 4,D,Auto-Bus-Bike,14000,30,0.14,1.52,,,bottleneck,Road,FALSE,50
 5,A,Walk,10000,1.35,0.14,,,,fixed,Sidewalk,TRUE,
