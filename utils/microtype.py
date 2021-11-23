@@ -73,7 +73,7 @@ class Microtype:
     def updateModeCosts(self, costs):
         for (mode, modeCosts) in costs.items():
             assert (isinstance(mode, str) and isinstance(modeCosts, Costs))
-            self.networks.modes[mode].costs = modeCosts
+            self.networks.getMode(mode).costs = modeCosts
 
     def updateNetworkSpeeds(self, nIters=None):
         self.networks.updateModes(nIters)
@@ -82,7 +82,7 @@ class Microtype:
         return {mode: self.getModeSpeed(mode) for mode in self.mode_names}
 
     def getModeSpeed(self, mode) -> float:
-        return self.networks.modes[mode].getSpeed()
+        return self.networks.getMode(mode).getSpeed()
 
     def getModeFlow(self, mode) -> float:
         return self.networks.demands.getRateOfPMT(mode)
@@ -111,21 +111,21 @@ class Microtype:
 
     def addStartTimeCostWait(self, mode: str, cc: np.ndarray):  # Could eventually be vectorized
         if mode in self:
-            cc[self.paramToIdx['cost']] += self.networks.modes[mode].perStart
+            cc[self.paramToIdx['cost']] += self.networks.getMode(mode).perStart
             if mode in ['bus', 'rail']:
-                cc[self.paramToIdx['wait_time']] += self.networks.modes[
-                                                        'bus'].headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
-                cc[self.paramToIdx['access_time']] += self.networks.modes[
-                                                          mode].getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
+                cc[self.paramToIdx['wait_time']] += self.networks.getMode(
+                    'bus').headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
+                cc[self.paramToIdx['access_time']] += self.networks.getMode(
+                    mode).getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
 
     def addEndTimeCostWait(self, mode: str, cc: np.ndarray):
         if mode in self:
-            cc[self.paramToIdx['cost']] += self.networks.modes[mode].perEnd
+            cc[self.paramToIdx['cost']] += self.networks.getMode(mode).perEnd
             if mode == 'bus':
-                cc[self.paramToIdx['wait_time']] += self.networks.modes['bus'].headwayInSec / 3600. / 4.
-                cc[self.paramToIdx['access_time']] += self.networks.modes[mode].getAccessDistance() * \
-                                                      self.networks.modes[
-                                                          'walk'].speedInMetersPerSecond / 3600.0
+                cc[self.paramToIdx['wait_time']] += self.networks.getMode('bus').headwayInSec / 3600. / 4.
+                cc[self.paramToIdx['access_time']] += self.networks.getMode(mode).getAccessDistance() * \
+                                                      self.networks.getMode(
+                                                          'walk').speedInMetersPerSecond / 3600.0
 
 
 def getFlows(self):
@@ -342,7 +342,7 @@ class MicrotypeCollection:
         for microtypeID, microtype in self:
             idx = self.transitionMatrix.idx(microtypeID)
             for mode in microtype.mode_names:
-                portionDedicated = microtype.networks.modes[mode].getPortionDedicated()
+                portionDedicated = microtype.networks.getMode(mode).getPortionDedicated()
                 distanceMixed = (1. - portionDedicated)  # microtype.getModeDemandForPMT(mode) *
                 self.__numpyMicrotypeMixedTrafficDistance[idx, self.modeToIdx[mode]] = distanceMixed
 

@@ -270,7 +270,6 @@ class Demand:
                          distanceBins: DistanceBins, transitionMatrices: TransitionMatrices, timePeriods: TimePeriods,
                          currentTimePeriod: int, numpyData: dict, multiplier=1.0):
         self.__population = population
-        # self.__trips = trips
         self.__distanceBins = distanceBins
         self.__transitionMatrices = transitionMatrices
         self.__originDestination = originDestination
@@ -278,14 +277,10 @@ class Demand:
         self.timePeriodDuration = timePeriods[currentTimePeriod]
 
         weights = np.zeros(len(self.odiToIdx), dtype=float)
-        distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
 
         self.__shape = self.__modeSplitData.shape
         self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.7
         self.__modeSplitData[:, :, self.modeToIdx['walk']] = 0.3
-        #
-        # for odi, idx in self.odiToIdx.items():
-        #     self.__toThroughDistance[:, self.odiToIdx[odi], self.microtypeIdToIdx[odi.o]] += 0.5
 
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
@@ -305,7 +300,7 @@ class Demand:
                 weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
 
-        otherMatrix = transitionMatrices.averageMatrix(weights, distances)
+        otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
     def updateTripGeneration(self, microtypes: MicrotypeCollection, multiplier=1.0):
@@ -313,8 +308,8 @@ class Demand:
         self.pop = 0.0
         self.demandForPMT = 0.0
         weights = np.zeros(len(self.odiToIdx), dtype=float)
-        distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
 
+        # TODO: Vectorize this
         for demandIndex, utilityParams in self.__population:
             od = self.__originDestination[demandIndex]
             ratePerHourPerCapita = self.__tripGeneration[
@@ -331,10 +326,10 @@ class Demand:
 
                 currentODindex = self.odiToIdx[odi]
                 currentPopIndex = self.diToIdx[demandIndex]
-                weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
+                weights[currentODindex] += tripRatePerHour
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
 
-        otherMatrix = self.__transitionMatrices.averageMatrix(weights, distances)
+        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
     # @profile
@@ -347,7 +342,6 @@ class Demand:
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
 
-        distances = np.array([self.__distanceBins[odi.distBin] for odi in self.odiToIdx.keys()])
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
         startsByOrigin = np.einsum('ijk,ijl->lk', startsByMode, self.__toStarts)
         startsByDestination = np.einsum('ijk,ijl->lk', startsByMode, self.__toEnds)
@@ -368,7 +362,7 @@ class Demand:
         Step one: Update transition matrix (depends only on mode split)
         """
 
-        otherMatrix = self.__transitionMatrices.averageMatrix(weights, distances)
+        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
         """
@@ -377,8 +371,8 @@ class Demand:
 
         for microtypeID, microtype in microtypes:
             for modes, n in microtype.networks:
-                n.getNetworkStateData().resetBlockedDistance()
-                n.getNetworkStateData().resetNonAutoAccumulation()
+                # n.getNetworkStateData().resetBlockedDistance()
+                # n.getNetworkStateData().resetNonAutoAccumulation()
                 n.resetSpeeds()
 
         for it in range(nIters):

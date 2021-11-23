@@ -761,7 +761,6 @@ class BusMode(Mode):
             times.append(self.getOperatingL(n) / spd)
             lengths.append(self.getOperatingL(n))
         for ind, n in enumerate(self.networks):
-            assert isinstance(n, Network)
             if speeds[ind] >= 0:
                 if n.dedicated:
                     n.runSingleNetworkMFD()
@@ -943,7 +942,7 @@ class Network:
 
     @property
     def base_speed(self):
-        return self.getNetworkStateData().averageSpeed
+        return self.modeNetworkSpeed[self.__modeToIdx['auto']]
 
     @property
     def autoSpeed(self):
@@ -1151,12 +1150,16 @@ class NetworkCollection:
         self.__dataToIdx = dataToIdx
         self.__modeToIdx = modeToIdx
 
-        if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
-            self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)
-        self.modes = dict()
         self.demands = TravelDemands([])
         self.verbose = verbose
+
+        if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
+            self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)
+
         # self.resetModes()
+
+    def modes(self):
+        return self.__modes
 
     def getMode(self, mode):
         return self.__modes[mode]
@@ -1191,13 +1194,13 @@ class NetworkCollection:
             # numpySubnetworkSpeed=None, numpySubnetworkAccumulation=None, numpySubnetworkBlockedDistance=None
 
             if modeName == "bus":
-                self._speedData[self.__modeToIdx[modeName]] = networks[0].base_speed
+                self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 mode = BusMode(networks, params, microtypeID,
                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
                                speedData=self._speedData[self.__modeToIdx[modeName], None])
                 self.__modes["bus"] = mode
             elif modeName == "auto":
-                self._speedData[self.__modeToIdx[modeName]] = networks[0].base_speed
+                self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 mode = AutoMode(networks, params, microtypeID,
                                 travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
                                 speedData=self._speedData[self.__modeToIdx[modeName], None])
@@ -1223,6 +1226,8 @@ class NetworkCollection:
             else:
                 print("BAD!")
                 Mode(networks, params, microtypeID, "bad")
+        for modeName, mode in self.__modes.items():
+            self.demands[modeName] = mode.travelDemand
 
     def updateModeData(self):
         for m in self.__modes.values():
@@ -1232,44 +1237,21 @@ class NetworkCollection:
     def isJammed(self):
         return np.any([n.isJammed for n in self._networks])
 
-    def resetModes(self):
-        allModes = [n.getModeValues() for n in self._networks.values()]
-        uniqueModes = set([item for sublist in allModes for item in sublist])
+    def resetModes(self):  # NOTE: Took some of this out, NOV 2021
         for n in self._networks.values():
             n.isJammed = False
-            n.resetSpeeds()
-        self.modes = dict()
-        for m in uniqueModes:
-            # m.updateN(TravelDemand())
-            self.modes[m.name] = m
-            self.demands[m.name] = m.travelDemand
-        # self.updateNetworks()
 
     # @profile
     def updateModes(self, nIters: int = 1):
-        # allModes = [n.getModeValues() for n in self._networks]
-        # uniqueModes = set([item for sublist in allModes for item in sublist])
-        # oldSpeeds = self.getModeSpeeds()
-
-        # TODO: Check ifthis is needed
-        # for m in self.modes.values():
-        #     m.updateDemand(self.demands[m.name])
-
-        for m in self.modes.values():  # uniqueModes:
+        for m in self.modes().values():  # uniqueModes:
             # replace this with assign accumulation to networks
             m.assignVmtToNetworks()
-            # for n in m.networks:
-            #     n.updateBaseSpeed()  # this will now be taken care of in microtype mfd calculations
             m.updateModeBlockedDistance()
             m.updateRouteAveragedSpeed()
 
-        for modes, n in self:
-            nonAutoAccumulation = n.getAccumulationExcluding('auto')
-            n.getNetworkStateData().nonAutoAccumulation = nonAutoAccumulation
-
-    # def updateNetworks(self):
-    #     for n in self._networks:
-    #         n.resetModes()
+        # for modes, n in self:
+        #     nonAutoAccumulation = n.getAccumulationExcluding('auto')
+        #     n.getNetworkStateData().nonAutoAccumulation = nonAutoAccumulation
 
     def __getitem__(self, item):
         return [n for idx, n in self._networks.items() if item in idx]
@@ -1288,11 +1270,11 @@ class NetworkCollection:
 
     def getModeSpeeds(self) -> np.array:
         # TODO: This can get slow
-        return np.array([m.getSpeed() for m in self.modes.values()])
+        return self._speedData
 
     def getModeOperatingCosts(self):
         out = TotalOperatorCosts()
-        for name, mode in self.modes.items():
+        for name, mode in self.modes().items():
             out[name] = (mode.getOperatorCosts(), mode.getOperatorRevenues())
         return out
 
