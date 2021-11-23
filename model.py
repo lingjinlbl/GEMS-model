@@ -482,8 +482,11 @@ class Data:
         supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
         supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
                                                             :, startTimeStep:endTimeStep]
-        supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[:,
-                                                       startTimeStep - 1]
+        if startTimeStep == 0:
+            supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
+        else:
+            supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[:,
+                                                           startTimeStep - 1]
         supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
         supply['nonAutoModes'] = self.__nonAutoModes
 
@@ -515,6 +518,9 @@ class Data:
         fixedData['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
         fixedData['nonAutoModes'] = self.__nonAutoModes
         return fixedData
+
+    def updateNetworkLength(self, networkIdx, newLength):
+        self.__subNetworkLength[networkIdx] = newLength
 
 
 class Model:
@@ -1354,7 +1360,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, False)
+    model = Model("input-data-losangeles", 1, False)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])
@@ -1379,14 +1385,14 @@ if __name__ == "__main__":
     #                       method="min")
 
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A', 'Bike')],
+                          fromToSubNetworkIDs=[('1', 'Bike')],
                           method="min")
 
     # optimizer.evaluate(optimizer.x0())
     # optimizer.minimize()
     print('-----0.0------')
     optimizer.evaluate([0.1])
-    x, y = model.plotAllDynamicStats('v')
+    x, y = model.plotAllDynamicStats('n')
     # model.interact.updatePlots()
     print('-----0.15------')
     optimizer.evaluate([0.15])

@@ -628,16 +628,7 @@ class BusMode(Mode):
     def updateScenarioInputs(self):
         self._params = self.params.to_numpy()
         for n in self.networks:
-            # self._L_blocked[n] = 0.0
-            # self._VMT[n] = 0.0
-            # self._N_eff[n] = 0.0
-            # self._speed[n] = n.base_speed
             self.__operatingL[n] = self.updateOperatingL(n)
-
-    # def updateDemand(self, travelDemand=None):
-    #     if travelDemand is not None:
-    #         self.travelDemand = travelDemand
-    #     self._VMT_tot = self.getDemandForVmtPerHour()
 
     def getAccessDistance(self) -> float:
         """Order of magnitude estimate for average walking distance to nearest stop"""
@@ -699,25 +690,22 @@ class BusMode(Mode):
             self.__bad = False
         return spd
 
-    # TODO: store speeds in array
-    def getSpeeds(self):
-        speeds = []
+    def updateSubNetworkOperatingSpeeds(self):
         for n in self.networks:
             if n.L == 0:
-                speeds.append(np.inf)
+                n.setModeOperatingSpeed(self.name, np.inf)
             else:
                 bus_speed = self.getSubNetworkSpeed(n)
-                speeds.append(bus_speed)
-        return speeds
+                n.setModeOperatingSpeed(self.name, bus_speed)
 
     def getSpeed(self):
+
         meters = np.zeros(len(self.networks), dtype=float)
         seconds = np.zeros(len(self.networks), dtype=float)
         speeds = np.zeros(len(self.networks), dtype=float)
         for idx, n in enumerate(self.networks):
             if n.L > 0:
-                # n_bus = self.getN(n)
-                bus_speed = self.getSubNetworkSpeed(n)
+                bus_speed = n.getModeOperatingSpeed(self.name)
                 meters[idx] = self.getOperatingL(n)
                 seconds[idx] = self.getOperatingL(n) / bus_speed
                 speeds[idx] = meters[idx] / seconds[idx]
@@ -777,14 +765,11 @@ class BusMode(Mode):
             if speeds[ind] >= 0:
                 if n.dedicated:
                     n.runSingleNetworkMFD()
-                self._networkAccumulation[ind][0] = self.getSubNetworkSpeed(n)
+                self._networkOperatingSpeed[ind][0] = self.getSubNetworkSpeed(n)
                 networkAccumulation = self.__N * times[ind] / sum(times)
                 self._networkAccumulation[ind][0] = min(
                     networkAccumulation, self.getRouteLength() / n.avgLinkLength / 2 * self.relativeLength)
-
-    # def updateCommercialSpeed(self):
-    #     self.routeAveragedSpeed = self.getRouteLength() / sum(
-    #         [self.getOperatingL(n) / spd for n, spd in self._speed.items()])
+        self.updateSubNetworkOperatingSpeeds()
 
     def getOccupancy(self) -> float:
         return self.travelDemand.averageDistanceInSystemInMiles / (
