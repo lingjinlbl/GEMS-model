@@ -452,8 +452,9 @@ class Demand:
             demandClass = self.__population[demandIndex]
             for odi, portion in od.items():
                 ms = self[(demandIndex, odi)]
-                mcc = collectedChoiceCharacteristics[odi]
+
                 for mode in ms.keys():
+                    mcc = collectedChoiceCharacteristics[odi, mode]
                     cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
                                                                                                                 [mode])
                     if demandForTripsPerHour > 0:
