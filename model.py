@@ -836,8 +836,11 @@ class Model:
                             :] * self.__timePeriods[timePeriod]
         return modeSplit
 
+    """
+    DEPRECIATED
     def getUserCosts(self, mode=None):
-        return self.demand.getUserCosts(self.choice, self.__originDestination, mode)
+        return self.demand.getUserCosts(self.choice, self.__originDestination)
+    """
 
     def getMatrixUserCosts(self):
         return self.demand.getMatrixUserCosts(self.choice)
@@ -979,15 +982,16 @@ class Model:
             # out = self.getMicrotypeCollection(id).transitionMatrixMFD(dur, self.getNetworkStateData(id),
             #                                                           self.getMicrotypeCollection(
             #                                                               id).getModeStartRatePerSecond("auto"))
-            sd = self.getNetworkStateData(id)
-            t, v, n, inflow, outflow, matrix, label = sd.getAutoSpeeds()
-            prods.append(sd.getAutoProduction())
-            inflows.append(inflow)
-            outflows.append(outflow)
-            ts.append(t)
-            vs.append(v)
-            ns.append(n)
-            matrices.append(matrix)
+            # sd = self.getNetworkStateData(id)
+            pass
+            # t, v, n, inflow, outflow, matrix, label = sd.getAutoSpeeds()
+            # prods.append(sd.getAutoProduction())
+            # inflows.append(inflow)
+            # outflows.append(outflow)
+            # ts.append(t)
+            # vs.append(v)
+            # ns.append(n)
+            # matrices.append(matrix)
 
         if type.lower() == "n":
             # x = np.concatenate(ts) / 3600
