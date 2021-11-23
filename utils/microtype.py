@@ -401,10 +401,10 @@ class MicrotypeCollection:
         self.__numpyMicrotypeSpeed[:, self.modeToIdx['auto']] = averageSpeeds
         # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)
         indices = np.nonzero(self.__transitionMatrixNetworkIdx)[0]
-        for idx, spd in zip(indices, averageSpeeds):
+        for i, (idx, spd) in enumerate(zip(indices, averageSpeeds)):
             self.__numpyNetworkSpeed[idx, self.modeToIdx['auto']] = spd
-            np.copyto(self.__numpyInstantaneousSpeed[idx, :], vs[idx, :])
-            np.copyto(self.__numpyInstantaneousAccumulation[idx, :], ns[idx, :])
+            np.copyto(self.__numpyInstantaneousSpeed[i, :], vs[i, :])
+            np.copyto(self.__numpyInstantaneousAccumulation[i, :], ns[i, :])
 
         # for microtypeID, microtype in self:
         #     idx = self.transitionMatrix.idx(microtypeID)
