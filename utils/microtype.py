@@ -277,11 +277,6 @@ class MicrotypeCollection:
     def __len__(self):
         return len(self.__microtypes)
 
-    # def getAllStartCosts(self, microtypeToIdx: dict, characteristicToIdx: dict) -> np.ndarray:
-    #     out = np.ndarray((len(microtypeToIdx), len(characteristicToIdx)))
-    #
-    #     return out
-
     def microtypeNames(self):
         return list(self.__microtypes.keys())
 
@@ -314,8 +309,8 @@ class MicrotypeCollection:
                 subNetworkToModes = OrderedDict()
                 modeToModeData = OrderedDict()
                 allModes = set()
-                for subNetworkId in subNetworkCharacteristics.loc[
-                    subNetworkCharacteristics["MicrotypeID"] == microtypeID].index:
+                for subNetworkId in subNetworkCharacteristics.loc[subNetworkCharacteristics[
+                                                                      "MicrotypeID"] == microtypeID].index:
                     joined = modeToSubNetworkData.loc[
                         modeToSubNetworkData['SubnetworkID'] == subNetworkId]
                     subNetwork = Network(subNetworkData, subNetworkCharacteristics, subNetworkId, diameter, microtypeID,
@@ -342,10 +337,6 @@ class MicrotypeCollection:
                                                       self.dataToIdx, self.modeToIdx)
                 self[microtypeID] = Microtype(microtypeID, networkCollection, self.paramToIdx)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeID])
-
-                # print("|  Loaded ",
-                #       len(subNetworkCharacteristics.loc[subNetworkCharacteristics["MicrotypeID"] == microtypeID].index),
-                #       " subNetworks in microtype ", microtypeID)
 
     def updateDedicatedDistance(self):
         for microtypeID, microtype in self:
@@ -390,36 +381,18 @@ class MicrotypeCollection:
             print('hmmmm')
         vs = vectorV(ns, n_other, L_eff, speedFunctions)
 
-        # inflows = vs.copy()
-        # outflows = vs.copy()
-        # flowMats = np.zeros((len(self), len(self), np.size(ts)), dtype=float)
-
         averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
         # averageSpeeds = np.min(vs, axis=1)
 
         self.__numpyMicrotypeSpeed[:, self.modeToIdx['auto']] = averageSpeeds
-        # np.copyto(self.__numpySpeed[:, self.modeToIdx['auto']], averageSpeeds)
+
         indices = np.nonzero(self.__transitionMatrixNetworkIdx)[0]
         for i, (idx, spd) in enumerate(zip(indices, averageSpeeds)):
             self.__numpyNetworkSpeed[idx, self.modeToIdx['auto']] = spd
             np.copyto(self.__numpyInstantaneousSpeed[i, :], vs[i, :])
             np.copyto(self.__numpyInstantaneousAccumulation[i, :], ns[i, :])
 
-        # for microtypeID, microtype in self:
-        #     idx = self.transitionMatrix.idx(microtypeID)
-        #     for modes, autoNetwork in microtype.networks:
-        #         if "auto" in autoNetwork:
-        #             networkStateData = collectedNetworkStateData[(microtypeID, modes)]
-        #             networkStateData.finalAccumulation = ns[idx, -1]
-        #             networkStateData.finalSpeed = vs[idx, -1]
-        #             networkStateData.averageSpeed = averageSpeeds[idx]
-        #             networkStateData.inflow = np.squeeze(inflows[idx, :]) * dt
-        #             networkStateData.outflow = np.squeeze(outflows[idx, :]) * dt
-        #             networkStateData.flowMatrix = np.squeeze(flowMats[idx, :, :]) * dt
-        #             networkStateData.n = np.squeeze(ns[idx, :])
-        #             networkStateData.v = np.squeeze(vs[idx, :])
-        #             networkStateData.t = np.squeeze(ts) + networkStateData.initialTime
         return {"t": np.transpose(ts), "v": np.transpose(vs), "n": np.transpose(ns),
                 "max_accumulation": 100}
 
