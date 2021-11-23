@@ -212,6 +212,7 @@ class WalkMode(Mode):
         for n in networks:
             n.addMode(self)
             n.setModeNetworkSpeed(self.name, self.speedInMetersPerSecond)
+            n.setModeOperatingSpeed(self.name, self.speedInMetersPerSecond)
 
     @property
     def perStart(self):
@@ -246,6 +247,7 @@ class BikeMode(Mode):
         for n in networks:
             n.addMode(self)
             n.setModeNetworkSpeed(self.name, self.speedInMetersPerSecond)
+            n.setModeOperatingSpeed(self.name, self.speedInMetersPerSecond)
         self.bikeLanePreference = 2.0
 
     @property
@@ -340,6 +342,7 @@ class RailMode(Mode):
         for n in networks:
             n.addMode(self)
             n.setModeNetworkSpeed(self.name, n.base_speed)
+            n.setModeOperatingSpeed(self.name, self.speedInMetersPerSecond)
 
     @property
     def perStart(self):
@@ -762,13 +765,14 @@ class BusMode(Mode):
             lengths.append(self.getOperatingL(n))
         for ind, n in enumerate(self.networks):
             if speeds[ind] >= 0:
-                if n.dedicated:
-                    n.runSingleNetworkMFD()
                 self._networkOperatingSpeed[ind][0] = self.getSubNetworkSpeed(n)
                 networkAccumulation = self.__N * times[ind] / sum(times)
                 self._networkAccumulation[ind][0] = min(
                     networkAccumulation, self.getRouteLength() / n.avgLinkLength / 2 * self.relativeLength)
+                if n.dedicated & (networkAccumulation > 0):
+                    n.runSingleNetworkMFD()
         self.updateSubNetworkOperatingSpeeds()
+        self.updateModeBlockedDistance()
 
     def getOccupancy(self) -> float:
         return self.travelDemand.averageDistanceInSystemInMiles / (
@@ -841,7 +845,8 @@ class Network:
     def runSingleNetworkMFD(self):
         Ntot = (self.modeAccumulation * self.modeVehicleSize).sum()
         Leff = self.L - self.modeBlockedDistance.sum()
-        self.autoSpeed = self.MFD(Ntot / Leff)
+        newspeed = self.MFD(Ntot / Leff)
+        self.modeNetworkSpeed.fill(newspeed)
 
     def getModeAccumulation(self, mode):
         return self.modeAccumulation[self.__modeToIdx[mode], None]
@@ -878,8 +883,7 @@ class Network:
         self.MFD = self.defineMFD()
 
     def defineMFD(self):
-        if (self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road") & ~self.characteristics.iat[
-            self._iloc, self.charColumnToIdx["Dedicated"]]:
+        if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
             if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "loder":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
                 densityMax = self.__data[self.dataColumnToIdx["densityMax"]]

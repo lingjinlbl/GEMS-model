@@ -1391,7 +1391,7 @@ if __name__ == "__main__":
     # optimizer.evaluate(optimizer.x0())
     # optimizer.minimize()
     print('-----0.0------')
-    optimizer.evaluate([0.1])
+    optimizer.evaluate([0.02])
     x, y = model.plotAllDynamicStats('n')
     # model.interact.updatePlots()
     print('-----0.15------')

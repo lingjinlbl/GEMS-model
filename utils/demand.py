@@ -445,15 +445,9 @@ class Demand:
         return totalsByModeAndCharacteristic
 
     def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-                     originDestination: OriginDestination, modes=None) -> CollectedTotalUserCosts:
+                     originDestination: OriginDestination) -> CollectedTotalUserCosts:
         out = CollectedTotalUserCosts()
         for demandIndex, utilityParams in self.__population:
-            totalCost = 0.
-            totalCostDefault = 0.
-            totalDemandForTripsPerHour = 0.
-            totalDemandForPMTPerHour = 0.
-            totalInVehicle = 0.
-            totalOutVehicle = 0.
             od = originDestination[demandIndex]
             demandClass = self.__population[demandIndex]
             for odi, portion in od.items():
@@ -482,7 +476,6 @@ def utils(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
     l: parameter
     """
     utils = np.einsum('ikl,jkl->ijk', popVars, choiceChars)
-    # print(choiceChars[0,-1,:])
     return utils
 
 
