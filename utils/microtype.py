@@ -111,12 +111,16 @@ class Microtype:
 
     def addStartTimeCostWait(self, mode: str, cc: np.ndarray):  # Could eventually be vectorized
         if mode in self:
-            cc[self.paramToIdx['cost']] += self.networks.getMode(mode).perStart
+            perStartCost = self.networks.getMode(mode).perStart
+            cc[self.paramToIdx['cost']] += perStartCost
             if mode in ['bus', 'rail']:
-                cc[self.paramToIdx['wait_time']] += self.networks.getMode(
-                    'bus').headwayInSec / 3600. / 4.  # TODO: Something better than average of start and end
-                cc[self.paramToIdx['access_time']] += self.networks.getMode(
+                waitTime = self.networks.getMode('bus').headwayInSec / 3600. / 4.  # TODO: Something better
+                cc[self.paramToIdx['wait_time']] += waitTime
+                accessTime = self.networks.getMode(
                     mode).getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
+                cc[self.paramToIdx['access_time']] += accessTime
+                if np.isnan(waitTime) | np.isnan(accessTime):
+                    print('WHY IS THIS NAN')
 
     def addEndTimeCostWait(self, mode: str, cc: np.ndarray):
         if mode in self:

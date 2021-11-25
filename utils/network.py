@@ -385,7 +385,7 @@ class RailMode(Mode):
 
     @property
     def portionAreaCovered(self):
-        return self._params[self._idx, self.modeParamsColumnToIdx["CoveragePortion"]]
+        return max([self._params[self._idx, self.modeParamsColumnToIdx["CoveragePortion"]], 0.01])
         # return self.params.at[self.microtypeID, "CoveragePortion"]
 
     def updateDemand(self, travelDemand=None):
@@ -394,7 +394,7 @@ class RailMode(Mode):
         self._VMT_tot = self.getRouteLength() / self.headwayInSec
 
     def getAccessDistance(self) -> float:
-        return self.stopSpacingInMeters / 4.0 / self.portionAreaCovered ** 2.0
+        return np.nan_to_num(self.stopSpacingInMeters / 4.0 / self.portionAreaCovered ** 2.0, nan=5000)
 
     def getSpeed(self):
         return self.routeAveragedSpeed

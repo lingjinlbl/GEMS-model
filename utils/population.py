@@ -227,14 +227,14 @@ class Population:
                 df[['BetaTravelTime', 'BetaWaitTime', 'BetaAccessTime', 'BetaTravelTimeMixed']] *= 60.0
                 dfPooled[['BetaTravelTime_Pooled', 'BetaWaitTime_Pooled', 'BetaAccessTime_Pooled',
                           'BetaTravelTimeMixed_Pooled']] *= 60.0
-                for mode, values in df.iterrows():
-                    self.__numpy[
-                        self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose
-                                                 )], self.modeToIdx[mode], [0, 1, 3, 4, 5]] = values.to_numpy()
-                for mode, values in dfPooled.iterrows():
-                    self.__numpyCost[
-                        self.diToIdx[DemandIndex(homeMicrotypeID, groupId, tripPurpose
-                                                 )], self.modeToIdx[mode], [0, 1, 3, 4, 5]] = values.to_numpy()
+                di = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
+                if di in self.diToIdx:
+                    for mode, values in df.iterrows():
+                        self.__numpy[self.diToIdx[di], self.modeToIdx[mode], [0, 1, 3, 4, 5]] = values.to_numpy()
+                    for mode, values in dfPooled.iterrows():
+                        self.__numpyCost[self.diToIdx[di], self.modeToIdx[mode], [0, 1, 3, 4, 5]] = values.to_numpy()
+                else:
+                    print('No population found for ', str(di))
 
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)

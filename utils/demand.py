@@ -296,9 +296,13 @@ class Demand:
                 self.pop += pop
 
                 currentODindex = self.odiToIdx[odi]
-                currentPopIndex = self.diToIdx[demandIndex]
-                weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
-                self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                if demandIndex in self.diToIdx:
+                    currentPopIndex = self.diToIdx[demandIndex]
+                    weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
+                    self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                else:
+                    if tripRatePerHour > 0:
+                        print("What do we have here? Lost {} trips".format(tripRatePerHour))
 
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
