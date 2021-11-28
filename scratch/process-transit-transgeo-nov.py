@@ -99,7 +99,7 @@ for id, microtypeInfo in subNetworksRaw.iterrows():
         pd.Series({'ModesAllowed': 'Walk', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'walk'}))
     subNetworkId += 1
 
-    Bus = {'MicrotypeID': id, 'ModesAllowed': 'Walk', 'Dedicated': True, 'Length': 0.}
+    Bus = {'MicrotypeID': id, 'ModesAllowed': 'Bus', 'Dedicated': True, 'Length': 0.}
     Bus.update(defaults['bus'])
     subNetworksOut[subNetworkId] = pd.Series(Bus)
     modeToSubNetworkOut.append(

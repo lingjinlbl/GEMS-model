@@ -366,7 +366,7 @@ class RailMode(Mode):
     @property
     def vehicleOperatingCostPerHour(self):
         # return self.params.to_numpy()[self._inds["VehicleOperatingCostsPerHour"]]
-        return self._params[self._idx, self.modeParamsColumnToIdx["VehicleOperatingCostsPerHour"]]
+        return self._params[self._idx, self.modeParamsColumnToIdx["VehicleOperatingCostPerHour"]]
 
     @property
     def fare(self):

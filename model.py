@@ -1389,7 +1389,7 @@ if __name__ == "__main__":
     #                       method="min")
 
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bike')],
+                          fromToSubNetworkIDs=[('1', 'Bus')],
                           method="min")
 
     # optimizer.evaluate(optimizer.x0())

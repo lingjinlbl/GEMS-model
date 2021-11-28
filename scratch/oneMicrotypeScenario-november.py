@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = "A"
+geotype = "F"
 inFolder = "input-data-transgeo"
 outFolder = "input-data-geotype-" + geotype
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,6 +29,10 @@ for mode in ["auto", "bike", "bus", "rail", "walk"]:
     newPath = os.path.join(ROOT_DIR, "..", outFolder, "modes", mode + ".csv")
     df = pd.read_csv(oldPath)
     newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
+    if "DailyCostPerVehicle" in newdf.columns:
+        newdf['VehicleOperatingCostPerHour'] = newdf['DailyCostPerVehicle'] / 24.
+    else:
+        newdf['VehicleOperatingCostPerHour'] = 0.0
     if 'PerEndCost' not in newdf.columns:
         newdf['PerEndCost'] = 0.0
     if 'PerStartCost' not in newdf.columns:
