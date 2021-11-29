@@ -493,9 +493,10 @@ def utilsWithExcludedModes(popVars: np.ndarray, choiceChars: np.ndarray, transit
     l: parameter
     """
     utils = np.einsum('ikl,jkl->ijk', popVars, choiceChars)
-    paddedUtils = np.repeat(utils[:, :, :, None], transitLayerUtility.shape[-1], axis=3)
-    paddedTransitLayer = np.repeat(np.repeat(transitLayerUtility[None, :, :], utils.shape[1], axis=0)[None, :, :, :],
-                                   utils.shape[0], axis=0)
+    paddedUtils = utils[:, :, :, None]  # np.repeat(utils[:, :, :, None], transitLayerUtility.shape[-1], axis=3)
+    paddedTransitLayer = transitLayerUtility[None, None, :, :]
+    # np.repeat(np.repeat(transitLayerUtility[None, :, :], utils.shape[1], axis=0)[None, :, :, :],
+    # utils.shape[0], axis=0)
     return paddedUtils + paddedTransitLayer
 
 
