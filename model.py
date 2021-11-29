@@ -15,7 +15,7 @@ from scipy.optimize import root, minimize, Bounds, shgo
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand, ODindex, modeSplitFromUtils, Externalities
+from utils.demand import Demand, ODindex, modeSplitFromUtils, Externalities, modeSplitFromUtilsWithExcludedModes
 from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
@@ -427,7 +427,7 @@ class Data:
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
         self.__choiceCharacteristics = np.zeros(
             (self.params.nTimePeriods, self.params.nODIs, self.params.nModes, self.params.nParams), dtype=float)
-        self.__transitLayerUtility = np.zeros((self.params.nTransitLayers, self.params.nModes), dtype=float)
+        self.__transitLayerUtility = np.zeros((self.params.nModes, self.params.nTransitLayers), dtype=float)
         self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams), dtype=float)
         self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams),
                                                 dtype=float)
@@ -611,14 +611,14 @@ class Model:
         self.__timeStepInSeconds = 60.0
         self.scenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.data = Data(self.scenarioData, self.__nSubBins, self.__timeStepInSeconds)
-        fixedData = self.data.getInvariants()
+        self.__fixedData = self.data.getInvariants()
 
         self.__initialScenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.__currentTimePeriod = None
         self.__microtypes = dict()  # MicrotypeCollection(self.modeData.data)
         self.__demand = dict()  # Demand()
         self.__choice = dict()  # CollectedChoiceCharacteristics()
-        self.__population = Population(self.scenarioData, fixedData)
+        self.__population = Population(self.scenarioData, self.__fixedData)
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
         self.__tripGeneration = TripGeneration()
@@ -749,7 +749,7 @@ class Model:
 
     def demandSide(self, choiceCharacteristicsArray):
         utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray)
-        modeSplitArray = modeSplitFromUtils(utilitiesArray)
+        modeSplitArray = modeSplitFromUtilsWithExcludedModes(utilitiesArray, self.__fixedData['toTransitLayer'])
         return modeSplitArray
 
     def toObjectiveFunction(self, modeSplitArray):

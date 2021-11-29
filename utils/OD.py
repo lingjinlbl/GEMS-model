@@ -502,7 +502,7 @@ class OriginDestination:
         for transitLayer, idx in self.__scenarioData.transitLayerToIdx.items():
             modeIncluded = np.array(
                 [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.modeToIdx.keys()])
-            self.__modelData['transitLayerUtility'][idx, ~modeIncluded] -= 1e6
+            self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
 
         for demandIndex, currentPopIndex in self.__scenarioData.diToIdx.items():
             od = self[demandIndex]

@@ -402,11 +402,12 @@ class Demand:
         return self.__currentUtility
 
     def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray) -> np.ndarray:
-        newUtilities = utils(self.__population.numpy, choiceCharacteristicsArray)
-        if self.__currentUtility.size > 0:
-            np.copyto(self.__currentUtility, newUtilities)
-        else:
-            self.__currentUtility = newUtilities
+        newUtilities = utilsWithExcludedModes(self.__population.numpy, choiceCharacteristicsArray,
+                                              self.__population.transitLayerUtility)
+        # if self.__currentUtility.size > 0:
+        #     np.copyto(self.__currentUtility, newUtilities)
+        # else:
+        #     self.__currentUtility = newUtilities
         return newUtilities
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
@@ -484,6 +485,20 @@ def utils(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
     return utils
 
 
+def utilsWithExcludedModes(popVars: np.ndarray, choiceChars: np.ndarray, transitLayerUtility: np.ndarray) -> np.ndarray:
+    """ Indices:
+    i: population group (demand index)
+    j: OD index
+    k: mode
+    l: parameter
+    """
+    utils = np.einsum('ikl,jkl->ijk', popVars, choiceChars)
+    paddedUtils = np.repeat(utils[:, :, :, None], transitLayerUtility.shape[-1], axis=3)
+    paddedTransitLayer = np.repeat(np.repeat(transitLayerUtility[None, :, :], utils.shape[1], axis=0)[None, :, :, :],
+                                   utils.shape[0], axis=0)
+    return paddedUtils + paddedTransitLayer
+
+
 def modeSplitFromUtils(utilities: np.ndarray) -> np.ndarray:
     expUtils = np.exp(utilities)
     probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
@@ -491,12 +506,18 @@ def modeSplitFromUtils(utilities: np.ndarray) -> np.ndarray:
     return probabilities
 
 
-def modeSplitMatrixCalc(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
-    expUtils = np.exp(utils(popVars, choiceChars))
+def modeSplitFromUtilsWithExcludedModes(utilities: np.ndarray, transitLayerPortion: np.ndarray) -> np.ndarray:
+    expUtils = np.exp(utilities)
     probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
     probabilities[np.isnan(expUtils)] = 0
-    # print(probabilities[0,0,:])
-    return probabilities
+    """ Indices:
+    i: population group (demand index)
+    j: OD index
+    k: mode
+    l: transit layer
+    """
+    weightedProbabilities = np.einsum('ijkl,jl->ijk', probabilities, transitLayerPortion)
+    return weightedProbabilities
 
 
 def correctModeSplit(modeSplit: np.ndarray) -> np.ndarray:

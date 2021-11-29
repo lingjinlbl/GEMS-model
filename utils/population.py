@@ -127,6 +127,7 @@ class Population:
         self.totalPopulation = 0
         self.__numpy = fixedData['choiceParameters']
         self.__numpyCost = fixedData['choiceParametersFixed']
+        self.__transitLayerUtility = fixedData['transitLayerUtility']
         self.__modes = scenarioData.getModes()
         self.utilsToDollars = 200
         self.defaultValueOfTimePerHour = 45
@@ -150,6 +151,10 @@ class Population:
     @property
     def numpyCost(self) -> np.ndarray:
         return self.__numpyCost
+
+    @property
+    def transitLayerUtility(self) -> np.ndarray:
+        return self.__transitLayerUtility
 
     def __setitem__(self, key: DemandIndex, value: DemandClass):
         self.__demandClasses[key] = value
