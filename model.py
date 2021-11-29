@@ -219,6 +219,7 @@ class ScenarioData:
         self.__dataToIdx = dict()
         self.__microtypeIdToIdx = dict()
         self.__paramToIdx = dict()
+        self.__transitLayerToIdx = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
             self.data = dict()
@@ -254,6 +255,10 @@ class ScenarioData:
     @property
     def microtypeIds(self):
         return list(self.__microtypeIdToIdx.keys())
+
+    @property
+    def transitLayerToIdx(self):
+        return self.__transitLayerToIdx
 
     def __setitem__(self, key: str, value):
         self.data[key] = value
@@ -312,7 +317,8 @@ class ScenarioData:
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         self["modeExternalities"] = pd.read_csv(os.path.join(self.__path, "ModeExternalities.csv"),
                                                 dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
-
+        self["modeAvailability"] = pd.read_csv(os.path.join(self.__path, "ModeAvailability.csv"),
+                                               dtype={"OriginMicrotypeID": str, "DestinationMicrotypeID": str})
         self.defineIndices()
 
     def appendTripPurposeToPopulationGroups(self, populationGroups, tripPurposes):
@@ -360,6 +366,8 @@ class ScenarioData:
 
         self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
                              'unprotected_travel_time': 5, 'distance': 6}
+        uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
+        self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
 
     def copy(self):
         """
@@ -390,6 +398,7 @@ class ShapeParams:
         self.nSubNetworks = len(scenarioData['subNetworkData'])
         self.nParams = len(scenarioData.paramToIdx)
         self.nDemandDataTypes = len(scenarioData.dataToIdx)
+        self.nTransitLayers = len(scenarioData.transitLayerToIdx)
 
 
 class Data:
@@ -413,10 +422,12 @@ class Data:
             (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toThroughDistance = np.zeros(
             (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toTransitLayer = np.zeros((self.params.nODIs, self.params.nTransitLayers), dtype=float)
         self.__utilities = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
         self.__choiceCharacteristics = np.zeros(
             (self.params.nTimePeriods, self.params.nODIs, self.params.nModes, self.params.nParams), dtype=float)
+        self.__transitLayerUtility = np.zeros((self.params.nTransitLayers, self.params.nModes), dtype=float)
         self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams), dtype=float)
         self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams),
                                                 dtype=float)
@@ -504,6 +515,8 @@ class Data:
         demand['choiceCharacteristics'] = self.__choiceCharacteristics[timePeriodIdx, :, :, :]
         demand['choiceParameters'] = self.__choiceParameters
         demand['choiceParametersFixed'] = self.__choiceParametersFixed
+        demand['toTransitLayer'] = self.__toTransitLayer
+        demand['transitLayerUtility'] = self.__transitLayerUtility
         return demand
 
     def getInvariants(self):
@@ -517,6 +530,8 @@ class Data:
         fixedData['choiceParametersFixed'] = self.__choiceParametersFixed
         fixedData['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
         fixedData['nonAutoModes'] = self.__nonAutoModes
+        fixedData['toTransitLayer'] = self.__toTransitLayer
+        fixedData['transitLayerUtility'] = self.__transitLayerUtility
         return fixedData
 
     def updateNetworkLength(self, networkIdx, newLength):
@@ -701,7 +716,8 @@ class Model:
                                                            self.scenarioData["microtypeIDs"],
                                                            self.scenarioData["distanceBins"])
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
-                                                         self.scenarioData["distanceDistribution"])
+                                                         self.scenarioData["distanceDistribution"],
+                                                         self.scenarioData["modeAvailability"])
         self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
 
     def initializeTimePeriod(self, timePeriod: int, override=False):

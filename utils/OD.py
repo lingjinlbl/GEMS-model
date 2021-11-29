@@ -479,13 +479,30 @@ class OriginDestination:
             self.__originDestination[self.__currentTimePeriod] = dict()
         return self.__originDestination[self.__currentTimePeriod]
 
-    def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame):
+    def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame, modeAvailability: pd.DataFrame):
         self.__ods = ods
         self.__distances = distances
         print("|  Loaded ", len(ods), " ODs and ", len(distances), "unique distance bins")
 
         for timePeriodId, duration in self.__timePeriods:
             self.initializeTimePeriod(timePeriodId, self.__timePeriods.getTimePeriodName(timePeriodId))
+
+        for originMicrotype in self.__scenarioData.microtypeIds:
+            for destinationMicrotype in self.__scenarioData.microtypeIds:
+                sub = modeAvailability.loc[(modeAvailability['OriginMicrotypeID'] == originMicrotype) & (
+                        modeAvailability['DestinationMicrotypeID'] == destinationMicrotype), :]
+                for distanceBin in self.__distances.DistanceBinID:
+                    odi = ODindex(originMicrotype, destinationMicrotype, distanceBin)
+                    if odi in self.__scenarioData.odiToIdx:
+                        for row in sub.itertuples():
+                            self.__modelData['toTransitLayer'][
+                                self.__scenarioData.odiToIdx[odi], self.__scenarioData.transitLayerToIdx[
+                                    row.TransitLayer]] = row.Portion
+
+        for transitLayer, idx in self.__scenarioData.transitLayerToIdx.items():
+            modeIncluded = np.array(
+                [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.modeToIdx.keys()])
+            self.__modelData['transitLayerUtility'][idx, ~modeIncluded] -= 1e6
 
         for demandIndex, currentPopIndex in self.__scenarioData.diToIdx.items():
             od = self[demandIndex]
