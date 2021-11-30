@@ -3,9 +3,14 @@ import shutil
 
 import pandas as pd
 
-geotype = "F"
-inFolder = "input-data-transgeo"
-outFolder = "input-data-geotype-" + geotype
+if False:
+    geotype = "F"
+    inFolder = "input-data-transgeo"
+    outFolder = "input-data-geotype-" + geotype
+else:
+    geotype = "A"
+    inFolder = "input-data-losangeles-raw"
+    outFolder = "input-data-losangeles"
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 newDir = os.path.join(ROOT_DIR, "..", outFolder)

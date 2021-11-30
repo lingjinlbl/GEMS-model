@@ -3,8 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = "A"
-inFolder = "input-data-losangeles"
+inFolder = "input-data-losangeles-raw"
 outFolder = "input-data-losangeles"
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
