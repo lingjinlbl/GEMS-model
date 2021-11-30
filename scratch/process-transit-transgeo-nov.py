@@ -13,7 +13,7 @@ subNetworksRaw = pd.read_csv(path, index_col="MicrotypeID")
 
 path = os.path.join(ROOT_DIR, "..", "input-data-transgeo", "modes", "bus-raw.csv")
 busInput = pd.read_csv(path, index_col="MicrotypeID")
-busInput['coveragePortion'] = 0.0
+busInput['CoveragePortion'] = 0.0
 busInput['Headway'] = 3600 / (busInput['VehicleRevenueMilesPerDay'] / busInput['DirectionalRouteMiles']) / headwayFactor
 busInput['VehicleCapacity'] = 40.
 busInput['VehicleSize'] = 3.
@@ -117,7 +117,7 @@ for id, microtypeInfo in subNetworksRaw.iterrows():
             'Length': railInfo.DirectionalRouteMiles * miles2meters}
     Rail.update(defaults['rail'])
     subNetworksOut[subNetworkId] = pd.Series(Rail)
-    railInput.loc[id, "coveragePortion"] = min(
+    railInput.loc[id, "CoveragePortion"] = min(
         [(railInfo.DirectionalRouteMiles) / microtypeInfo.LengthNetworkLaneMiles * 10.0, 1.0])
     modeToSubNetworkOut.append(
         pd.Series({'ModesAllowed': 'Rail', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'rail'}))

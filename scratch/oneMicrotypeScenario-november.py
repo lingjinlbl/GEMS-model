@@ -162,6 +162,7 @@ newPath = os.path.join(ROOT_DIR, "..", outFolder, "SubNetworks.csv")
 df = pd.read_csv(oldPath)
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
+newdf.loc[:, "Length"] *= 0.5
 newSubNetworks = set(newdf.SubnetworkID.values)
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 

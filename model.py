@@ -456,6 +456,18 @@ class Data:
         self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
 
+    def modeSplit(self, timePeriod=None):
+        if timePeriod is None:
+            return self.__modeSplit
+        else:
+            return self.__modeSplit[timePeriod, :, :, :]
+
+    def tripRate(self, timePeriod=None):
+        if timePeriod is None:
+            return self.__tripRate
+        else:
+            return self.__tripRate[timePeriod, :, :]
+
     @property
     def t(self):
         return self.__instantaneousTime
@@ -630,7 +642,7 @@ class Model:
         self.__networkStateData = dict()
         self.__printLoc = stdout
         self.__interactive = interactive
-        self.__tolerance = 1e-9
+        self.__tolerance = 2e-11
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
@@ -771,6 +783,12 @@ class Model:
         output = self.f(flatModeSplitArray)
         diff = output - flatModeSplitArray
         diff[np.isnan(diff)] = 0.0
+        diff += flatModeSplitArray.clip(None, 0) * 1e2
+        modeSplitError = self.fromObjectiveFunction(flatModeSplitArray)
+        modeSplitError[:, :, :-1] = flatModeSplitArray.reshape(list(self.demand.modeSplitData.shape[:-1]) + [-1]).clip(
+            None, 0)
+        diff += self.toObjectiveFunction(modeSplitError) * 1e1
+        # diff[(flatModeSplitArray < 0) | (output < 0)] *= 100.
         return diff
 
     def timePeriods(self):
@@ -806,6 +824,8 @@ class Model:
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
             # print(self.g(sol.x))
             success = sol.success
+            if not success:
+                print("Convergence didn't finish")
         self.__successful = self.__successful & success
 
         """
@@ -817,19 +837,13 @@ class Model:
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
         if timePeriod is None:
-            modeSplit = np.zeros(len(self.modeToIdx))
-            for tp, weight in self.__timePeriods:
-                if tp in self.__demand:
-                    if microtypeID is None:
-                        modeSplit += self.__microtypes[tp].passengerDistanceByMode.sum(axis=0) * weight
-                    else:
-                        modeSplit += self.__microtypes[tp].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID],
-                                     :] * weight
+            tripRate = self.data.tripRate()
+            modeSplits = self.data.modeSplit()
+            modeSplit = np.einsum('tijk,tij->k', modeSplits, tripRate)
         else:
-            if microtypeID is None:
-                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode.sum(axis=0)
-            else:
-                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID], :]
+            tripRate = self.data.tripRate(timePeriod)
+            modeSplits = self.data.modeSplit(timePeriod)
+            modeSplit = np.einsum('ijk,ij->k', modeSplits, tripRate)
         return modeSplit / np.sum(modeSplit)
 
     def getModePMT(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
@@ -1023,8 +1037,8 @@ class Model:
         elif type.lower() == "v":
             # x = np.concatenate(ts) / 3600.
             # y = np.concatenate(vs) * 3600. / 1609.34
-            x = self.data.t
-            y = self.data.v
+            x = self.data.t / 3600.
+            y = self.data.v * 3600. / 1609.34
             # plt.plot(x, y)
             return x, y.transpose()
         elif type.lower() == "delay":
@@ -1380,7 +1394,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 1, False)
+    model = Model("input-data-losangeles", 1, True)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])
