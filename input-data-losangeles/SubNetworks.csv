@@ -7,7 +7,7 @@ SubnetworkID,Dedicated,Length,MFD,MicrotypeID,ModesAllowed,Type,avgLinkLength,ca
 6,True,1924070.0384278302,fixed,2,Walk,Sidewalk,,,,,1.35,
 7,True,0.0,bottleneck,2,Bus,Road,50.0,0.4,,,17.0,
 8,True,0.0,fixed,2,Bike,Road,,,,,5.0,
-10,False,12498611.663829612,bottleneck,3,Auto-Bus-Bike,Road,50.0,0.5,0.0,0.0,28.0,0.0
+10,False,12498611.663829612,bottleneck,3,Auto-Bus-Bike,Road,50.0,0.55,0.0,0.0,28.0,0.0
 11,True,2499722.3327659224,fixed,3,Walk,Sidewalk,,,,,1.35,
 12,True,0.0,bottleneck,3,Bus,Road,50.0,0.4,,,17.0,
 13,True,0.0,fixed,3,Bike,Road,,,,,5.0,
