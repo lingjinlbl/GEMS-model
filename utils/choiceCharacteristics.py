@@ -202,7 +202,7 @@ class CollectedChoiceCharacteristics:
     def initializeChoiceCharacteristics(self, microtypes, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
         self.__numpy[:, :, self.paramToIdx['intercept']] = 1
-        for odIndex in self.odiToIdx.keys():
+        for odIndex, odIndexIdx in self.odiToIdx.items():
             if odIndex.d != 'None' and odIndex.o != 'None':
                 common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
                 modes = set.intersection(*common_modes)
@@ -212,6 +212,7 @@ class CollectedChoiceCharacteristics:
                         self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
                 self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
                                                            data=self.__numpy[self.odiToIdx[odIndex], :, :])
+            self.__numpy[odIndexIdx, :, self.paramToIdx['intercept']] = distanceBins[odIndex.distBin]
 
     def resetChoiceCharacteristics(self):
         self.__numpy[~np.isnan(self.__numpy)] *= 0.0

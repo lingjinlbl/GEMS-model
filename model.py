@@ -435,7 +435,8 @@ class Data:
         #############
         # Supply side
         #############
-
+        self.__microtypeLengthMultiplier = np.ones(self.params.nMicrotypes, dtype=float)
+        self.__subNetworkToMicrotype = np.zeros((self.params.nMicrotypes, self.params.nSubNetworks), dtype=bool)
         self.__microtypeSpeed = np.zeros((self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
         self.__microtypeMixedTrafficDistance = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
@@ -470,6 +471,12 @@ class Data:
             return self.__tripRate
         else:
             return self.__tripRate[timePeriod, :, :]
+
+    def updateMicrotypeNetworkLength(self, microtypeID, newMultiplier):
+        mask = self.__subNetworkToMicrotype[self.scenarioData.microtypeIdToIdx[microtypeID], :]
+        oldMultiplier = self.__microtypeLengthMultiplier[self.scenarioData.microtypeIdToIdx[microtypeID]]
+        self.__subNetworkLength[mask] *= newMultiplier / oldMultiplier
+        self.__microtypeLengthMultiplier[self.scenarioData.microtypeIdToIdx[microtypeID]] = newMultiplier
 
     @property
     def t(self):
@@ -515,6 +522,7 @@ class Data:
                                                            startTimeStep - 1]
         supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
         supply['nonAutoModes'] = self.__nonAutoModes
+        supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
 
         return supply
 
@@ -547,6 +555,7 @@ class Data:
         fixedData['nonAutoModes'] = self.__nonAutoModes
         fixedData['toTransitLayer'] = self.__toTransitLayer
         fixedData['transitLayerUtility'] = self.__transitLayerUtility
+        fixedData['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
         return fixedData
 
     def updateNetworkLength(self, networkIdx, newLength):
@@ -639,7 +648,7 @@ class Model:
         self.__tripGeneration = TripGeneration()
         self.__transitionMatrices = TransitionMatrices(self.scenarioData)
         self.__originDestination = OriginDestination(self.__timePeriods, self.__distanceBins, self.__population,
-                                                     self.__transitionMatrices, self.data.getInvariants(),
+                                                     self.__transitionMatrices, self.__fixedData,
                                                      self.scenarioData)
         self.__externalities = Externalities(self.scenarioData)
         self.__networkStateData = dict()

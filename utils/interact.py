@@ -295,6 +295,16 @@ class Interact:
 
         self.__generateWidget = generateButton
 
+        networkLengthStack = []
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            microtypeText = widgets.HTML(
+                value="<center><b>Microtype " + mID + "</b></center>"
+            )
+            slider = widgets.FloatSlider(value=1.0, min=0.2, max=2.0, step=0.01, orientation='horizontal')
+            slider.observe(self.response, names="value")
+            self.__widgetIDtoField[slider.model_id] = ('networkLength', mID)
+            networkLengthStack.append(widgets.HBox([microtypeText, slider]))
+
         populationStack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             microtypePopulations = [widgets.HTML(
@@ -491,8 +501,9 @@ class Interact:
              widgets.VBox(externalityCostStack)])
 
         dataAccordion = widgets.Accordion(
-            [widgets.VBox(populationStack), widgets.VBox(utilStack), widgets.VBox(MFDstack)])
-        for ind, title in enumerate(('Population', 'Utility parameters', 'MFD parameters')):
+            [widgets.VBox(networkLengthStack), widgets.VBox(populationStack), widgets.VBox(utilStack),
+             widgets.VBox(MFDstack)])
+        for ind, title in enumerate(('Network Length', 'Population', 'Utility parameters', 'MFD parameters')):
             dataAccordion.set_title(ind, title)
 
         scenarioAccordion = widgets.Accordion(
@@ -595,6 +606,9 @@ class Interact:
         if changeType[0] == 'waveSpeed':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'waveSpeed'] = newValue
             self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'networkLength':
+            mID = changeType[1]
+            self.model.data.updateMicrotypeNetworkLength(mID, newValue)
         if changeType[0] == 'cost':
             mID, costType = changeType[1]
             if costType == "System":
