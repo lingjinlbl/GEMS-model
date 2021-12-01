@@ -56,7 +56,7 @@ defaults = {'1': {'vMax': 17.0, 'densityMax': 0.15, 'capacityFlow': 0.18, 'smoot
                   'MFD': 'loder', 'avgLinkLength': 50, 'Type': 'Road'},
             '2': {'vMax': 17.0, 'densityMax': 0.15, 'capacityFlow': 0.18, 'smoothingFactor': 0.13, 'waveSpeed': 3.78,
                   'MFD': 'loder', 'avgLinkLength': 50, 'Type': 'Road'},
-            '3': {'vMax': 28.0, 'densityMax': 0., 'capacityFlow': 0.4, 'smoothingFactor': 0., 'waveSpeed': 0.,
+            '3': {'vMax': 28.0, 'densityMax': 0., 'capacityFlow': 0.5, 'smoothingFactor': 0., 'waveSpeed': 0.,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             '4': {'vMax': 18.8, 'densityMax': 0., 'capacityFlow': 0.38, 'smoothingFactor': 0., 'waveSpeed': 0.,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},

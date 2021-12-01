@@ -505,10 +505,8 @@ class OriginDestination:
             self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
 
         for demandIndex, currentPopIndex in self.__scenarioData.diToIdx.items():
-            od = self[demandIndex]
             # currentPopIndex = self.__scenarioData.diToIdx[demandIndex]
-            for odi, portion in od.items():
-                currentODindex = self.__scenarioData.odiToIdx[odi]
+            for odi, currentODindex in self.__scenarioData.odiToIdx.items():
                 self.__modelData['toStarts'][
                     currentPopIndex, currentODindex, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
                 self.__modelData['toEnds'][

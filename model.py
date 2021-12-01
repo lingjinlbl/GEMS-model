@@ -456,6 +456,9 @@ class Data:
         self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
 
+    def toStarts(self):
+        return self.__toStarts
+
     def modeSplit(self, timePeriod=None):
         if timePeriod is None:
             return self.__modeSplit
@@ -839,11 +842,23 @@ class Model:
         if timePeriod is None:
             tripRate = self.data.tripRate()
             modeSplits = self.data.modeSplit()
-            modeSplit = np.einsum('tijk,tij->k', modeSplits, tripRate)
+            toStarts = self.data.toStarts()
+            if microtypeID is None:
+                modeSplit = np.einsum('tijk,tij->k', modeSplits, tripRate)
+            else:
+                modeSplit = np.einsum('jk,j->k',
+                                      modeSplits[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)],
+                                      tripRate[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)])
         else:
             tripRate = self.data.tripRate(timePeriod)
             modeSplits = self.data.modeSplit(timePeriod)
-            modeSplit = np.einsum('ijk,ij->k', modeSplits, tripRate)
+            toStarts = self.data.toStarts()
+            if microtypeID is None:
+                modeSplit = np.einsum('ijk,ij->k', modeSplits, tripRate)
+            else:
+                modeSplit = np.einsum('jk,j->k',
+                                      modeSplits[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)],
+                                      tripRate[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)])
         return modeSplit / np.sum(modeSplit)
 
     def getModePMT(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
