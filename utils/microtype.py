@@ -386,9 +386,9 @@ class MicrotypeCollection:
                            n_other, dt, speedFunctions)
         vs = vectorV(ns, n_other, L_eff, speedFunctions)
 
-        averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
-        # averageSpeeds = np.min(vs, axis=1)
+        averageSpeeds = np.min(vs, axis=1)
 
         self.__numpyMicrotypeSpeed[:, self.modeToIdx['auto']] = averageSpeeds
 
