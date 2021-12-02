@@ -212,10 +212,14 @@ class CollectedChoiceCharacteristics:
                         self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
                 self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
                                                            data=self.__numpy[self.odiToIdx[odIndex], :, :])
-            self.__numpy[odIndexIdx, :, self.paramToIdx['intercept']] = distanceBins[odIndex.distBin]
+            self.__numpy[odIndexIdx, :, self.paramToIdx['distance']] = distanceBins[odIndex.distBin]
 
     def resetChoiceCharacteristics(self):
-        self.__numpy[~np.isnan(self.__numpy)] *= 0.0
+        # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
+        #  'unprotected_travel_time': 5, 'distance': 6}
+        for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:
+            self.__numpy[:, :, self.paramToIdx[param]] = 0.0
+        # self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, self.paramToIdx['intercept']] = 1
 
     def updateChoiceCharacteristics(self, microtypes) -> np.ndarray:
@@ -227,9 +231,9 @@ class CollectedChoiceCharacteristics:
 
         for odIndex in self.odiToIdx.keys():
             if odIndex.d != 'None' and odIndex.o != 'None':
-                common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
-                modes = set.intersection(*common_modes)
-                for mode in modes:
+                # common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
+                # modes = set.intersection(*common_modes)
+                for mode in self.modeToIdx.keys():
                     microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex, mode])
                     microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex, mode])
 

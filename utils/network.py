@@ -576,8 +576,12 @@ class BusMode(Mode):
         self.__N = self.getN()
 
     @property
-    def headwayInSec(self):
+    def desiredHeadwayInSec(self):
         return self._params[self._idx, self.modeParamsColumnToIdx["Headway"]]
+
+    @property
+    def headwayInSec(self):
+        return (self.__routeLength / self.routeAveragedSpeed) / self.__N
 
     @property
     def passengerWaitInSec(self):
@@ -662,9 +666,15 @@ class BusMode(Mode):
     def getN(self, network=None):
         """Changed January 2021: Buses only operate on a portion of subnetwork"""
         if network:
-            return self.getOperatingL(network) / self.routeAveragedSpeed / self.headwayInSec
+            desiredN = self.getOperatingL(network) / self.routeAveragedSpeed / self.desiredHeadwayInSec
+            maximumN = self.__operatingL[network] / network.avgLinkLength
         else:
-            return self.getRouteLength() / self.routeAveragedSpeed / self.headwayInSec
+            desiredN = self.getRouteLength() / self.routeAveragedSpeed / self.desiredHeadwayInSec
+            maximumN = sum([self.__operatingL[n] / n.avgLinkLength for n in self.networks])
+        if desiredN <= maximumN:
+            return desiredN
+        else:
+            return maximumN
 
     def getRouteLength(self):
         return self.__routeLength
@@ -893,15 +903,21 @@ class Network:
 
                 @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
                 def _MFD(density):
+                    speedMin = 0.0222
                     if density == 0:
                         return vMax
+                    elif density > densityMax * 0.99:
+                        return speedMin
                     else:
                         speedExp = smoothingFactor / density * np.log(
                             np.exp(- vMax * density / smoothingFactor) + np.exp(
                                 -capacityFlow / smoothingFactor) + np.exp(
                                 - (density - densityMax) * waveSpeed / smoothingFactor))
                         speedLinear = vMax * (1. - density / densityMax)
-                    return max(min(speedLinear, speedExp), 0.0222)
+                        if speedExp > speedLinear:
+                            return speedLinear
+                        else:
+                            return speedExp
 
             elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "quadratic":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]

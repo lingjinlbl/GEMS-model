@@ -632,7 +632,7 @@ class Model:
     def __init__(self, path: str, nSubBins=2, interactive=False):
         self.__path = path
         self.__nSubBins = nSubBins
-        self.__timeStepInSeconds = 60.0
+        self.__timeStepInSeconds = 15.0
         self.scenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.data = Data(self.scenarioData, self.__nSubBins, self.__timeStepInSeconds)
         self.__fixedData = self.data.getInvariants()
@@ -979,14 +979,14 @@ class Model:
                 self.findEquilibrium()
                 matCosts = self.getMatrixSummedCharacteristics() * durationInHours
                 vectorUserCosts += matCosts
-                self.__networkStateData[timePeriod] = self.microtypes.getStateData()
+                # self.__networkStateData[timePeriod] = self.microtypes.getStateData()
                 utility = self.demand.utility(self.choice)
                 utilities.append(utility)
                 if not self.successful:
                     keepGoing = False
                     print('SHOULD I BE BROKEN?')
             else:
-                self.__networkStateData[timePeriod] = self.microtypes.getStateData().resetAll()
+                # self.__networkStateData[timePeriod] = self.microtypes.getStateData().resetAll()
                 vectorUserCosts *= np.nan
                 utilities.append(utility * np.nan)
         return vectorUserCosts, np.stack(utilities)
@@ -1418,7 +1418,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 1, True)
+    model = Model("input-data-losangeles", 1, False)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])
@@ -1449,7 +1449,9 @@ if __name__ == "__main__":
     # optimizer.evaluate(optimizer.x0())
     # optimizer.minimize()
     print('-----0.0------')
-    optimizer.evaluate([0.02])
+    model.data.updateMicrotypeNetworkLength('1', 0.60)
+    # optimizer.evaluate([0.0])
+    model.collectAllCharacteristics()
     x, y = model.plotAllDynamicStats('n')
     # model.interact.updatePlots()
     print('-----0.15------')

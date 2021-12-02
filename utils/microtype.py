@@ -386,9 +386,9 @@ class MicrotypeCollection:
                            n_other, dt, speedFunctions)
         vs = vectorV(ns, n_other, L_eff, speedFunctions)
 
-        # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
 
-        averageSpeeds = np.min(vs, axis=1)
+        # averageSpeeds = np.min(vs, axis=1)
 
         self.__numpyMicrotypeSpeed[:, self.modeToIdx['auto']] = averageSpeeds
 
@@ -471,6 +471,7 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_ot
     nTimeSteps = N.shape[1]
 
     N[:, 0] = n_init
+    n_prev = n_init
 
     def v(n, n_other, L_eff, speedFunctions):
         density = (n + n_other) / L_eff
@@ -496,5 +497,6 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_ot
         n_t = spillback(n_t, tripStartRate, infl, outfl, dt)
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
+        n_prev = N[:, t]
 
     return N
