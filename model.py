@@ -559,7 +559,8 @@ class Data:
         return fixedData
 
     def updateNetworkLength(self, networkIdx, newLength):
-        self.__subNetworkLength[networkIdx] = newLength
+        self.__subNetworkLength[networkIdx] = newLength * self.__microtypeLengthMultiplier[
+            self.__subNetworkToMicrotype[:, networkIdx]][0]
 
 
 class Model:
