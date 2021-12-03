@@ -60,6 +60,10 @@ df['Mode'] = df['Mode'].str.replace('hv', 'Auto').str.lower()
 df['BetaTravelTimeMixed'] = 0.0
 df.loc[df['Mode'] == 'bike', 'BetaTravelTimeMixed'] = df.loc[df['Mode'] == 'bike', 'BetaTravelTime'].values / 2.
 df.loc[df['Mode'] == 'bike', 'BetaTravelTime'] /= 2.0
+df.loc[df['Mode'] == 'bike', 'BetaTravelTimeMixed_Pooled'] = df.loc[
+                                                                 df[
+                                                                     'Mode'] == 'bike', 'BetaTravelTime_Pooled'].values / 2.
+df.loc[df['Mode'] == 'bike', 'BetaTravelTime_Pooled'] /= 2.0
 df.to_csv(newPath, index=False)
 
 # %% TimePeriods

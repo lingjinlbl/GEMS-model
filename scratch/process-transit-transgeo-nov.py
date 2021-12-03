@@ -39,7 +39,7 @@ bikeInput['PerMileCost'] = bikeInput['PerMinuteCost'] / 60. * bikeInput['SpeedIn
 
 path = os.path.join(ROOT_DIR, "..", "input-data-transgeo", "modes", "walk-raw.csv")
 walkInput = pd.read_csv(path, index_col="MicrotypeID")
-walkInput['SpeedInMetersPerSecond'] = 1.4
+walkInput['SpeedInMetersPerSecond'] = 0.93
 walkInput['VehicleSize'] = 0.2
 
 path = os.path.join(ROOT_DIR, "..", "input-data-transgeo", "modes", "auto-raw.csv")
@@ -56,13 +56,13 @@ defaults = {'1': {'vMax': 17.0, 'densityMax': 0.15, 'capacityFlow': 0.18, 'smoot
                   'MFD': 'loder', 'avgLinkLength': 50, 'Type': 'Road'},
             '2': {'vMax': 17.0, 'densityMax': 0.15, 'capacityFlow': 0.18, 'smoothingFactor': 0.13, 'waveSpeed': 3.78,
                   'MFD': 'loder', 'avgLinkLength': 50, 'Type': 'Road'},
-            '3': {'vMax': 28.0, 'densityMax': 0., 'capacityFlow': 0.5, 'smoothingFactor': 0., 'waveSpeed': 0.,
+            '3': {'vMax': 28.0, 'capacityFlow': 0.55,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '4': {'vMax': 18.8, 'densityMax': 0., 'capacityFlow': 0.38, 'smoothingFactor': 0., 'waveSpeed': 0.,
+            '4': {'vMax': 18.8, 'capacityFlow': 0.38,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '5': {'vMax': 18.8, 'densityMax': 0., 'capacityFlow': 0.38, 'smoothingFactor': 0., 'waveSpeed': 0.,
+            '5': {'vMax': 18.8, 'capacityFlow': 0.38,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '6': {'vMax': 18.8, 'densityMax': 0., 'capacityFlow': 0.38, 'smoothingFactor': 0., 'waveSpeed': 0.,
+            '6': {'vMax': 18.8, 'capacityFlow': 0.38,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             'bus': {'vMax': 17.0, 'capacityFlow': 0.4, 'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             'walk': {'vMax': 1.35, 'MFD': 'fixed', 'Type': 'Sidewalk'},
