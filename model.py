@@ -460,6 +460,18 @@ class Data:
         self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
 
+    def setModeStartCosts(self, mode, microtype, newCost, senior=None):
+        data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
+               self.scenarioData.modeToIdx[mode], 0]
+        if senior is None:
+            data.fill(newCost)
+        else:
+            isSenior = np.array([di.isSenior for di in self.scenarioData.diToIdx.keys()], dtype=bool)
+            if senior:
+                data[isSenior] = newCost
+            else:
+                data[~isSenior] = newCost
+
     def toStarts(self):
         return self.__toStarts
 
@@ -838,10 +850,8 @@ class Model:
         else:
             sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
                        options={'maxfev': 1000, 'maxiter': 500, 'line_search': 'cheng', 'sigma_0': -0.8})
-            # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
             self.g(sol.x)
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
-            # print(self.g(sol.x))
             success = sol.success
             if not success:
                 print("Convergence didn't finish")
@@ -1218,12 +1228,12 @@ class Optimizer:
             if costType in self.__alphas:
                 self.__alphas[costType][:] = newValue
             else:
-                print("BAD INPUT")
+                print("BAD INPUT ALPHA")
         else:
             if costType in self.__alphas:
                 self.__alphas[costType][self.model.microtypeIdToIdx[mID]] = newValue
             else:
-                print("BAD INPUT")
+                print("BAD INPUT ALPHA")
 
     def nSubNetworks(self):
         if self.__fromToSubNetworkIDs is not None:
@@ -1426,7 +1436,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 1, False)
+    model = Model("input-data-losangeles", 1, True)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])

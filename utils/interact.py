@@ -460,6 +460,28 @@ class Interact:
             dedicatedBikeStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[dedicatedBikeStack[-1].model_id] = ('dedicated', (mID, 'Bike'))
 
+        costTitleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
+        costBusStack = [widgets.HTML(value="<center><i>Bus</i></center>")]
+        costBusSeniorStack = [widgets.HTML(value="<center><i>Bus (Senior)</i></center>")]
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            costTitleStack.append(widgets.HTML(value="<center><i>{}</i></center>".format(mID)))
+            busData = self.model.scenarioData['modeData']['bus'].loc[
+                      self.model.scenarioData['modeData']['bus'].index == mID, :]
+
+            costBusStack.append(
+                widgets.FloatSlider(value=busData.PerStartCost[0], min=0, max=5.0, step=0.1,
+                                    layout=Layout(width='180px')))
+            costBusStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[costBusStack[-1].model_id] = ('fare', (mID, 'Bus'))
+
+            costBusSeniorStack.append(
+                widgets.FloatSlider(value=busData.PerStartCost[0] * busData.SeniorFareDiscount[0], min=0, max=5.0,
+                                    step=0.1,
+                                    layout=Layout(width='180px')))
+            costBusSeniorStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[costBusSeniorStack[-1].model_id] = ('fareSenior', (mID, 'Bus'))
+
         headwayStack = []
 
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -509,9 +531,12 @@ class Interact:
         scenarioAccordion = widgets.Accordion(
             [widgets.HBox(
                 [widgets.VBox(dedicatedTitleStack), widgets.VBox(dedicatedBusStack), widgets.VBox(dedicatedBikeStack)]),
+                widgets.HBox(
+                    [widgets.VBox(costTitleStack), widgets.VBox(costBusStack),
+                     widgets.VBox(costBusSeniorStack)]),
                 widgets.VBox(headwayStack), widgets.VBox(coverageStack)])
 
-        for ind, title in enumerate(('Lane dedication', 'Bus headway (s)', 'Bus service area')):
+        for ind, title in enumerate(('Lane dedication', 'Cost', 'Bus headway (s)', 'Bus service area')):
             scenarioAccordion.set_title(ind, title)
 
         accordionChildren = [costAccordion, scenarioAccordion, dataAccordion]
@@ -566,6 +591,8 @@ class Interact:
             newValue = value
         else:
             print("BAD INPUT")
+            print(value)
+            print(changeType)
             return
         if changeType[0] == 'dedicated':
             microtype, modeName = changeType[1]
@@ -582,6 +609,12 @@ class Interact:
         if changeType[0] == 'headway':
             microtype, modeName = changeType[1]
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
+        if changeType[0] == 'fare':
+            microtype, modeName = changeType[1]
+            self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue)
+        if changeType[0] == 'fareSenior':
+            microtype, modeName = changeType[1]
+            self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue, True)
         if changeType[0] == 'coverage':
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
             self.model.readFiles()
