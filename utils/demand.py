@@ -444,7 +444,7 @@ class Demand:
 
     def getSummedCharacteristics(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
-        totalsByModeAndCharacteristic = np.einsum('ijk,jkl->kl', startsByMode, collectedChoiceCharacteristics.numpy)
+        totalsByModeAndCharacteristic = np.einsum('ijk,ijkl->kl', startsByMode, collectedChoiceCharacteristics.numpy)
         if np.any(np.isnan(totalsByModeAndCharacteristic)):
             print('Something went wrong')
         return totalsByModeAndCharacteristic
@@ -481,7 +481,7 @@ def utils(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
     k: mode
     l: parameter
     """
-    utils = np.einsum('ikl,jkl->ijk', popVars, choiceChars)
+    utils = np.einsum('ikl,ijkl->ijk', popVars, choiceChars)
     return utils
 
 
@@ -492,7 +492,7 @@ def utilsWithExcludedModes(popVars: np.ndarray, choiceChars: np.ndarray, transit
     k: mode
     l: parameter
     """
-    utils = np.einsum('ikl,jkl->ijk', popVars, choiceChars)
+    utils = np.einsum('ikl,ijkl->ijk', popVars, choiceChars)
     paddedUtils = utils[:, :, :, None]  # np.repeat(utils[:, :, :, None], transitLayerUtility.shape[-1], axis=3)
     paddedTransitLayer = transitLayerUtility[None, None, :, :]
     # np.repeat(np.repeat(transitLayerUtility[None, :, :], utils.shape[1], axis=0)[None, :, :, :],

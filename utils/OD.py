@@ -293,6 +293,9 @@ class DemandIndex:
     def __hash__(self):
         return self.__hash
 
+    def isSenior(self):
+        return "Senior" in self.populationGroupType
+
     def __str__(self):
         return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
 

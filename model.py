@@ -426,7 +426,10 @@ class Data:
         self.__utilities = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
         self.__choiceCharacteristics = np.zeros(
-            (self.params.nTimePeriods, self.params.nODIs, self.params.nModes, self.params.nParams), dtype=float)
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes, self.params.nParams),
+            dtype=float)
+        self.__microtypeCosts = np.zeros(
+            (self.params.nMicrotypes, self.params.nDIs, self.params.nModes, 3), dtype=float)
         self.__transitLayerUtility = np.zeros((self.params.nModes, self.params.nTransitLayers), dtype=float)
         self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams), dtype=float)
         self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams),
@@ -523,6 +526,7 @@ class Data:
         supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
         supply['nonAutoModes'] = self.__nonAutoModes
         supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
+        supply['microtypeCosts'] = self.__microtypeCosts
 
         return supply
 
@@ -535,7 +539,7 @@ class Data:
         demand['toEnds'] = self.__toEnds
         demand['toThroughDistance'] = self.__toThroughDistance
         demand['utilities'] = self.__utilities[timePeriodIdx, :, :, :]
-        demand['choiceCharacteristics'] = self.__choiceCharacteristics[timePeriodIdx, :, :, :]
+        demand['choiceCharacteristics'] = self.__choiceCharacteristics[timePeriodIdx, :, :, :, :]
         demand['choiceParameters'] = self.__choiceParameters
         demand['choiceParametersFixed'] = self.__choiceParametersFixed
         demand['toTransitLayer'] = self.__toTransitLayer
@@ -548,6 +552,7 @@ class Data:
         fixedData['subNetworkLength'] = self.__subNetworkLength
         fixedData['toStarts'] = self.__toStarts
         fixedData['toEnds'] = self.__toEnds
+        fixedData['microtypeCosts'] = self.__microtypeCosts
         fixedData['toThroughDistance'] = self.__toThroughDistance
         fixedData['choiceParameters'] = self.__choiceParameters
         fixedData['choiceParametersFixed'] = self.__choiceParametersFixed
@@ -713,7 +718,8 @@ class Model:
         if self.__currentTimePeriod not in self.__choice:
             self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics(self.scenarioData, self.demand,
                                                                                      self.data.getDemand(
-                                                                                         self.__currentTimePeriod))
+                                                                                         self.__currentTimePeriod),
+                                                                                     self.__fixedData)
         return self.__choice[self.__currentTimePeriod]
 
     @property

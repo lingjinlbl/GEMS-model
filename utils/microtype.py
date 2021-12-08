@@ -171,6 +171,7 @@ class MicrotypeCollection:
         self.__numpyNetworkBlockedDistance = supplyData['subNetworkBlockedDistance']
         self.__numpyInstantaneousSpeed = supplyData['subNetworkInstantaneousSpeed']
         self.__numpyInstantaneousAccumulation = supplyData['subNetworkInstantaneousAutoAccumulation']
+        self.__microtypeCosts = supplyData['microtypeCosts']
         self.__transitionMatrixNetworkIdx = supplyData['transitionMatrixNetworkIdx']
         self.__nonAutoModes = supplyData['nonAutoModes']
         self.__nInit = supplyData['subNetworkPreviousAutoAccumulation']
@@ -338,11 +339,12 @@ class MicrotypeCollection:
                         self.__modeToMicrotype.setdefault(n.ModeTypeID.lower(), set()).add(microtypeId)
                 for mode in allModes:
                     modeToModeData[mode] = self.modeData[mode]
-                networkCollection = NetworkCollection(subNetworkToModes, modeToModeData, microtypeId,
-                                                      self.__numpyDemand[self.microtypeIdToIdx[microtypeId], :, :],
-                                                      self.__numpyMicrotypeSpeed[self.microtypeIdToIdx[microtypeId], :],
-                                                      self.dataToIdx, self.modeToIdx)
-                self[microtypeId] = Microtype(microtypeId, networkCollection, self.paramToIdx)
+                netCol = NetworkCollection(subNetworkToModes, modeToModeData, microtypeId,
+                                           self.__numpyDemand[self.microtypeIdToIdx[microtypeId], :, :],
+                                           self.__numpyMicrotypeSpeed[self.microtypeIdToIdx[microtypeId], :],
+                                           self.__microtypeCosts[self.microtypeIdToIdx[microtypeId], :, :, :],
+                                           self.dataToIdx, self.modeToIdx, self.diToIdx)
+                self[microtypeId] = Microtype(microtypeId, netCol, self.paramToIdx)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeId])
 
     def updateDedicatedDistance(self):
