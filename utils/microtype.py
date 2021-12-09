@@ -161,6 +161,7 @@ class MicrotypeCollection:
         self.__networkIdToIdx = dict()
         self.__numpyDemand = supplyData['demandData']
         self.__numpyMicrotypeSpeed = supplyData['microtypeSpeed']
+        self.__numpyFleetSize = supplyData['fleetSize']
         self.__numpyMicrotypeMixedTrafficDistance = supplyData['microtypeMixedTrafficDistance']
         self.__diameters = np.ndarray([0])
         self.__numpyNetworkAccumulation = supplyData['subNetworkAccumulation']
@@ -343,6 +344,7 @@ class MicrotypeCollection:
                                            self.__numpyDemand[self.microtypeIdToIdx[microtypeId], :, :],
                                            self.__numpyMicrotypeSpeed[self.microtypeIdToIdx[microtypeId], :],
                                            self.__microtypeCosts[self.microtypeIdToIdx[microtypeId], :, :, :],
+                                           self.__numpyFleetSize[self.microtypeIdToIdx[microtypeId], :],
                                            self.dataToIdx, self.modeToIdx, self.diToIdx)
                 self[microtypeId] = Microtype(microtypeId, netCol, self.paramToIdx)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeId])

@@ -156,6 +156,7 @@ class CollectedChoiceCharacteristics:
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
         self.__numpy = numpyData['choiceCharacteristics']
+        self.__fleetSize = numpyData['fleetSize']
         self.__fixedData = fixedData
         self.__broken = False
 
@@ -238,6 +239,8 @@ class CollectedChoiceCharacteristics:
 
         allCosts = self.__fixedData['microtypeCosts']
 
+        bikeFleetDensity = np.einsum('im,ki->km', self.__fleetSize, self.__fixedData['toStarts'][0, :, :])
+
         startCosts = np.einsum('ijm,jki->jkm', allCosts[:, :, :, 0], self.__fixedData['toStarts'])
         endCosts = np.einsum('ijm,jki->jkm', allCosts[:, :, :, 1], self.__fixedData['toEnds'])
         throughCosts = np.einsum('ijm,jki->jkm', allCosts[:, :, :, 2], self.__fixedData['toThroughDistance'])
@@ -246,6 +249,7 @@ class CollectedChoiceCharacteristics:
         self.__numpy[:, :, :, self.paramToIdx['travel_time']] = travelTimeInHours[None, :]
         self.__numpy[:, :, :, self.paramToIdx['unprotected_travel_time']] = (travelTimeInHours * mixedTravelPortion)[
                                                                             None, :]
+        self.__numpy[:, :, :, self.paramToIdx['mode_density']] = bikeFleetDensity[None, :, :]
         return self.__numpy
 
     def isBroken(self):

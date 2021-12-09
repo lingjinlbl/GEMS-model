@@ -365,7 +365,7 @@ class ScenarioData:
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
         self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                             'unprotected_travel_time': 5, 'distance': 6}
+                             'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
         uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
         self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
 
@@ -442,6 +442,8 @@ class Data:
         self.__subNetworkToMicrotype = np.zeros((self.params.nMicrotypes, self.params.nSubNetworks), dtype=bool)
         self.__microtypeSpeed = np.zeros((self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
         self.__microtypeMixedTrafficDistance = np.zeros(
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
+        self.__fleetSize = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
         self.__subNetworkAverageSpeed = np.zeros(
             (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
@@ -520,6 +522,7 @@ class Data:
         supply = dict()
         supply['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
         supply['microtypeSpeed'] = self.__microtypeSpeed[timePeriodIdx, :, :]
+        supply['fleetSize'] = self.__fleetSize[timePeriodIdx, :, :]
         supply['microtypeMixedTrafficDistance'] = self.__microtypeMixedTrafficDistance[timePeriodIdx, :, :]
         supply['subNetworkAverageSpeed'] = self.__subNetworkAverageSpeed[timePeriodIdx, :, :]
         supply['subNetworkAccumulation'] = self.__subNetworkAccumulation[timePeriodIdx, :, :]
@@ -547,6 +550,7 @@ class Data:
         demand['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
         demand['modeSplit'] = self.__modeSplit[timePeriodIdx, :, :, :]
         demand['tripRate'] = self.__tripRate[timePeriodIdx, :, :]
+        demand['fleetSize'] = self.__fleetSize[timePeriodIdx, :, :]
         demand['toStarts'] = self.__toStarts
         demand['toEnds'] = self.__toEnds
         demand['toThroughDistance'] = self.__toThroughDistance
@@ -1436,7 +1440,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 1, True)
+    model = Model("input-data-losangeles", 1, False)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])

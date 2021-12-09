@@ -78,7 +78,8 @@ class Costs:
 
 
 class Mode:
-    def __init__(self, networks, params, microtypeID, name, travelDemandData, microtypeSpeed, microtypeCosts, diToIdx):
+    def __init__(self, networks, params, microtypeID, name, travelDemandData, microtypeSpeed, microtypeCosts, fleetSize,
+                 diToIdx):
         self.name = name
         self.params = params
         self.microtypeID = microtypeID
@@ -88,6 +89,7 @@ class Mode:
         self.networks = networks
         self.microtypeSpeed = microtypeSpeed
         self.microtypeCosts = microtypeCosts
+        self.fleetSize = fleetSize
         self.diToIdx = diToIdx
         self.defineCosts()
 
@@ -219,10 +221,10 @@ class Mode:
 
 class WalkMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
         super(WalkMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="walk",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
         self.fixedVMT = False
         for n in networks:
             n.addMode(self)
@@ -255,16 +257,25 @@ class WalkMode(Mode):
 
 class BikeMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
         super(BikeMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="bike",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
         self.fixedVMT = False
         for n in networks:
             n.addMode(self)
             n.setModeNetworkSpeed(self.name, self.speedInMetersPerSecond)
             n.setModeOperatingSpeed(self.name, self.speedInMetersPerSecond)
         self.bikeLanePreference = 2.0
+        self.sharedFleetSize = self._params[self._idx, self.modeParamsColumnToIdx["BikesPerCapita"]]
+
+    @property
+    def sharedFleetSize(self):
+        return self.fleetSize[0]
+
+    @sharedFleetSize.setter
+    def sharedFleetSize(self, newSize):
+        self.fleetSize.fill(newSize)
 
     @property
     def perStart(self):
@@ -351,10 +362,10 @@ class BikeMode(Mode):
 
 class RailMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
         super(RailMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="rail",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
         self.fixedVMT = True
         for n in networks:
             n.addMode(self)
@@ -450,10 +461,10 @@ class RailMode(Mode):
 
 class AutoMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
         super(AutoMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="auto",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
         self.MFDmode = "single"
         self.fixedVMT = False
         for n in networks:
@@ -566,10 +577,10 @@ class AutoMode(Mode):
 
 class BusMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
         super().__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="bus",
                          travelDemandData=travelDemandData, microtypeSpeed=speedData, microtypeCosts=microtypeCosts,
-                         diToIdx=diToIdx)
+                         fleetSize=fleetSize, diToIdx=diToIdx)
         self.fixedVMT = True
         self.__operatingL = dict()
         self.__availableRoadNetworkDistance = sum([n.L for n in self.networks])
@@ -1178,7 +1189,7 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, networksAndModes, modeToModeData, microtypeID, demandData, speedData, microtypeCosts,
+    def __init__(self, networksAndModes, modeToModeData, microtypeID, demandData, speedData, microtypeCosts, fleetSize,
                  dataToIdx, modeToIdx, diToIdx, verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
@@ -1187,6 +1198,7 @@ class NetworkCollection:
         self.__demandData = demandData
         self._speedData = speedData
         self.__microtypeCosts = microtypeCosts
+        self.__fleetSize = fleetSize
         self.__dataToIdx = dataToIdx
         self.__modeToIdx = modeToIdx
         self.__diToIdx = diToIdx
@@ -1232,42 +1244,40 @@ class NetworkCollection:
             assert (isinstance(networks, List))
             params = modeToModeData[modeName]
 
+            travelDemandData = self.__demandData[self.__modeToIdx[modeName], :]
+            speedData = self._speedData[self.__modeToIdx[modeName], None]
             microtypeCosts = self.__microtypeCosts[:, self.__modeToIdx[modeName], :]
+            fleetSize = self.__fleetSize[self.__modeToIdx[modeName], None]
 
             if modeName == "bus":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 mode = BusMode(networks, params, microtypeID,
-                               travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                               speedData=self._speedData[self.__modeToIdx[modeName], None],
-                               microtypeCosts=microtypeCosts, diToIdx=self.__diToIdx)
+                               travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
+                               fleetSize=fleetSize, diToIdx=self.__diToIdx)
                 self.__modes["bus"] = mode
             elif modeName == "auto":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 mode = AutoMode(networks, params, microtypeID,
-                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                speedData=self._speedData[self.__modeToIdx[modeName], None],
-                                microtypeCosts=microtypeCosts, diToIdx=self.__diToIdx)
+                                travelDemandData=travelDemandData, speedData=speedData,
+                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=self.__diToIdx)
                 self.__modes["auto"] = mode
             elif modeName == "walk":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
                 mode = WalkMode(networks, params, microtypeID,
-                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                speedData=self._speedData[self.__modeToIdx[modeName], None],
-                                microtypeCosts=microtypeCosts, diToIdx=self.__diToIdx)
+                                travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
+                                fleetSize=fleetSize, diToIdx=self.__diToIdx)
                 self.__modes["walk"] = mode
             elif modeName == "bike":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
                 mode = BikeMode(networks, params, microtypeID,
-                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                speedData=self._speedData[self.__modeToIdx[modeName], None],
-                                microtypeCosts=microtypeCosts, diToIdx=self.__diToIdx)
+                                travelDemandData=travelDemandData, speedData=speedData,
+                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=self.__diToIdx)
                 self.__modes["bike"] = mode
             elif modeName == "rail":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
                 mode = RailMode(networks, params, microtypeID,
-                                travelDemandData=self.__demandData[self.__modeToIdx[modeName], :],
-                                speedData=self._speedData[self.__modeToIdx[modeName], None],
-                                microtypeCosts=microtypeCosts, diToIdx=self.__diToIdx)
+                                travelDemandData=travelDemandData, speedData=speedData,
+                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=self.__diToIdx)
                 self.__modes["rail"] = mode
             else:
                 print("BAD!")
