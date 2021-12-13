@@ -288,7 +288,8 @@ class ScenarioData:
         """
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                              usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
-                                                      "capacityFlow", "smoothingFactor", "waveSpeed"],
+                                                      "capacityFlow", "smoothingFactor", "waveSpeed", "a",
+                                                      "criticalDensity"],
                                              index_col="SubnetworkID", dtype={"MicrotypeID": str}).fillna(0.0)
         self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                                  index_col="SubnetworkID", dtype={"MicrotypeID": str})
@@ -1471,7 +1472,7 @@ if __name__ == "__main__":
     # optimizer.evaluate(optimizer.x0())
     # optimizer.minimize()
     print('-----0.0------')
-    model.data.updateMicrotypeNetworkLength('1', 0.60)
+    # model.data.updateMicrotypeNetworkLength('1', 0.60)
     # optimizer.evaluate([0.0])
     model.collectAllCharacteristics()
     x, y = model.plotAllDynamicStats('n')

@@ -924,7 +924,23 @@ class Network:
 
     def defineMFD(self):
         if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
-            if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "loder":
+            if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "modified-quadratic":
+                a = self.__data[self.dataColumnToIdx["a"]]
+                criticalDensity = self.__data[self.dataColumnToIdx["criticalDensity"]]
+                densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+
+                @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+                def _MFD(density):
+                    crossoverDensity = densityMax - np.sqrt(densityMax ** 2 - densityMax * criticalDensity)
+                    if density <= 0:
+                        return -a * criticalDensity
+                    elif density < crossoverDensity:
+                        return a * (density - criticalDensity)
+                    else:
+                        factor = a * (2 * crossoverDensity - criticalDensity)
+                        return factor * (density - densityMax) / density
+                    
+            elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "loder":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
                 densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
                 capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
