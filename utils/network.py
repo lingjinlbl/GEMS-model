@@ -851,7 +851,7 @@ class BusMode(Mode):
 class Network:
     def __init__(self, data, characteristics, subNetworkId, diameter=None, microtypeID=None, modeNetworkSpeed=None,
                  modeOperatingSpeed=None, modeAccumulation=None, modeBlockedDistance=None, modeVehicleSize=None,
-                 networkLength=None, modeToIdx=None):
+                 networkLength=None, MFD=[], modeToIdx=None):
         self.data = data
 
         self.characteristics = characteristics
@@ -875,12 +875,25 @@ class Network:
         self.modeBlockedDistance = modeBlockedDistance
         self.modeNetworkSpeed.fill(self.freeFlowSpeed)
         self.modeOperatingSpeed.fill(self.freeFlowSpeed)
+        self.__MFD = MFD
         np.copyto(self.networkLength, self.__data[self.dataColumnToIdx["Length"]])
-        self.MFD = self.defineMFD()
+        if len(self.__MFD) == 0:
+            self.MFD = self.defineMFD()
         if diameter is None:
             self.__diameter = 1.0
         else:
             self.__diameter = diameter
+
+    @property
+    def MFD(self):
+        return self.__MFD[0]
+
+    @MFD.setter
+    def MFD(self, value):
+        if len(self.__MFD) == 0:
+            self.__MFD.append(value)
+        else:
+            self.__MFD[0] = value
 
     def runSingleNetworkMFD(self):
         Ntot = (self.modeAccumulation * self.modeVehicleSize).sum()
@@ -918,10 +931,6 @@ class Network:
     def setModeVehicleSize(self, mode, vehicleSize: float):
         np.copyto(self.modeVehicleSize[self.__modeToIdx[mode], None], vehicleSize)
 
-    def recompileMFD(self):
-        self.__data = self.data.iloc[self._iloc, :].to_numpy()
-        self.MFD = self.defineMFD()
-
     def defineMFD(self):
         if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
             if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "modified-quadratic":
@@ -939,7 +948,7 @@ class Network:
                     else:
                         factor = a * (2 * crossoverDensity - criticalDensity)
                         return factor * (density - densityMax) / density
-                    
+
             elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "loder":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
                 densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
@@ -1227,6 +1236,9 @@ class NetworkCollection:
 
         # self.resetModes()
 
+    def subNetworkIDs(self):
+        return list(self._networks.keys())
+
     def modes(self):
         return self.__modes
 
@@ -1244,9 +1256,7 @@ class NetworkCollection:
         # modeToNetwork = dict()
         if isinstance(networksAndModes, Dict):
             for (network, modeNames) in networksAndModes.items():
-                assert (isinstance(network, Network))
-                sortedModeNames = tuple(sorted(modeNames))
-                self._networks[sortedModeNames] = network
+                self._networks[network.subNetworkId] = network
                 for modeName in modeNames:
                     if modeName in self.modeToNetwork:
                         self.modeToNetwork[modeName].append(network)
@@ -1326,13 +1336,13 @@ class NetworkCollection:
         #     n.getNetworkStateData().nonAutoAccumulation = nonAutoAccumulation
 
     def __getitem__(self, item):
-        return [n for idx, n in self._networks.items() if item in idx]
+        return self._networks[item]
 
     def __str__(self):
         return str([n.base_speed for n in self._networks])
 
     def __iter__(self):
-        return iter(self._networks.items())
+        return iter(self._networks.values())
 
     def __contains__(self, mode):
         return mode in self.modeToNetwork
@@ -1459,8 +1469,8 @@ class CollectedNetworkStateData:
         return np.array(prods)
 
     def addMicrotype(self, microtype):
-        for modes, network in microtype.networks:
-            self[(microtype.microtypeID, modes)] = network.getNetworkStateData()
+        for network in microtype.networks:
+            self[(microtype.microtypeID, 'a')] = network.getNetworkStateData()
 
     def adoptPreviousMicrotypeState(self, microtype):
         for modes, network in microtype.networks:

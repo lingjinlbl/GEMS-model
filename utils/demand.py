@@ -374,7 +374,7 @@ class Demand:
         """
 
         for microtypeID, microtype in microtypes:
-            for modes, n in microtype.networks:
+            for n in microtype.networks:
                 # n.getNetworkStateData().resetBlockedDistance()
                 # n.getNetworkStateData().resetNonAutoAccumulation()
                 n.resetSpeeds()
