@@ -462,6 +462,7 @@ class Data:
         self.__transitionMatrixNetworkIdx = np.zeros(self.params.nSubNetworks, dtype=bool)
         self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
+        self.__MFDs = [[] for _ in range(self.params.nSubNetworks)]
 
     def setModeStartCosts(self, mode, microtype, newCost, senior=None):
         data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
@@ -543,6 +544,7 @@ class Data:
         supply['nonAutoModes'] = self.__nonAutoModes
         supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
         supply['microtypeCosts'] = self.__microtypeCosts
+        supply['MFDs'] = self.__MFDs
 
         return supply
 
@@ -1466,7 +1468,7 @@ if __name__ == "__main__":
     #                       method="min")
 
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bus')],
+                          fromToSubNetworkIDs=[('1', 'Bike')],
                           method="min")
 
     # optimizer.evaluate(optimizer.x0())
@@ -1474,6 +1476,7 @@ if __name__ == "__main__":
     print('-----0.0------')
     # model.data.updateMicrotypeNetworkLength('1', 0.60)
     # optimizer.evaluate([0.0])
+    optimizer.evaluate([0.05])
     model.collectAllCharacteristics()
     x, y = model.plotAllDynamicStats('n')
     # model.interact.updatePlots()
