@@ -380,7 +380,7 @@ class MicrotypeCollection:
                 if "auto" in autoNetwork:
                     characteristicL[idx] += autoNetwork.diameter * 1609.34
                     # n_init[idx] = networkStateData.initialAccumulation
-                    speedFunctions[idx] = self.__MFDs[idx][0]
+                    speedFunctions[idx] = autoNetwork.MFD
         n_init = self.__nInit[self.__transitionMatrixNetworkIdx]
         L_blocked = self.__numpyNetworkBlockedDistance[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
         L_eff = self.__numpyNetworkLength[self.__transitionMatrixNetworkIdx, 0] - L_blocked
