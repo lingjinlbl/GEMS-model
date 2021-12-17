@@ -4,7 +4,6 @@ from typing import List, Dict
 import numba as nb
 import numpy as np
 import pandas as pd
-# from line_profiler_pycharm import profile
 from scipy.optimize import minimize
 
 from utils.supply import TravelDemand, TravelDemands
@@ -79,7 +78,7 @@ class Costs:
 
 class Mode:
     def __init__(self, networks, params, microtypeID, name, travelDemandData, microtypeSpeed, microtypeCosts, fleetSize,
-                 diToIdx):
+                 accessDistance, diToIdx):
         self.name = name
         self.params = params
         self.microtypeID = microtypeID
@@ -90,6 +89,7 @@ class Mode:
         self.microtypeSpeed = microtypeSpeed
         self.microtypeCosts = microtypeCosts
         self.fleetSize = fleetSize
+        self.accessDistance = accessDistance
         self.diToIdx = diToIdx
         self.defineCosts()
 
@@ -123,6 +123,7 @@ class Mode:
             self.microtypeCosts[:, 0] = self.params.at[self.microtypeID, "PerStartCost"]
             self.microtypeCosts[:, 1] = self.params.at[self.microtypeID, "PerEndCost"]
             self.microtypeCosts[:, 2] = self.params.at[self.microtypeID, "PerMileCost"]
+            self.accessDistance.fill(self.getAccessDistance())
             if "SeniorFareDiscount" in self.params.columns:
                 seniorODIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
                 self.microtypeCosts[seniorODIs, 0] *= self.params.at[self.microtypeID, "SeniorFareDiscount"]
@@ -221,10 +222,11 @@ class Mode:
 
 class WalkMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, accessDistance=None, diToIdx=None) -> None:
         super(WalkMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="walk",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize,
+                                       accessDistance=accessDistance, diToIdx=diToIdx)
         self.fixedVMT = False
         for n in networks:
             n.addMode(self)
@@ -257,10 +259,11 @@ class WalkMode(Mode):
 
 class BikeMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, accessDistance=None, diToIdx=None) -> None:
         super(BikeMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="bike",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize,
+                                       accessDistance=accessDistance, diToIdx=diToIdx)
         self.fixedVMT = False
         for n in networks:
             n.addMode(self)
@@ -345,7 +348,10 @@ class BikeMode(Mode):
                 tot += val
                 if key.dedicated:
                     tot_dedicated += val
-            return np.nan_to_num(tot_dedicated / tot)
+            if tot == 0:
+                return 1.0
+            else:
+                return tot_dedicated / tot
         else:
             return 0.0
 
@@ -362,10 +368,11 @@ class BikeMode(Mode):
 
 class RailMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, accessDistance=None, diToIdx=None) -> None:
         super(RailMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="rail",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize,
+                                       accessDistance=accessDistance, diToIdx=diToIdx)
         self.fixedVMT = True
         for n in networks:
             n.addMode(self)
@@ -422,7 +429,7 @@ class RailMode(Mode):
         self._VMT_tot = self.getRouteLength() / self.headwayInSec
 
     def getAccessDistance(self) -> float:
-        return np.nan_to_num(self.stopSpacingInMeters / 4.0 / self.portionAreaCovered ** 2.0, nan=5000)
+        return self.stopSpacingInMeters * self.accessDistanceMultiplier
 
     def getSpeed(self):
         return self.routeAveragedSpeed
@@ -461,10 +468,11 @@ class RailMode(Mode):
 
 class AutoMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, accessDistance=None, diToIdx=None) -> None:
         super(AutoMode, self).__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="auto",
                                        travelDemandData=travelDemandData, microtypeSpeed=speedData,
-                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=diToIdx)
+                                       microtypeCosts=microtypeCosts, fleetSize=fleetSize,
+                                       accessDistance=accessDistance, diToIdx=diToIdx)
         self.MFDmode = "single"
         self.fixedVMT = False
         for n in networks:
@@ -577,10 +585,10 @@ class AutoMode(Mode):
 
 class BusMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, travelDemandData=None,
-                 speedData=None, microtypeCosts=None, fleetSize=None, diToIdx=None) -> None:
+                 speedData=None, microtypeCosts=None, fleetSize=None, accessDistance=None, diToIdx=None) -> None:
         super().__init__(networks=networks, params=modeParams, microtypeID=microtypeID, name="bus",
                          travelDemandData=travelDemandData, microtypeSpeed=speedData, microtypeCosts=microtypeCosts,
-                         fleetSize=fleetSize, diToIdx=diToIdx)
+                         fleetSize=fleetSize, accessDistance=accessDistance, diToIdx=diToIdx)
         self.fixedVMT = True
         self.__operatingL = dict()
         self.__availableRoadNetworkDistance = sum([n.L for n in self.networks])
@@ -650,6 +658,10 @@ class BusMode(Mode):
         return self._params[self._idx, self.modeParamsColumnToIdx["VehicleOperatingCostPerHour"]]
 
     @property
+    def accessDistanceMultiplier(self):
+        return self._params[self._idx, self.modeParamsColumnToIdx["AccessDistanceMultiplier"]]
+
+    @property
     def routeDistanceToNetworkDistance(self) -> float:
         """
         Changed January 2021: Removed need for car-only subnnetworks.
@@ -669,7 +681,7 @@ class BusMode(Mode):
 
     def getAccessDistance(self) -> float:
         """Order of magnitude estimate for average walking distance to nearest stop"""
-        return self.stopSpacingInMeters / 4.0 / self.routeDistanceToNetworkDistance / 2.0
+        return self.stopSpacingInMeters * self.accessDistanceMultiplier
 
     def getDemandForVmtPerHour(self):
         return self.getRouteLength() / self.headwayInSec * 3600. / 1609.34
@@ -843,7 +855,7 @@ class BusMode(Mode):
             if tot == 0:
                 return 0.
             else:
-                return np.nan_to_num(tot_dedicated / tot)
+                return tot_dedicated / tot
         else:
             return 0.0
 
@@ -1215,7 +1227,7 @@ class Network:
 
 class NetworkCollection:
     def __init__(self, networksAndModes, modeToModeData, microtypeID, demandData, speedData, microtypeCosts, fleetSize,
-                 dataToIdx, modeToIdx, diToIdx, verbose=False):
+                 accessDistance, dataToIdx, modeToIdx, diToIdx, verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
         self.__modes = dict()
@@ -1224,6 +1236,7 @@ class NetworkCollection:
         self._speedData = speedData
         self.__microtypeCosts = microtypeCosts
         self.__fleetSize = fleetSize
+        self.__accessDistance = accessDistance
         self.__dataToIdx = dataToIdx
         self.__modeToIdx = modeToIdx
         self.__diToIdx = diToIdx
@@ -1274,36 +1287,40 @@ class NetworkCollection:
             speedData = self._speedData[self.__modeToIdx[modeName], None]
             microtypeCosts = self.__microtypeCosts[:, self.__modeToIdx[modeName], :]
             fleetSize = self.__fleetSize[self.__modeToIdx[modeName], None]
+            accessDistance = self.__accessDistance[self.__modeToIdx[modeName], None]
 
             if modeName == "bus":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 mode = BusMode(networks, params, microtypeID,
                                travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
-                               fleetSize=fleetSize, diToIdx=self.__diToIdx)
+                               fleetSize=fleetSize, accessDistance=accessDistance, diToIdx=self.__diToIdx)
                 self.__modes["bus"] = mode
             elif modeName == "auto":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 mode = AutoMode(networks, params, microtypeID,
                                 travelDemandData=travelDemandData, speedData=speedData,
-                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=self.__diToIdx)
+                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
+                                diToIdx=self.__diToIdx)
                 self.__modes["auto"] = mode
             elif modeName == "walk":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
                 mode = WalkMode(networks, params, microtypeID,
                                 travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
-                                fleetSize=fleetSize, diToIdx=self.__diToIdx)
+                                fleetSize=fleetSize, accessDistance=accessDistance, diToIdx=self.__diToIdx)
                 self.__modes["walk"] = mode
             elif modeName == "bike":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
                 mode = BikeMode(networks, params, microtypeID,
                                 travelDemandData=travelDemandData, speedData=speedData,
-                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=self.__diToIdx)
+                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
+                                diToIdx=self.__diToIdx)
                 self.__modes["bike"] = mode
             elif modeName == "rail":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
                 mode = RailMode(networks, params, microtypeID,
                                 travelDemandData=travelDemandData, speedData=speedData,
-                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, diToIdx=self.__diToIdx)
+                                microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
+                                diToIdx=self.__diToIdx)
                 self.__modes["rail"] = mode
             else:
                 print("BAD!")

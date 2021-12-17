@@ -277,8 +277,10 @@ class ScenarioData:
         collected = OrderedDict()
         (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "modes")))
         for file in fileNames:
-            collected[file.split(".")[0]] = pd.read_csv(os.path.join(self.__path, "modes", file),
-                                                        dtype={"MicrotypeID": str}).set_index("MicrotypeID")
+            modeData = pd.read_csv(os.path.join(self.__path, "modes", file),
+                                   dtype={"MicrotypeID": str}).set_index("MicrotypeID")
+            modeData['AccessDistanceMultiplier'] = 1.0
+            collected[file.split(".")[0]] = modeData
         return collected
 
     def loadData(self):
@@ -339,10 +341,6 @@ class ScenarioData:
     def defineIndices(self):
         self.__modeToIdx = {mode: idx for idx, mode in enumerate(self["modeData"].keys())}
 
-        homeMicrotypeIDs = self.data['populations'].MicrotypeID.unique()
-        groupAndPurpose = self.data['tripGeneration'].groupby(
-            ['PopulationGroupTypeID', 'TripPurposeID']).groups.keys()
-
         odJoinedToDistance = self['originDestinations'].merge(self['distanceDistribution'],
                                                               on=["OriginMicrotypeID", "DestinationMicrotypeID"],
                                                               suffixes=("_OD", "_Dist"), how="right")
@@ -354,10 +352,6 @@ class ScenarioData:
         # nestedDIs = list(product(homeMicrotypeIDs, groupAndPurpose))
         DIs = [(hID, popGroup, purpose) for hID, popGroup, purpose in nestedDIs]
         self.__diToIdx = {DemandIndex(*di): idx for idx, di in enumerate(DIs)}
-
-        # allODIs = list(product(self["microtypeIDs"].MicrotypeID, self["microtypeIDs"].MicrotypeID,
-        #                        self["distanceBins"].DistanceBinID))
-        # self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(allODIs)}
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(
             odJoinedToDistance.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID']).groups)}
 
@@ -417,12 +411,9 @@ class Data:
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
         self.__tripRate = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs), dtype=float)
-        self.__toStarts = np.zeros(
-            (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
-        self.__toEnds = np.zeros(
-            (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
-        self.__toThroughDistance = np.zeros(
-            (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toStarts = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toEnds = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toThroughDistance = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toTransitLayer = np.zeros((self.params.nODIs, self.params.nTransitLayers), dtype=float)
         self.__utilities = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
@@ -442,6 +433,7 @@ class Data:
         self.__microtypeLengthMultiplier = np.ones(self.params.nMicrotypes, dtype=float)
         self.__subNetworkToMicrotype = np.zeros((self.params.nMicrotypes, self.params.nSubNetworks), dtype=bool)
         self.__microtypeSpeed = np.zeros((self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
+        self.__accessDistance = np.zeros((self.params.nMicrotypes, self.params.nModes))
         self.__microtypeMixedTrafficDistance = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
         self.__fleetSize = np.zeros(
@@ -523,6 +515,7 @@ class Data:
         startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
         supply = dict()
         supply['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
+        supply['accessDistance'] = self.__accessDistance
         supply['microtypeSpeed'] = self.__microtypeSpeed[timePeriodIdx, :, :]
         supply['fleetSize'] = self.__fleetSize[timePeriodIdx, :, :]
         supply['microtypeMixedTrafficDistance'] = self.__microtypeMixedTrafficDistance[timePeriodIdx, :, :]
@@ -580,6 +573,7 @@ class Data:
         fixedData['toTransitLayer'] = self.__toTransitLayer
         fixedData['transitLayerUtility'] = self.__transitLayerUtility
         fixedData['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
+        fixedData['accessDistance'] = self.__accessDistance
         return fixedData
 
     def updateNetworkLength(self, networkIdx, newLength):
@@ -879,9 +873,9 @@ class Model:
             if microtypeID is None:
                 modeSplit = np.einsum('tijk,tij->k', modeSplits, tripRate)
             else:
-                modeSplit = np.einsum('jk,j->k',
-                                      modeSplits[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)],
-                                      tripRate[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)])
+                modeSplit = np.einsum('ijk,ij->k',
+                                      modeSplits[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)],
+                                      tripRate[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)])
         else:
             tripRate = self.data.tripRate(timePeriod)
             modeSplits = self.data.modeSplit(timePeriod)
@@ -889,9 +883,9 @@ class Model:
             if microtypeID is None:
                 modeSplit = np.einsum('ijk,ij->k', modeSplits, tripRate)
             else:
-                modeSplit = np.einsum('jk,j->k',
-                                      modeSplits[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)],
-                                      tripRate[(toStarts[:, :, self.microtypeIdToIdx[microtypeID]] == 1)])
+                modeSplit = np.einsum('ijk,ij->k',
+                                      modeSplits[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)],
+                                      tripRate[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)])
         return modeSplit / np.sum(modeSplit)
 
     def getModePMT(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
@@ -1443,7 +1437,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 1, False)
+    model = Model("input-data-losangeles", 1, True)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])

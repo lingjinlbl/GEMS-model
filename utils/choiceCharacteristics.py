@@ -159,6 +159,13 @@ class CollectedChoiceCharacteristics:
         self.__fleetSize = numpyData['fleetSize']
         self.__fixedData = fixedData
         self.__broken = False
+        self.__cache = dict()
+
+    def clearCache(self, category=None):
+        if category is None:
+            self.__cache.clear()
+        else:
+            self.__cache.pop(category)
 
     @property
     def odiToIdx(self):
@@ -229,6 +236,7 @@ class CollectedChoiceCharacteristics:
             self.__numpy[:, :, :, self.paramToIdx[param]] = 0.0
         # self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, :, self.paramToIdx['intercept']] = 1
+        self.clearCache()
 
     def updateChoiceCharacteristics(self, microtypes) -> np.ndarray:
         self.resetChoiceCharacteristics()
@@ -239,17 +247,28 @@ class CollectedChoiceCharacteristics:
 
         allCosts = self.__fixedData['microtypeCosts']
 
-        bikeFleetDensity = np.einsum('im,ki->km', self.__fleetSize, self.__fixedData['toStarts'][0, :, :])
+        microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.modeToIdx['walk'], None]) * self.__fixedData[
+            'accessDistance']
 
-        startCosts = np.einsum('ijm,jki->jkm', allCosts[:, :, :, 0], self.__fixedData['toStarts'])
-        endCosts = np.einsum('ijm,jki->jkm', allCosts[:, :, :, 1], self.__fixedData['toEnds'])
-        throughCosts = np.einsum('ijm,jki->jkm', allCosts[:, :, :, 2], self.__fixedData['toThroughDistance'])
+        accessSeconds = self.__cache.setdefault(
+            'accessDistance', np.einsum('im,ki->km', microtypeAccessSeconds,
+                                        self.__fixedData['toStarts'] + self.__fixedData['toEnds']))
+
+        bikeFleetDensity = self.__cache.setdefault(
+            'bikeFleetDensity', np.einsum('im,ki->km', self.__fleetSize, self.__fixedData['toStarts']))
+        startCosts = self.__cache.setdefault(
+            'startCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 0], self.__fixedData['toStarts']))
+        endCosts = self.__cache.setdefault(
+            'endCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 1], self.__fixedData['toEnds']))
+        throughCosts = self.__cache.setdefault(
+            'throughCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 2], self.__fixedData['toThroughDistance']))
 
         self.__numpy[:, :, :, self.paramToIdx['cost']] = startCosts + endCosts + throughCosts
         self.__numpy[:, :, :, self.paramToIdx['travel_time']] = travelTimeInHours[None, :]
         self.__numpy[:, :, :, self.paramToIdx['unprotected_travel_time']] = (travelTimeInHours * mixedTravelPortion)[
                                                                             None, :]
         self.__numpy[:, :, :, self.paramToIdx['mode_density']] = bikeFleetDensity[None, :, :]
+        self.__numpy[:, :, :, self.paramToIdx['access_time']] = accessSeconds[None, :] / 3600.
         return self.__numpy
 
     def isBroken(self):
@@ -264,13 +283,13 @@ def speedToTravelTime(modeSpeed: np.ndarray, toThroughDistance: np.ndarray) -> (
     modeSpeed[(modeSpeed < 0.001) | np.isnan(modeSpeed)] = 0.001
     modeSecondsPerMeter = (1 / modeSpeed)
     modeSecondsPerMeter[np.isinf(modeSecondsPerMeter)] = 0.0
-    assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
+    assignmentMatrix = toThroughDistance * 1609.34
     throughTravelTimeInSeconds = assignmentMatrix @ modeSecondsPerMeter
     return throughTravelTimeInSeconds / 3600.0, broken
 
 
 def mixedPortion(mixedPortionByMicrotype: np.ndarray, toThroughDistance: np.ndarray):
-    assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
+    assignmentMatrix = toThroughDistance * 1609.34
     mixedTrafficDistance = assignmentMatrix @ mixedPortionByMicrotype
     full = np.ones_like(mixedPortionByMicrotype)
     out = mixedTrafficDistance / (assignmentMatrix @ full)

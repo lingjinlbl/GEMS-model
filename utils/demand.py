@@ -336,7 +336,6 @@ class Demand:
         otherMatrix = self.__transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
-    # @profile
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=3, utilitiesArray=None, modeSplitArray=None):
         if utilitiesArray is not None:
             np.copyto(self.__modeSplitData, modeSplitFromUtils(utilitiesArray))
@@ -347,9 +346,9 @@ class Demand:
             microtype.resetDemand()
 
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
-        startsByOrigin = np.einsum('ijk,ijl->lk', startsByMode, self.__toStarts)
-        startsByDestination = np.einsum('ijk,ijl->lk', startsByMode, self.__toEnds)
-        passengerMilesByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughDistance)
+        startsByOrigin = np.einsum('ijk,jl->lk', startsByMode, self.__toStarts)
+        startsByDestination = np.einsum('ijk,jl->lk', startsByMode, self.__toEnds)
+        passengerMilesByMicrotype = np.einsum('ijk,jl->lk', startsByMode, self.__toThroughDistance)
         vehicleMilesByMicrotype = passengerMilesByMicrotype.copy()
 
         for mode, modeIdx in self.modeToIdx.items():

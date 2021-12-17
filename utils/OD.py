@@ -507,16 +507,12 @@ class OriginDestination:
                 [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.modeToIdx.keys()])
             self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
 
-        for demandIndex, currentPopIndex in self.__scenarioData.diToIdx.items():
-            # currentPopIndex = self.__scenarioData.diToIdx[demandIndex]
-            for odi, currentODindex in self.__scenarioData.odiToIdx.items():
-                self.__modelData['toStarts'][
-                    currentPopIndex, currentODindex, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
-                self.__modelData['toEnds'][
-                    currentPopIndex, currentODindex, self.__scenarioData.microtypeIdToIdx[odi.d]] = 1.0
-                # TODO: Expand through distance to have a mode dimension, then filter and reallocate
-                self.__modelData['toThroughDistance'][:, currentODindex,
-                :] = self.__transitionMatrices.assignmentMatrix(odi) * self.__distanceBins[odi.distBin]
+        for odi, idx in self.__scenarioData.odiToIdx.items():
+            self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
+            self.__modelData['toEnds'][idx, self.__scenarioData.microtypeIdToIdx[odi.d]] = 1.0
+            # TODO: Expand through distance to have a mode dimension, then filter and reallocate
+            self.__modelData['toThroughDistance'][idx, :] = self.__transitionMatrices.assignmentMatrix(odi) * \
+                                                            self.__distanceBins[odi.distBin]
 
     def __len__(self):
         return len(self.originDestination)

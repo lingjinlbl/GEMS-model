@@ -172,6 +172,7 @@ class MicrotypeCollection:
         self.__numpyNetworkBlockedDistance = supplyData['subNetworkBlockedDistance']
         self.__numpyInstantaneousSpeed = supplyData['subNetworkInstantaneousSpeed']
         self.__numpyInstantaneousAccumulation = supplyData['subNetworkInstantaneousAutoAccumulation']
+        self.__accessDistance = supplyData['accessDistance']
         self.__microtypeCosts = supplyData['microtypeCosts']
         self.__transitionMatrixNetworkIdx = supplyData['transitionMatrixNetworkIdx']
         self.__nonAutoModes = supplyData['nonAutoModes']
@@ -354,6 +355,7 @@ class MicrotypeCollection:
                                            self.__numpyMicrotypeSpeed[self.microtypeIdToIdx[microtypeId], :],
                                            self.__microtypeCosts[self.microtypeIdToIdx[microtypeId], :, :, :],
                                            self.__numpyFleetSize[self.microtypeIdToIdx[microtypeId], :],
+                                           self.__accessDistance[self.microtypeIdToIdx[microtypeId], :],
                                            self.dataToIdx, self.modeToIdx, self.diToIdx)
                 self[microtypeId] = Microtype(microtypeId, netCol, self.paramToIdx)
                 self.collectedNetworkStateData.addMicrotype(self[microtypeId])
