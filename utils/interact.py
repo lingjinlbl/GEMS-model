@@ -204,17 +204,17 @@ class Interact:
                 microtypeFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=1, legendgroup=mode,
                                                mode='lines', showlegend=False)
                 self.__dataToHandle['modeSplit']['current'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
                 microtypeFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=2, legendgroup=mode,
                                                mode='lines',
                                                showlegend=False)
                 self.__dataToHandle['modeSplit']['ref'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
                 diffFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=1, col=1, legendgroup=mode,
                                           mode='lines',
                                           showlegend=True)
                 self.__dataToHandle['modeSplitDiff'][mode][mID] = diffFigs[idx].data[-1]
-                diffFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                diffFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
         for mode in self.model.scenarioData['modeData'].keys():
             self.__dataToHandle['modeSpeed']['current'][mode] = dict()
             self.__dataToHandle['modeSpeed']['ref'][mode] = dict()
@@ -223,33 +223,35 @@ class Interact:
                                                hovertext="Microtype " + mID + " " + mode, hoverinfo="text",
                                                showlegend=True, legendgroup=mode)
                 self.__dataToHandle['modeSpeed']['current'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
                 microtypeFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=1, col=2, mode='lines',
                                                showlegend=False, hovertext="Microtype " + mID + " " + mode,
                                                hoverinfo="text", legendgroup=mode)
                 self.__dataToHandle['modeSpeed']['ref'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
                                        visible=True, row=4, col=1, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['current'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
                                        visible=True, row=4, col=2, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['ref'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            combinedCostDiffFig.add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            combinedCostDiffFig.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
                                         visible=True, name='Microtype ' + mID, showlegend=True)
             self.__dataToHandle['costDiff'][mID] = combinedCostDiffFig.data[-1]
             combinedCostDiffFig.data[-1].marker.color = self.colors[mID]
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4, visible=True,
+            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+                                 visible=True,
                                  name='Microtype ' + mID, showlegend=False, row=1, col=1)
             self.__dataToHandle['costCombined']['current'][mID] = bothCostFigs.data[-1]
             bothCostFigs.data[-1].marker.color = self.colors[mID]
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4, visible=True,
+            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+                                 visible=True,
                                  name='Microtype ' + mID, showlegend=True, row=1, col=2)
             self.__dataToHandle['costCombined']['ref'][mID] = bothCostFigs.data[-1]
             bothCostFigs.data[-1].marker.color = self.colors[mID]
@@ -598,8 +600,9 @@ class Interact:
             microtype, modeName = changeType[1]
             roadDF = self.returnRoadNetworkLengths(microtype)
             modeDF = self.returnModeNetworkLengths(microtype, modeName)
-            totalLength = roadDF.sum()
-            newDedicatedLength = totalLength * newValue
+            routeLength = roadDF.sum() * self.model.scenarioData.data['modeData'][modeName.lower()].loc[microtype].get(
+                'CoveragePortion', 1)
+            newDedicatedLength = routeLength * newValue
             newMixedLength = modeDF.sum() - newDedicatedLength
             # NOTE: Right now this relies on the ordering of the input csv
             self.model.data.updateNetworkLength(modeDF.index[0], newMixedLength)
@@ -694,7 +697,6 @@ class Interact:
     def updateCosts(self, message=None):
         if self.model.choice.broken | (not self.model.successful):
             print("Starting from a bad place so I'll reset")
-            self.model.microtypes.resetStateData()
             self.model.initializeAllTimePeriods(True)
         if self.__showFigure:
             self.__loadingWidget.value = "<center><i>Model Running</i></center>"

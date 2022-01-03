@@ -180,6 +180,7 @@ class Demand:
         self.__toStarts = numpyData['toStarts']
         self.__toEnds = numpyData['toEnds']
         self.__toThroughDistance = numpyData['toThroughDistance']
+        self.__seniorODIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
         self.__shape = tuple
         self.tripRate = 0.0
         self.demandForPMT = 0.0
@@ -346,7 +347,10 @@ class Demand:
             microtype.resetDemand()
 
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
+        discountStartsByMode = np.einsum('...,...i->...i', self.__tripRate[self.__seniorODIs, :],
+                                         self.__modeSplitData[self.__seniorODIs, :, :])
         startsByOrigin = np.einsum('ijk,jl->lk', startsByMode, self.__toStarts)
+        discountStartsByOrigin = np.einsum('ijk,jl->lk', discountStartsByMode, self.__toStarts)
         startsByDestination = np.einsum('ijk,jl->lk', startsByMode, self.__toEnds)
         passengerMilesByMicrotype = np.einsum('ijk,jl->lk', startsByMode, self.__toThroughDistance)
         vehicleMilesByMicrotype = passengerMilesByMicrotype.copy()
@@ -355,8 +359,8 @@ class Demand:
             for mID, mIdx in self.microtypeIdToIdx.items():
                 if microtypes[mID].networks.getMode(mode).fixedVMT:
                     vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
-        newData = np.stack([startsByOrigin, startsByDestination, passengerMilesByMicrotype, vehicleMilesByMicrotype],
-                           axis=-1)
+        newData = np.stack([startsByOrigin, startsByDestination, passengerMilesByMicrotype, vehicleMilesByMicrotype,
+                            discountStartsByOrigin], axis=-1)
 
         microtypes.updateNumpyDemand(newData)
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)

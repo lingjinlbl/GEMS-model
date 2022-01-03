@@ -1,0 +1,5 @@
+OriginMicrotypeID,DestinationMicrotypeID,TransitLayer,Portion
+A,A,nobus_bike,0.05
+A,A,bus_nobike,0.35
+A,A,nobus_nobike,0.1
+A,A,bus_bike,0.5

@@ -86,7 +86,7 @@ class ModeSplit:
         if data is None:
             if mapping is None:
                 self.__modeToIdx = dict()
-                self.__data = np.ndarray(0)
+                self.__data = np.ndarray([])
                 self.__modes = []
             else:
                 self.__modeToIdx = {val: idx for idx, val in enumerate(mapping.keys())}
@@ -294,7 +294,7 @@ class DemandIndex:
         return self.__hash
 
     def isSenior(self):
-        return "Senior" in self.populationGroupType
+        return "senior" in self.populationGroupType.lower()
 
     def __str__(self):
         return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
@@ -426,7 +426,7 @@ class TripGeneration:
             self.__tripClasses[self.__currentTimePeriod] = dict()
         return self.__tripClasses[self.__currentTimePeriod]
 
-    def setTimePeriod(self, timePeriod: str):
+    def setTimePeriod(self, timePeriod: int):
         self.__currentTimePeriod = timePeriod
 
     def __setitem__(self, key: (str, str), value: float):
@@ -654,7 +654,7 @@ class TransitionMatrices:
     def __init__(self, scenarioData):
         self.__names = []
         self.__scenarioData = scenarioData
-        self.__diameters = np.ndarray(0)
+        self.__diameters = np.ndarray([])
         self.__data = dict()
         self.__transitionMatrices = dict()
         self.__currentTimePeriod = 0

@@ -1,5 +1,5 @@
-﻿SubnetworkID,MicrotypeID,ModesAllowed,Length,vMax,densityMax,capacityFlow,smoothingFactor,waveSpeed,MFD,Type,Dedicated,avgLinkLength
-1,A,Auto-Bus-Bike,1000,17,0.15,0.18,0.13,3.78,loder,Road,FALSE,50
-2,A,Walk,10000,1.35,0.14,,,,fixed,Sidewalk,TRUE,
-3,A,Bus,0,16,0.145,,,,quadratic,Road,TRUE,50
-4,A,Bike,0,5,0.14,0.045,,,bottleneck,Road,TRUE,
+﻿SubnetworkID,MicrotypeID,ModesAllowed,Length,vMax,densityMax,capacityFlow,smoothingFactor,waveSpeed,criticalDensity,a,MFD,Type,Dedicated,avgLinkLength
+1,A,Auto-Bus-Bike,1000,17,0.15,,,,0.118,-100.0,modified-quadratic,Road,FALSE,50
+2,A,Walk,1000,1.35,0.14,,,,,,fixed,Sidewalk,TRUE,
+3,A,Bus,0,16,0.145,0.4,,,,,bottleneck,Road,TRUE,50
+4,A,Bike,0,5,0.14,0.045,,,,,bottleneck,Road,TRUE,

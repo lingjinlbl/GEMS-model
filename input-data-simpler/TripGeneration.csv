@@ -5,3 +5,9 @@ Evening,high-income,work,0.05
 Midday,high-income,nonwork,0.05
 PM-Peak,high-income,nonwork,0.2
 Evening,high-income,nonwork,0.05
+Midday,low-income-senior,work,0.05
+PM-Peak,low-income-senior,work,0.25
+Evening,low-income-senior,work,0.05
+Midday,low-income-senior,nonwork,0.05
+PM-Peak,low-income-senior,nonwork,0.2
+Evening,low-income-senior,nonwork,0.05

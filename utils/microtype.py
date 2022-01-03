@@ -51,7 +51,7 @@ class CollectedTotalOperatorCosts:
         return self
 
     def toDataFrame(self):
-        return pd.concat([val.toDataFrame([key]) for key, val in self.__costs.items()])
+        return pd.concat({key: val.toDataFrame([key]) for key, val in self.__costs.items()})
 
     def __str__(self):
         return str(self.toDataFrame())
@@ -156,7 +156,7 @@ class MicrotypeCollection:
         self.__scenarioData = scenarioData
         self.modeData = scenarioData["modeData"]
         self.transitionMatrix = None
-        self.collectedNetworkStateData = CollectedNetworkStateData()
+        # self.collectedNetworkStateData = CollectedNetworkStateData()
         self.__modeToMicrotype = dict()
         self.__networkIdToIdx = dict()
         self.__numpyDemand = supplyData['demandData']
@@ -358,7 +358,7 @@ class MicrotypeCollection:
                                            self.__accessDistance[self.microtypeIdToIdx[microtypeId], :],
                                            self.dataToIdx, self.modeToIdx, self.diToIdx)
                 self[microtypeId] = Microtype(microtypeId, netCol, self.paramToIdx)
-                self.collectedNetworkStateData.addMicrotype(self[microtypeId])
+                # self.collectedNetworkStateData.addMicrotype(self[microtypeId])
 
     def updateDedicatedDistance(self):
         for microtypeID, microtype in self:
@@ -426,6 +426,7 @@ class MicrotypeCollection:
             operatorCosts[mID] = microtype.networks.getModeOperatingCosts()
         return operatorCosts
 
+    """
     def getStateData(self) -> CollectedNetworkStateData:
         data = CollectedNetworkStateData()
         for mID, microtype in self:
@@ -439,6 +440,7 @@ class MicrotypeCollection:
     def resetStateData(self):
         for _, nsd in self.collectedNetworkStateData:
             nsd.reset()
+    """
 
     # def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
     #     if self.transitionMatrix.names == transitionMatrix.names:
