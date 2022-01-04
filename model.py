@@ -1272,7 +1272,7 @@ class Optimizer:
         self.__method = method
         self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)) * 20.,
                          "Operator": np.ones(len(model.microtypeIdToIdx)),
-                         "Externality": np.ones(len(model.microtypeIdToIdx)) * 3.,
+                         "Externality": np.ones(len(model.microtypeIdToIdx)),
                          "Dedication": np.ones(len(model.microtypeIdToIdx))}
         self.__trialParams = []
         self.__objectiveFunctionValues = []
