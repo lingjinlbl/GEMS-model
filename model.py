@@ -1378,7 +1378,9 @@ class Optimizer:
         output['Revenue'] = - operatorRevenuesByMicrotype * self.__alphas['Operator']
         output['Externality'] = externalityCostsByMicrotype * self.__alphas['Externality']
         output['Dedication'] = dedicationCostsByMicrotype * self.__alphas['Dedication']
-        return pd.concat(output, axis=1)
+        allCosts = pd.concat(output, axis=1)
+        allCosts.index.set_names(['Microtype'], inplace=True)
+        return allCosts
 
     def evaluate(self, reallocations: np.ndarray) -> float:
         if np.any(np.isnan(reallocations)):
@@ -1530,7 +1532,7 @@ if __name__ == "__main__":
     # optimizer.evaluate([0.15])
     # model.data.updateMicrotypeNetworkLength('1', 0.75)
     # model.data.updateMicrotypeNetworkLength('2', 0.75)
-    # optimizer.updateAlpha("Operator", 0.0)
+    # optimizer.updateAlpha("Operator", 5.0)
     # optimizer.updateAlpha("Externality", 5.0)
     optimizer.minimize()
     print('-----0.0------')

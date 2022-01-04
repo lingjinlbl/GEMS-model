@@ -138,7 +138,7 @@ class Interact:
             currentMicrotypeFig['layout']['xaxis4']['title'] = 'Time (hr)'
             currentMicrotypeFig['layout']['yaxis5']['title'] = 'Auto speed (mi/hr)'
             currentMicrotypeFig['layout']['xaxis6']['title'] = 'Time (hr)'
-            currentMicrotypeFig['layout']['yaxis7']['title'] = 'Cost'
+            currentMicrotypeFig['layout']['yaxis7']['title'] = 'Contribution to Social Cost'
 
             microtypeFigs.append(currentMicrotypeFig)
 
@@ -162,7 +162,7 @@ class Interact:
                           column_titles=['Current', 'Reference'])
         )
 
-        bothCostFigs['layout']['yaxis']['title'] = 'Cost'
+        bothCostFigs['layout']['yaxis']['title'] = 'Contribution to Social Cost'
         bothCostFigs['layout']['xaxis']['title'] = 'Type'
         bothCostFigs['layout']['xaxis2']['title'] = 'Type'
 
@@ -170,7 +170,7 @@ class Interact:
             {'autosize': False, 'width': 900, 'height': 400, 'template': 'simple_white'})
 
         combinedCostDiffFig = go.FigureWidget(go.Figure())
-        combinedCostDiffFig['layout']['yaxis']['title'] = 'Difference in cost'
+        combinedCostDiffFig['layout']['yaxis']['title'] = 'Difference in social cost'
         combinedCostDiffFig.update_layout(template='simple_white')
 
         self.__dataToHandle['speed'] = {'current': dict(), 'ref': dict()}
