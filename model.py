@@ -1025,11 +1025,6 @@ class Model:
         operatorCosts = CollectedTotalOperatorCosts()
         externalities = dict()
         vectorUserCosts = dict()
-        demand = self.data.getDemand()
-        revenueByMode = demand['modeSplit'] * demand['tripRate'][:, :, :, None] * demand['choiceCharacteristics'][:, :,
-                                                                                  :, :,
-                                                                                  self.scenarioData.paramToIdx['cost']]
-        revenueByTimePeriod = revenueByMode.sum(axis=(1, 2))
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, preserve=True)
             matCosts = self.getMatrixUserCosts() * durationInHours

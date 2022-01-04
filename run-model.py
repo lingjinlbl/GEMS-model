@@ -4,13 +4,66 @@ import pandas as pd
 
 from model import Model, Optimizer
 
-model = Model("input-data-losangeles-national-params", nSubBins=1)
-optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus'), ('2', 'Bus')],  # These determine headways
-                      fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike'), ('2', 'Bus'), ('2', 'Bike')],
+model = Model("input-data", nSubBins=2)
+optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],  # These determine headways
+                      fromToSubNetworkIDs=[('A', 'Bus')],
                       # These determine ROW allocation
                       method="min")
 
-# // Run the model with default parameters
+headways = np.linspace(90, 600, 10)
+allocations = np.linspace(0., 0.3, 10)
+totalUserCosts = np.zeros((len(headways), len(allocations)))
+totalOperatorCosts = np.zeros((len(headways), len(allocations)))
+totalOperatorRevenues = np.zeros((len(headways), len(allocations)))
+netOperatorCosts = np.zeros((len(headways), len(allocations)))
+totalExternalityCosts = np.zeros((len(headways), len(allocations)))
+totalDedicationCosts = np.zeros((len(headways), len(allocations)))
+busModeSplit = np.zeros((len(headways), len(allocations)))
+carModeSplit = np.zeros((len(headways), len(allocations)))
+
+for i, h in enumerate(headways):
+    for j, a in enumerate(allocations):
+        optimizer.updateAndRunModel(np.array([a, h]))
+        if model.successful:
+            operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+            dedicationCosts = model.getDedicationCostByMicrotype()
+            operatorCosts = operatorCosts.toDataFrame()
+            totalUserCosts[i, j] = sum([uc.sum() for uc in vectorUserCosts.values()])
+            totalOperatorCosts[i, j] = operatorCosts['Cost'].sum()
+            totalOperatorRevenues[i, j] = operatorCosts['Revenue'].sum()
+            netOperatorCosts[i, j] = operatorCosts['Cost'].sum() - operatorCosts['Revenue'].sum()
+            totalExternalityCosts[i, j] = sum([ex.sum() for ex in externalities.values()])
+            busModeSplit[i, j] = model.getModeSplit()[model.modeToIdx['bus']]
+            carModeSplit[i, j] = model.getModeSplit()[model.modeToIdx['auto']]
+            totalDedicationCosts[i, j] = dedicationCosts.sum()
+        else:
+            print("Failed for ", np.array([a, h]))
+
+plt.subplot(221)
+plt.contourf(allocations, headways, totalUserCosts, 30, cmap='viridis')
+cbar1 = plt.colorbar()
+cbar1.set_label("User costs")
+plt.subplot(222)
+plt.contourf(allocations, headways, netOperatorCosts, 30, cmap='plasma')
+cbar2 = plt.colorbar()
+cbar2.set_label("Operator costs")
+plt.subplot(223)
+plt.contourf(allocations, headways, totalExternalityCosts, 30, cmap='inferno')
+cbar3 = plt.colorbar()
+cbar3.set_label("Externality costs")
+plt.subplot(224)
+plt.contourf(allocations, headways, totalUserCosts + netOperatorCosts + totalExternalityCosts + totalDedicationCosts,
+             30,
+             cmap='cividis')
+cbar4 = plt.colorbar()
+cbar4.set_label("Total costs")
+
+# // Run the model on LA with default parameters
+model = Model("input-data-losangeles-national-params", nSubBins=1)
+optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus'), ('2', 'Bus')],  # These determine headways
+                      fromToSubNetworkIDs=[('1', 'Bus'), ('2', 'Bus'), ('1', 'Bike'), ('2', 'Bike')],
+                      # These determine ROW allocation
+                      method="min")
 
 x0 = optimizer.x0()
 
