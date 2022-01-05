@@ -10,8 +10,8 @@ optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],  # These determi
                       # These determine ROW allocation
                       method="min")
 
-headways = np.linspace(90, 600, 10)
-allocations = np.linspace(0., 0.3, 10)
+headways = np.linspace(60, 300, 13)
+allocations = np.linspace(0., 0.62, 13)
 totalUserCosts = np.zeros((len(headways), len(allocations)))
 totalOperatorCosts = np.zeros((len(headways), len(allocations)))
 totalOperatorRevenues = np.zeros((len(headways), len(allocations)))
@@ -26,16 +26,17 @@ for i, h in enumerate(headways):
         optimizer.updateAndRunModel(np.array([a, h]))
         if model.successful:
             operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+            allCosts = optimizer.sumAllCosts()
             dedicationCosts = model.getDedicationCostByMicrotype()
             operatorCosts = operatorCosts.toDataFrame()
-            totalUserCosts[i, j] = sum([uc.sum() for uc in vectorUserCosts.values()])
-            totalOperatorCosts[i, j] = operatorCosts['Cost'].sum()
-            totalOperatorRevenues[i, j] = operatorCosts['Revenue'].sum()
-            netOperatorCosts[i, j] = operatorCosts['Cost'].sum() - operatorCosts['Revenue'].sum()
-            totalExternalityCosts[i, j] = sum([ex.sum() for ex in externalities.values()])
-            busModeSplit[i, j] = model.getModeSplit()[model.modeToIdx['bus']]
-            carModeSplit[i, j] = model.getModeSplit()[model.modeToIdx['auto']]
-            totalDedicationCosts[i, j] = dedicationCosts.sum()
+            totalUserCosts[i, j] = allCosts['User'].sum()
+            totalOperatorCosts[i, j] = allCosts['Operator'].sum()
+            totalOperatorRevenues[i, j] = allCosts['Revenue'].sum()
+            netOperatorCosts[i, j] = allCosts['Operator'].sum() - allCosts['Revenue'].sum()
+            totalExternalityCosts[i, j] = allCosts['Externality'].sum()
+            busModeSplit[i, j] = model.getModeSplit(microtypeID='A')[model.modeToIdx['bus']]
+            carModeSplit[i, j] = model.getModeSplit(microtypeID='A')[model.modeToIdx['auto']]
+            totalDedicationCosts[i, j] = allCosts['Dedication'].sum()
         else:
             print("Failed for ", np.array([a, h]))
 
