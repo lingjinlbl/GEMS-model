@@ -282,7 +282,7 @@ class ScenarioData:
         for file in fileNames:
             modeData = pd.read_csv(os.path.join(self.__path, "modes", file),
                                    dtype={"MicrotypeID": str}).set_index("MicrotypeID")
-            modeData['AccessDistanceMultiplier'] = 1.0
+            modeData['AccessDistanceMultiplier'] = 0.3
             collected[file.split(".")[0]] = modeData
         return collected
 
@@ -917,9 +917,10 @@ class Model:
             if microtypeID is None:
                 modeSplit = np.einsum('tijk,tij->k', modeSplits, tripRate)
             else:
-                modeSplit = np.einsum('ijk,ij->k',
-                                      modeSplits[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)],
-                                      tripRate[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)])
+                mask = (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)
+                modeSplit = np.einsum('tijk,tij->k',
+                                      modeSplits[:, :, mask, :],
+                                      tripRate[:, :, mask])
         else:
             tripRate = self.data.tripRate(timePeriod)
             modeSplits = self.data.modeSplit(timePeriod)
