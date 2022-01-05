@@ -74,21 +74,15 @@ class Optimizer:
     def fromSubNetworkIDs(self):
         return [fromID for fromID, toID in self.__fromToSubNetworkIDs]
 
-    def getDedicationCost(self, reallocations: np.ndarray) -> float:
-        if self.nSubNetworks() > 0:
-            microtypes = self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
-            modes = self.model.scenarioData["modeToSubNetworkData"].loc[
-                self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(
-                    self.toSubNetworkIDs()), "ModeTypeID"]
-            perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
-                pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
-            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)
-            if np.isnan(cost):
-                return np.inf
-            else:
-                return cost
-        else:
-            return 0.0
+    def getDedicationCost(self) -> float:
+        dedication = self.model.scenarioData['subNetworkDataFull'].loc[
+            self.model.scenarioData['subNetworkDataFull'].Dedicated & (
+                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), ["ModesAllowed", "MicrotypeID"]]
+        dedication['Distance'] = self.model.scenarioData['subNetworkData'].loc[
+            self.model.scenarioData['subNetworkDataFull'].Dedicated & (
+                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), "Length"]
+        dedicationCostsByMicrotype = pd.Series(0.0, index=sorted(self.model.microtypeIdToIdx))
+        return dedicationCostsByMicrotype
 
     def evaluate(self, reallocations: np.ndarray) -> float:
         # self.model.resetNetworks()
@@ -103,10 +97,10 @@ class Optimizer:
             transitModification = None
         self.model.modifyNetworks(networkModification, transitModification)
         userCosts, operatorCosts, vectorUserCosts = self.model.collectAllCosts()
-        dedicationCosts = self.getDedicationCost(reallocations)
+        dedicationCosts = self.getDedicationCost()
         print(reallocations)
-        print(userCosts.total, operatorCosts.total, dedicationCosts)
-        return np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts
+        # print(userCosts.total, operatorCosts.total, dedicationCosts)
+        return np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts.sum()
 
     """
     def getBounds(self):
