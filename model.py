@@ -1407,7 +1407,7 @@ class Optimizer:
 
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
-            upperBoundsROW = [0.3] * len(self.fromSubNetworkIDs())
+            upperBoundsROW = [0.6] * len(self.fromSubNetworkIDs())
             lowerBoundsROW = [0.0] * len(self.fromSubNetworkIDs())
         else:
             upperBoundsROW = []
@@ -1419,7 +1419,7 @@ class Optimizer:
         bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway,
                           defaultAllocation + defaultHeadway))
         if self.__method == "shgo":
-            return bounds
+            return list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
         elif self.__method == "sklearn":
             return list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
         elif (self.__method == "noisy") | (self.__method == "SPSA"):
@@ -1439,7 +1439,8 @@ class Optimizer:
         if x0 is None:
             x0 = self.x0()
         if self.__method == "shgo":
-            return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
+            return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial",
+                        options={'disp': True, 'maxiter': 100})
         # elif self.__method == "sklearn":
         #     b = self.getBounds()
         #     return gp_minimize(self.evaluate, self.getBounds(), n_calls=1000, verbose=True)
@@ -1457,7 +1458,7 @@ class Optimizer:
             # return minimize(self.evaluate, x0, method='L-BFGS-B', bounds=self.getBounds(),
             #                 options={'eps': 0.002, 'iprint': 1})
             return minimize(self.evaluate, x0, method='TNC', bounds=self.getBounds(),
-                            options={'eps': 0.001, 'eta': 0.5, 'disp': True})
+                            options={'eps': 0.001, 'eta': 0.5, 'disp': True, 'maxiter': 100})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
