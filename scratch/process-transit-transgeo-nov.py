@@ -52,21 +52,21 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 
 """
 
-defaults = {'1': {'vMax': 17.0, 'densityMax': 0.15, 'capacityFlow': 0.18, 'smoothingFactor': 0.13, 'waveSpeed': 3.78,
-                  'MFD': 'loder', 'avgLinkLength': 50, 'Type': 'Road'},
-            '2': {'vMax': 17.0, 'densityMax': 0.15, 'capacityFlow': 0.18, 'smoothingFactor': 0.13, 'waveSpeed': 3.78,
-                  'MFD': 'loder', 'avgLinkLength': 50, 'Type': 'Road'},
-            '3': {'vMax': 28.0, 'capacityFlow': 0.55,
+defaults = {'1': {'a': -100.0, 'criticalDensity': 0.118, 'densityMax': 0.15,
+                  'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
+            '2': {'a': -182.0, 'criticalDensity': 0.085, 'densityMax': 0.15,
+                  'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
+            '3': {'vMax': 14.8, 'capacityFlow': 0.344,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '4': {'vMax': 18.8, 'capacityFlow': 0.38,
+            '4': {'vMax': 14.5, 'capacityFlow': 0.305,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '5': {'vMax': 18.8, 'capacityFlow': 0.38,
+            '5': {'vMax': 15.5, 'capacityFlow': 0.292,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '6': {'vMax': 18.8, 'capacityFlow': 0.38,
+            '6': {'vMax': 19.4, 'capacityFlow': 0.325,
                   'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             'bus': {'vMax': 17.0, 'capacityFlow': 0.4, 'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             'walk': {'vMax': 1.35, 'MFD': 'fixed', 'Type': 'Sidewalk'},
-            'bike': {'vMax': 5., 'MFD': 'fixed', 'Type': 'Road'},
+            'bike': {'vMax': 5., 'densityMax': 0.15, 'MFD': 'fixed', 'Type': 'Road'},
             'rail': {'vMax': 20., 'MFD': 'fixed', 'Type': 'Rail'}
             }
 

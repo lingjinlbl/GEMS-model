@@ -30,7 +30,7 @@ newDir = os.path.join(ROOT_DIR, "..", outFolder)
 #     newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 #     newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 #     newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
-
+geotype = 'A'
 # %% PopulationGroups
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "PopulationGroups.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "PopulationGroups.csv")
