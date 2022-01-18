@@ -346,13 +346,17 @@ class Demand:
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
 
-        startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
+        startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData,
+                                 optimize=['einsum_path', (0, 1)])
         discountStartsByMode = np.einsum('...,...i->...i', self.__tripRate[self.__seniorODIs, :],
-                                         self.__modeSplitData[self.__seniorODIs, :, :])
-        startsByOrigin = np.einsum('ijk,jl->lk', startsByMode, self.__toStarts)
-        discountStartsByOrigin = np.einsum('ijk,jl->lk', discountStartsByMode, self.__toStarts)
-        startsByDestination = np.einsum('ijk,jl->lk', startsByMode, self.__toEnds)
-        passengerMilesByMicrotype = np.einsum('ijk,jl->lk', startsByMode, self.__toThroughDistance)
+                                         self.__modeSplitData[self.__seniorODIs, :, :],
+                                         optimize=['einsum_path', (0, 1)])
+        startsByOrigin = np.einsum('ijk,jl->lk', startsByMode, self.__toStarts, optimize=['einsum_path', (0, 1)])
+        discountStartsByOrigin = np.einsum('ijk,jl->lk', discountStartsByMode, self.__toStarts,
+                                           optimize=['einsum_path', (0, 1)])
+        startsByDestination = np.einsum('ijk,jl->lk', startsByMode, self.__toEnds, optimize=['einsum_path', (0, 1)])
+        passengerMilesByMicrotype = np.einsum('ijk,jl->lk', startsByMode, self.__toThroughDistance,
+                                              optimize=['einsum_path', (0, 1)])
         vehicleMilesByMicrotype = passengerMilesByMicrotype.copy()
 
         for mode, modeIdx in self.modeToIdx.items():
@@ -520,7 +524,9 @@ def modeSplitFromUtilsWithExcludedModes(utilities: np.ndarray, transitLayerPorti
     k: mode
     l: transit layer
     """
-    weightedProbabilities = np.einsum('ijkl,jl->ijk', probabilities, transitLayerPortion)
+    # TODO Optimize this
+    weightedProbabilities = np.einsum('ijkl,jl->ijk', probabilities, transitLayerPortion,
+                                      optimize=['einsum_path', (0, 1)])
     return weightedProbabilities
 
 

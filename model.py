@@ -1458,7 +1458,7 @@ class Optimizer:
             # return minimize(self.evaluate, x0, method='L-BFGS-B', bounds=self.getBounds(),
             #                 options={'eps': 0.002, 'iprint': 1})
             return minimize(self.evaluate, x0, method='TNC', bounds=self.getBounds(),
-                            options={'eps': 0.001, 'eta': 0.5, 'disp': True, 'maxiter': 100})
+                            options={'eps': 0.0005, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -1491,14 +1491,14 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-simpler", 1, False)
+    model = Model("input-data-losangeles-national-params", 1, False)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])
     # model.collectAllCharacteristics()
     # # model.collectAllCharacteristics()
     # # print(model.getModeSpeeds())
-    # # model.collectAllCharacteristics()
+    # model.collectAllCharacteristics()
 
     # print(model.getModeSpeeds())
     # obj = Mock()
@@ -1515,27 +1515,27 @@ if __name__ == "__main__":
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('A', 'Bike'), ('B', 'Bus'), ('B', 'Bike')],
     #                       method="min")
 
-    optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
-                          fromToSubNetworkIDs=[('A', 'Bus'), ('A', 'Bike')],
+    optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus')],
+                          fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike')],
                           method="min")
 
-    # optimizer.evaluate(optimizer.x0())
-    # optimizer.evaluate([0.15])
+    optimizer.evaluate(optimizer.x0())
+    optimizer.evaluate([0.05, 0.05, 0.05])
     # model.data.updateMicrotypeNetworkLength('1', 0.75)
     # model.data.updateMicrotypeNetworkLength('2', 0.75)
     # optimizer.updateAlpha("Operator", 5.0)
     # optimizer.updateAlpha("Externality", 5.0)
-    optimizer.minimize()
+    # optimizer.minimize()
     print('-----0.0------')
 
     # optimizer.evaluate([0.0])
 
-    model.collectAllCharacteristics()
-    x, y = model.plotAllDynamicStats('n')
-    # model.interact.updatePlots()
-    print('-----0.15------')
-    optimizer.evaluate([0.15])
-    print('-----0.0------')
+    # model.collectAllCharacteristics()
+    # x, y = model.plotAllDynamicStats('n')
+    # # model.interact.updatePlots()
+    # print('-----0.15------')
+    # optimizer.evaluate([0.15])
+    # print('-----0.0------')
     # optimizer.evaluate([0.0])
     # print('-----0.0------')
     # optimizer.evaluate([0.0])
