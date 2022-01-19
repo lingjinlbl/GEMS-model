@@ -2,20 +2,18 @@ import os
 # from line_profiler_pycharm import profile
 from collections import OrderedDict
 from copy import deepcopy
-from itertools import product
 from sys import stdout
 
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
-from mock.mock import Mock
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
 # from skopt import gp_minimize, forest_minimize
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices, DemandIndex
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand, ODindex, modeSplitFromUtils, Externalities
+from utils.demand import Demand, ODindex, Externalities, modeSplitFromUtilsWithExcludedModes
 from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
@@ -76,21 +74,15 @@ class Optimizer:
     def fromSubNetworkIDs(self):
         return [fromID for fromID, toID in self.__fromToSubNetworkIDs]
 
-    def getDedicationCost(self, reallocations: np.ndarray) -> float:
-        if self.nSubNetworks() > 0:
-            microtypes = self.model.scenarioData["subNetworkData"].loc[self.toSubNetworkIDs(), "MicrotypeID"]
-            modes = self.model.scenarioData["modeToSubNetworkData"].loc[
-                self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(
-                    self.toSubNetworkIDs()), "ModeTypeID"]
-            perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
-                pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
-            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)
-            if np.isnan(cost):
-                return np.inf
-            else:
-                return cost
-        else:
-            return 0.0
+    def getDedicationCost(self) -> float:
+        dedication = self.model.scenarioData['subNetworkDataFull'].loc[
+            self.model.scenarioData['subNetworkDataFull'].Dedicated & (
+                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), ["ModesAllowed", "MicrotypeID"]]
+        dedication['Distance'] = self.model.scenarioData['subNetworkData'].loc[
+            self.model.scenarioData['subNetworkDataFull'].Dedicated & (
+                    self.model.scenarioData['subNetworkDataFull'].Type == "Road"), "Length"]
+        dedicationCostsByMicrotype = pd.Series(0.0, index=sorted(self.model.microtypeIdToIdx))
+        return dedicationCostsByMicrotype
 
     def evaluate(self, reallocations: np.ndarray) -> float:
         # self.model.resetNetworks()
@@ -105,10 +97,10 @@ class Optimizer:
             transitModification = None
         self.model.modifyNetworks(networkModification, transitModification)
         userCosts, operatorCosts, vectorUserCosts = self.model.collectAllCosts()
-        dedicationCosts = self.getDedicationCost(reallocations)
+        dedicationCosts = self.getDedicationCost()
         print(reallocations)
-        print(userCosts.total, operatorCosts.total, dedicationCosts)
-        return np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts
+        # print(userCosts.total, operatorCosts.total, dedicationCosts)
+        return np.sum(vectorUserCosts) + operatorCosts.total + dedicationCosts.sum()
 
     """
     def getBounds(self):
@@ -219,6 +211,8 @@ class ScenarioData:
         self.__dataToIdx = dict()
         self.__microtypeIdToIdx = dict()
         self.__paramToIdx = dict()
+        self.__transitLayerToIdx = dict()
+        self.__subNetworkIdToIdx = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
             self.data = dict()
@@ -252,8 +246,16 @@ class ScenarioData:
         return self.__microtypeIdToIdx
 
     @property
+    def subNetworkIdToIdx(self):
+        return self.__subNetworkIdToIdx
+
+    @property
     def microtypeIds(self):
         return list(self.__microtypeIdToIdx.keys())
+
+    @property
+    def transitLayerToIdx(self):
+        return self.__transitLayerToIdx
 
     def __setitem__(self, key: str, value):
         self.data[key] = value
@@ -272,8 +274,10 @@ class ScenarioData:
         collected = OrderedDict()
         (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "modes")))
         for file in fileNames:
-            collected[file.split(".")[0]] = pd.read_csv(os.path.join(self.__path, "modes", file),
-                                                        dtype={"MicrotypeID": str}).set_index("MicrotypeID")
+            modeData = pd.read_csv(os.path.join(self.__path, "modes", file),
+                                   dtype={"MicrotypeID": str}).set_index("MicrotypeID")
+            modeData['AccessDistanceMultiplier'] = 0.3
+            collected[file.split(".")[0]] = modeData
         return collected
 
     def loadData(self):
@@ -283,7 +287,8 @@ class ScenarioData:
         """
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                              usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
-                                                      "capacityFlow", "smoothingFactor", "waveSpeed"],
+                                                      "capacityFlow", "smoothingFactor", "waveSpeed", "a",
+                                                      "criticalDensity"],
                                              index_col="SubnetworkID", dtype={"MicrotypeID": str}).fillna(0.0)
         self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                                  index_col="SubnetworkID", dtype={"MicrotypeID": str})
@@ -312,7 +317,8 @@ class ScenarioData:
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         self["modeExternalities"] = pd.read_csv(os.path.join(self.__path, "ModeExternalities.csv"),
                                                 dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
-
+        self["modeAvailability"] = pd.read_csv(os.path.join(self.__path, "ModeAvailability.csv"),
+                                               dtype={"OriginMicrotypeID": str, "DestinationMicrotypeID": str})
         self.defineIndices()
 
     def appendTripPurposeToPopulationGroups(self, populationGroups, tripPurposes):
@@ -332,10 +338,6 @@ class ScenarioData:
     def defineIndices(self):
         self.__modeToIdx = {mode: idx for idx, mode in enumerate(self["modeData"].keys())}
 
-        homeMicrotypeIDs = self.data['populations'].MicrotypeID.unique()
-        groupAndPurpose = self.data['tripGeneration'].groupby(
-            ['PopulationGroupTypeID', 'TripPurposeID']).groups.keys()
-
         odJoinedToDistance = self['originDestinations'].merge(self['distanceDistribution'],
                                                               on=["OriginMicrotypeID", "DestinationMicrotypeID"],
                                                               suffixes=("_OD", "_Dist"), how="right")
@@ -347,19 +349,20 @@ class ScenarioData:
         # nestedDIs = list(product(homeMicrotypeIDs, groupAndPurpose))
         DIs = [(hID, popGroup, purpose) for hID, popGroup, purpose in nestedDIs]
         self.__diToIdx = {DemandIndex(*di): idx for idx, di in enumerate(DIs)}
-
-        # allODIs = list(product(self["microtypeIDs"].MicrotypeID, self["microtypeIDs"].MicrotypeID,
-        #                        self["distanceBins"].DistanceBinID))
-        # self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(allODIs)}
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(
             odJoinedToDistance.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID']).groups)}
 
-        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'passengerDistance': 3, 'vehicleDistance': 4}
+        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'passengerDistance': 3, 'vehicleDistance': 4,
+                            'discountTripStarts': 5}
 
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
+        self.__subNetworkIdToIdx = {sID: idx for idx, sID in enumerate(self["subNetworkData"].index)}
+
         self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                             'unprotected_travel_time': 5, 'distance': 6}
+                             'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
+        uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
+        self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
 
     def copy(self):
         """
@@ -390,6 +393,7 @@ class ShapeParams:
         self.nSubNetworks = len(scenarioData['subNetworkData'])
         self.nParams = len(scenarioData.paramToIdx)
         self.nDemandDataTypes = len(scenarioData.dataToIdx)
+        self.nTransitLayers = len(scenarioData.transitLayerToIdx)
 
 
 class Data:
@@ -407,16 +411,18 @@ class Data:
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
         self.__tripRate = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs), dtype=float)
-        self.__toStarts = np.zeros(
-            (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
-        self.__toEnds = np.zeros(
-            (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
-        self.__toThroughDistance = np.zeros(
-            (self.params.nDIs, self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toStarts = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toEnds = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toThroughDistance = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toTransitLayer = np.zeros((self.params.nODIs, self.params.nTransitLayers), dtype=float)
         self.__utilities = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
         self.__choiceCharacteristics = np.zeros(
-            (self.params.nTimePeriods, self.params.nODIs, self.params.nModes, self.params.nParams), dtype=float)
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes, self.params.nParams),
+            dtype=float)
+        self.__microtypeCosts = np.zeros(
+            (self.params.nMicrotypes, self.params.nDIs, self.params.nModes, 3), dtype=float)
+        self.__transitLayerUtility = np.zeros((self.params.nModes, self.params.nTransitLayers), dtype=float)
         self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams), dtype=float)
         self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams),
                                                 dtype=float)
@@ -424,9 +430,13 @@ class Data:
         #############
         # Supply side
         #############
-
+        self.__microtypeLengthMultiplier = np.ones(self.params.nMicrotypes, dtype=float)
+        self.__subNetworkToMicrotype = np.zeros((self.params.nMicrotypes, self.params.nSubNetworks), dtype=bool)
         self.__microtypeSpeed = np.zeros((self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
+        self.__accessDistance = np.zeros((self.params.nMicrotypes, self.params.nModes))
         self.__microtypeMixedTrafficDistance = np.zeros(
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
+        self.__fleetSize = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
         self.__subNetworkAverageSpeed = np.zeros(
             (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
@@ -444,6 +454,40 @@ class Data:
         self.__transitionMatrixNetworkIdx = np.zeros(self.params.nSubNetworks, dtype=bool)
         self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
+        self.__MFDs = [[] for _ in range(self.params.nSubNetworks)]
+
+    def setModeStartCosts(self, mode, microtype, newCost, senior=None):
+        data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
+               self.scenarioData.modeToIdx[mode], 0]
+        if senior is None:
+            data.fill(newCost)
+        else:
+            isSenior = np.array([di.isSenior for di in self.scenarioData.diToIdx.keys()], dtype=bool)
+            if senior:
+                data[isSenior] = newCost
+            else:
+                data[~isSenior] = newCost
+
+    def toStarts(self):
+        return self.__toStarts
+
+    def modeSplit(self, timePeriod=None):
+        if timePeriod is None:
+            return self.__modeSplit
+        else:
+            return self.__modeSplit[timePeriod, :, :, :]
+
+    def tripRate(self, timePeriod=None):
+        if timePeriod is None:
+            return self.__tripRate
+        else:
+            return self.__tripRate[timePeriod, :, :]
+
+    def updateMicrotypeNetworkLength(self, microtypeID, newMultiplier):
+        mask = self.__subNetworkToMicrotype[self.scenarioData.microtypeIdToIdx[microtypeID], :]
+        oldMultiplier = self.__microtypeLengthMultiplier[self.scenarioData.microtypeIdToIdx[microtypeID]]
+        self.__subNetworkLength[mask] *= newMultiplier / oldMultiplier
+        self.__microtypeLengthMultiplier[self.scenarioData.microtypeIdToIdx[microtypeID]] = newMultiplier
 
     @property
     def t(self):
@@ -467,43 +511,88 @@ class Data:
         return int(startTimeInHours * 3600 / self.params.timeStepInSeconds), \
                int(endTimeInHours * 3600 / self.params.timeStepInSeconds)
 
-    def getSupply(self, timePeriodIdx):
-        startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
-        supply = dict()
-        supply['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
-        supply['microtypeSpeed'] = self.__microtypeSpeed[timePeriodIdx, :, :]
-        supply['microtypeMixedTrafficDistance'] = self.__microtypeMixedTrafficDistance[timePeriodIdx, :, :]
-        supply['subNetworkAverageSpeed'] = self.__subNetworkAverageSpeed[timePeriodIdx, :, :]
-        supply['subNetworkAccumulation'] = self.__subNetworkAccumulation[timePeriodIdx, :, :]
-        supply['subNetworkBlockedDistance'] = self.__subNetworkBlockedDistance[timePeriodIdx, :, :]
-        supply['subNetworkOperatingSpeed'] = self.__subNetworkOperatingSpeed[timePeriodIdx, :, :]
-        supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
-        supply['subNetworkLength'] = self.__subNetworkLength
-        supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
-        supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
-                                                            :, startTimeStep:endTimeStep]
-        if startTimeStep == 0:
+    def getSupply(self, timePeriodIdx=None):
+        if timePeriodIdx is None:
+            supply = dict()
+            supply['demandData'] = self.__demandData
+            supply['accessDistance'] = self.__accessDistance
+            supply['microtypeSpeed'] = self.__microtypeSpeed
+            supply['fleetSize'] = self.__fleetSize
+            supply['microtypeMixedTrafficDistance'] = self.__microtypeMixedTrafficDistance
+            supply['subNetworkAverageSpeed'] = self.__subNetworkAverageSpeed
+            supply['subNetworkAccumulation'] = self.__subNetworkAccumulation
+            supply['subNetworkBlockedDistance'] = self.__subNetworkBlockedDistance
+            supply['subNetworkOperatingSpeed'] = self.__subNetworkOperatingSpeed
+            supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
+            supply['subNetworkLength'] = self.__subNetworkLength
+            supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed
+            supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation
             supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
+            supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
+            supply['nonAutoModes'] = self.__nonAutoModes
+            supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
+            supply['microtypeCosts'] = self.__microtypeCosts
+            supply['MFDs'] = self.__MFDs
         else:
-            supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[:,
-                                                           startTimeStep - 1]
-        supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
-        supply['nonAutoModes'] = self.__nonAutoModes
+            startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
+            supply = dict()
+            supply['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
+            supply['accessDistance'] = self.__accessDistance
+            supply['microtypeSpeed'] = self.__microtypeSpeed[timePeriodIdx, :, :]
+            supply['fleetSize'] = self.__fleetSize[timePeriodIdx, :, :]
+            supply['microtypeMixedTrafficDistance'] = self.__microtypeMixedTrafficDistance[timePeriodIdx, :, :]
+            supply['subNetworkAverageSpeed'] = self.__subNetworkAverageSpeed[timePeriodIdx, :, :]
+            supply['subNetworkAccumulation'] = self.__subNetworkAccumulation[timePeriodIdx, :, :]
+            supply['subNetworkBlockedDistance'] = self.__subNetworkBlockedDistance[timePeriodIdx, :, :]
+            supply['subNetworkOperatingSpeed'] = self.__subNetworkOperatingSpeed[timePeriodIdx, :, :]
+            supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
+            supply['subNetworkLength'] = self.__subNetworkLength
+            supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
+            supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
+                                                                :, startTimeStep:endTimeStep]
+            if startTimeStep == 0:
+                supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
+            else:
+                supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[:,
+                                                               startTimeStep - 1]
+            supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
+            supply['nonAutoModes'] = self.__nonAutoModes
+            supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
+            supply['microtypeCosts'] = self.__microtypeCosts
+            supply['MFDs'] = self.__MFDs
 
         return supply
 
-    def getDemand(self, timePeriodIdx):
+    def getDemand(self, timePeriodIdx=None):
         demand = dict()
-        demand['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
-        demand['modeSplit'] = self.__modeSplit[timePeriodIdx, :, :, :]
-        demand['tripRate'] = self.__tripRate[timePeriodIdx, :, :]
-        demand['toStarts'] = self.__toStarts
-        demand['toEnds'] = self.__toEnds
-        demand['toThroughDistance'] = self.__toThroughDistance
-        demand['utilities'] = self.__utilities[timePeriodIdx, :, :, :]
-        demand['choiceCharacteristics'] = self.__choiceCharacteristics[timePeriodIdx, :, :, :]
-        demand['choiceParameters'] = self.__choiceParameters
-        demand['choiceParametersFixed'] = self.__choiceParametersFixed
+        if timePeriodIdx is None:
+            demand['demandData'] = self.__demandData
+            demand['modeSplit'] = self.__modeSplit
+            demand['tripRate'] = self.__tripRate
+            demand['fleetSize'] = self.__fleetSize
+            demand['toStarts'] = self.__toStarts
+            demand['toEnds'] = self.__toEnds
+            demand['toThroughDistance'] = self.__toThroughDistance
+            demand['utilities'] = self.__utilities
+            demand['choiceCharacteristics'] = self.__choiceCharacteristics
+            demand['choiceParameters'] = self.__choiceParameters
+            demand['choiceParametersFixed'] = self.__choiceParametersFixed
+            demand['toTransitLayer'] = self.__toTransitLayer
+            demand['transitLayerUtility'] = self.__transitLayerUtility
+        else:
+            demand['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
+            demand['modeSplit'] = self.__modeSplit[timePeriodIdx, :, :, :]
+            demand['tripRate'] = self.__tripRate[timePeriodIdx, :, :]
+            demand['fleetSize'] = self.__fleetSize[timePeriodIdx, :, :]
+            demand['toStarts'] = self.__toStarts
+            demand['toEnds'] = self.__toEnds
+            demand['toThroughDistance'] = self.__toThroughDistance
+            demand['utilities'] = self.__utilities[timePeriodIdx, :, :, :]
+            demand['choiceCharacteristics'] = self.__choiceCharacteristics[timePeriodIdx, :, :, :, :]
+            demand['choiceParameters'] = self.__choiceParameters
+            demand['choiceParametersFixed'] = self.__choiceParametersFixed
+            demand['toTransitLayer'] = self.__toTransitLayer
+            demand['transitLayerUtility'] = self.__transitLayerUtility
         return demand
 
     def getInvariants(self):
@@ -512,15 +601,22 @@ class Data:
         fixedData['subNetworkLength'] = self.__subNetworkLength
         fixedData['toStarts'] = self.__toStarts
         fixedData['toEnds'] = self.__toEnds
+        fixedData['microtypeCosts'] = self.__microtypeCosts
         fixedData['toThroughDistance'] = self.__toThroughDistance
         fixedData['choiceParameters'] = self.__choiceParameters
         fixedData['choiceParametersFixed'] = self.__choiceParametersFixed
         fixedData['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
         fixedData['nonAutoModes'] = self.__nonAutoModes
+        fixedData['toTransitLayer'] = self.__toTransitLayer
+        fixedData['transitLayerUtility'] = self.__transitLayerUtility
+        fixedData['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
+        fixedData['accessDistance'] = self.__accessDistance
         return fixedData
 
-    def updateNetworkLength(self, networkIdx, newLength):
-        self.__subNetworkLength[networkIdx] = newLength
+    def updateNetworkLength(self, networkId, newLength):
+        idx = self.scenarioData.subNetworkIdToIdx[networkId]
+        self.__subNetworkLength[idx] = newLength * \
+                                       self.__microtypeLengthMultiplier[self.__subNetworkToMicrotype[:, idx]][0]
 
 
 class Model:
@@ -593,29 +689,29 @@ class Model:
     def __init__(self, path: str, nSubBins=2, interactive=False):
         self.__path = path
         self.__nSubBins = nSubBins
-        self.__timeStepInSeconds = 60.0
+        self.__timeStepInSeconds = 15.0
         self.scenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.data = Data(self.scenarioData, self.__nSubBins, self.__timeStepInSeconds)
-        fixedData = self.data.getInvariants()
+        self.__fixedData = self.data.getInvariants()
 
         self.__initialScenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.__currentTimePeriod = None
         self.__microtypes = dict()  # MicrotypeCollection(self.modeData.data)
         self.__demand = dict()  # Demand()
         self.__choice = dict()  # CollectedChoiceCharacteristics()
-        self.__population = Population(self.scenarioData, fixedData)
+        self.__population = Population(self.scenarioData, self.__fixedData)
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
         self.__tripGeneration = TripGeneration()
         self.__transitionMatrices = TransitionMatrices(self.scenarioData)
         self.__originDestination = OriginDestination(self.__timePeriods, self.__distanceBins, self.__population,
-                                                     self.__transitionMatrices, self.data.getInvariants(),
+                                                     self.__transitionMatrices, self.__fixedData,
                                                      self.scenarioData)
         self.__externalities = Externalities(self.scenarioData)
         self.__networkStateData = dict()
         self.__printLoc = stdout
         self.__interactive = interactive
-        self.__tolerance = 1e-9
+        self.__tolerance = 2e-11
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
@@ -673,7 +769,8 @@ class Model:
         if self.__currentTimePeriod not in self.__choice:
             self.__choice[self.__currentTimePeriod] = CollectedChoiceCharacteristics(self.scenarioData, self.demand,
                                                                                      self.data.getDemand(
-                                                                                         self.__currentTimePeriod))
+                                                                                         self.__currentTimePeriod),
+                                                                                     self.__fixedData)
         return self.__choice[self.__currentTimePeriod]
 
     @property
@@ -701,7 +798,8 @@ class Model:
                                                            self.scenarioData["microtypeIDs"],
                                                            self.scenarioData["distanceBins"])
         self.__originDestination.importOriginDestination(self.scenarioData["originDestinations"],
-                                                         self.scenarioData["distanceDistribution"])
+                                                         self.scenarioData["distanceDistribution"],
+                                                         self.scenarioData["modeAvailability"])
         self.__tripGeneration.importTripGeneration(self.scenarioData["tripGeneration"])
 
     def initializeTimePeriod(self, timePeriod: int, override=False):
@@ -733,7 +831,7 @@ class Model:
 
     def demandSide(self, choiceCharacteristicsArray):
         utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray)
-        modeSplitArray = modeSplitFromUtils(utilitiesArray)
+        modeSplitArray = modeSplitFromUtilsWithExcludedModes(utilitiesArray, self.__fixedData['toTransitLayer'])
         return modeSplitArray
 
     def toObjectiveFunction(self, modeSplitArray):
@@ -755,6 +853,12 @@ class Model:
         output = self.f(flatModeSplitArray)
         diff = output - flatModeSplitArray
         diff[np.isnan(diff)] = 0.0
+        diff += flatModeSplitArray.clip(None, 0) * 1e2
+        modeSplitError = self.fromObjectiveFunction(flatModeSplitArray)
+        modeSplitError[:, :, :-1] = flatModeSplitArray.reshape(list(self.demand.modeSplitData.shape[:-1]) + [-1]).clip(
+            None, 0)
+        diff += self.toObjectiveFunction(modeSplitError) * 1e1
+        # diff[(flatModeSplitArray < 0) | (output < 0)] *= 100.
         return diff
 
     def timePeriods(self):
@@ -785,11 +889,11 @@ class Model:
         else:
             sol = root(self.g, startingPoint, method='df-sane', tol=self.__tolerance,
                        options={'maxfev': 1000, 'maxiter': 500, 'line_search': 'cheng', 'sigma_0': -0.8})
-            # print(sol.message, sol.nit, np.linalg.norm(sol.fun))
             self.g(sol.x)
             fixedPointModeSplit = self.fromObjectiveFunction(sol.x)
-            # print(self.g(sol.x))
             success = sol.success
+            if not success:
+                print("Convergence didn't finish")
         self.__successful = self.__successful & success
 
         """
@@ -801,19 +905,26 @@ class Model:
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
         if timePeriod is None:
-            modeSplit = np.zeros(len(self.modeToIdx))
-            for tp, weight in self.__timePeriods:
-                if tp in self.__demand:
-                    if microtypeID is None:
-                        modeSplit += self.__microtypes[tp].passengerDistanceByMode.sum(axis=0) * weight
-                    else:
-                        modeSplit += self.__microtypes[tp].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID],
-                                     :] * weight
-        else:
+            tripRate = self.data.tripRate()
+            modeSplits = self.data.modeSplit()
+            toStarts = self.data.toStarts()
             if microtypeID is None:
-                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode.sum(axis=0)
+                modeSplit = np.einsum('tijk,tij->k', modeSplits, tripRate)
             else:
-                modeSplit = self.__microtypes[timePeriod].passengerDistanceByMode[self.microtypeIdToIdx[microtypeID], :]
+                mask = (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)
+                modeSplit = np.einsum('tijk,tij->k',
+                                      modeSplits[:, :, mask, :],
+                                      tripRate[:, :, mask])
+        else:
+            tripRate = self.data.tripRate(timePeriod)
+            modeSplits = self.data.modeSplit(timePeriod)
+            toStarts = self.data.toStarts()
+            if microtypeID is None:
+                modeSplit = np.einsum('ijk,ij->k', modeSplits, tripRate)
+            else:
+                modeSplit = np.einsum('ijk,ij->k',
+                                      modeSplits[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)],
+                                      tripRate[:, (toStarts[:, self.microtypeIdToIdx[microtypeID]] == 1)])
         return modeSplit / np.sum(modeSplit)
 
     def getModePMT(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
@@ -855,6 +966,17 @@ class Model:
         return pd.concat(out)
 
     def getOperatorCosts(self):
+        # d = self.data.getDemand()
+        # tripRateByMode = d['tripRate'][:, :, :, None] * d['modeSplit']
+        # costPerTrip = d['choiceCharacteristics'][:, :, :, :, self.scenarioData.paramToIdx['cost']]
+        # totalCosts = tripRateByMode * costPerTrip
+        # costsByStartMicrotype = np.einsum('ijkl,km->iml', totalCosts, d['toStarts'])
+        # timePeriods = model.scenarioData['timePeriods']['TimePeriodID'].values
+        # a1, a2, a3 = np.meshgrid(timePeriods, list(self.microtypeIdToIdx.keys()), list(self.modeToIdx.keys()))
+        # revenues = pd.DataFrame(costsByStartMicrotype.flatten(), index=[a1.flatten(), a2.flatten(), a3.flatten()],
+        #                         columns=['cost'])
+        # s = self.data.getSupply()
+        # modeMicrotypeAccumulation = np.einsum('ijk,mj->ikm', s['subNetworkAccumulation'], s['subNetworkToMicrotype'])
         return self.microtypes.getOperatorCosts()
 
     def modifyNetworks(self, networkModification=None,
@@ -879,7 +1001,7 @@ class Model:
     def updateTimePeriodDemand(self, timePeriodId, newTripStartRate):
         self.__demand[timePeriodId].updateTripStartRate(newTripStartRate)
 
-    def setTimePeriod(self, timePeriod: str, init=False, preserve=False):
+    def setTimePeriod(self, timePeriod: int, init=False, preserve=False):
         """Note: Are we always going to go through them in order? Should maybe just store time periods
         as a dataframe and go by index. But, we're not keeping track of all accumulations so in that sense
         we always need to go in order."""
@@ -925,14 +1047,14 @@ class Model:
                 self.findEquilibrium()
                 matCosts = self.getMatrixSummedCharacteristics() * durationInHours
                 vectorUserCosts += matCosts
-                self.__networkStateData[timePeriod] = self.microtypes.getStateData()
+                # self.__networkStateData[timePeriod] = self.microtypes.getStateData()
                 utility = self.demand.utility(self.choice)
                 utilities.append(utility)
                 if not self.successful:
                     keepGoing = False
                     print('SHOULD I BE BROKEN?')
             else:
-                self.__networkStateData[timePeriod] = self.microtypes.getStateData().resetAll()
+                # self.__networkStateData[timePeriod] = self.microtypes.getStateData().resetAll()
                 vectorUserCosts *= np.nan
                 utilities.append(utility * np.nan)
         return vectorUserCosts, np.stack(utilities)
@@ -1007,8 +1129,8 @@ class Model:
         elif type.lower() == "v":
             # x = np.concatenate(ts) / 3600.
             # y = np.concatenate(vs) * 3600. / 1609.34
-            x = self.data.t
-            y = self.data.v
+            x = self.data.t / 3600.
+            y = self.data.v * 3600. / 1609.34
             # plt.plot(x, y)
             return x, y.transpose()
         elif type.lower() == "delay":
@@ -1134,7 +1256,7 @@ class Optimizer:
     Methods
     ---------
     evaluate(reallocations):
-        Evaluate the objective funciton given a set of modifications to the transportation system
+        Evaluate the objective function given a set of modifications to the transportation system
     minimize():
         Minimize the objective function using the set method
     """
@@ -1145,7 +1267,7 @@ class Optimizer:
         self.__method = method
         self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)) * 20.,
                          "Operator": np.ones(len(model.microtypeIdToIdx)),
-                         "Externality": np.ones(len(model.microtypeIdToIdx)) * 3.,
+                         "Externality": np.ones(len(model.microtypeIdToIdx)),
                          "Dedication": np.ones(len(model.microtypeIdToIdx))}
         self.__trialParams = []
         self.__objectiveFunctionValues = []
@@ -1157,12 +1279,12 @@ class Optimizer:
             if costType in self.__alphas:
                 self.__alphas[costType][:] = newValue
             else:
-                print("BAD INPUT")
+                print("BAD INPUT ALPHA")
         else:
             if costType in self.__alphas:
                 self.__alphas[costType][self.model.microtypeIdToIdx[mID]] = newValue
             else:
-                print("BAD INPUT")
+                print("BAD INPUT ALPHA")
 
     def nSubNetworks(self):
         if self.__fromToSubNetworkIDs is not None:
@@ -1211,7 +1333,6 @@ class Optimizer:
             transitModification = None
         if self.model.choice.broken | (not self.model.successful):
             print("Starting from a bad place so I'll reset")
-            self.model.microtypes.resetStateData()
             self.model.initializeAllTimePeriods(True)
         self.model.modifyNetworks(networkModification, transitModification)
         self.model.collectAllCharacteristics()
@@ -1223,7 +1344,8 @@ class Optimizer:
         operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
         if self.model.choice.broken | (not self.model.successful):
             return np.nan
-        operatorCostsByMicrotype = operatorCosts.toDataFrame().sum(axis=1)
+        operatorCostsByMicrotype = operatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
+        operatorRevenuesByMicrotype = operatorCosts.toDataFrame()['Revenue'].unstack().sum(axis=1)
         userCostsByMicrotype = self.model.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
             level='homeMicrotype').sum(axis=0)
         externalityCostsByMicrotype = pd.Series(sum([e.sum(axis=1) for e in externalities.values()]),
@@ -1243,9 +1365,12 @@ class Optimizer:
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
         output['Operator'] = operatorCostsByMicrotype * self.__alphas['Operator']
+        output['Revenue'] = - operatorRevenuesByMicrotype * self.__alphas['Operator']
         output['Externality'] = externalityCostsByMicrotype * self.__alphas['Externality']
         output['Dedication'] = dedicationCostsByMicrotype * self.__alphas['Dedication']
-        return pd.concat(output, axis=1)
+        allCosts = pd.concat(output, axis=1)
+        allCosts.index.set_names(['Microtype'], inplace=True)
+        return allCosts
 
     def evaluate(self, reallocations: np.ndarray) -> float:
         if np.any(np.isnan(reallocations)):
@@ -1282,7 +1407,7 @@ class Optimizer:
 
     def getBounds(self):
         if self.__fromToSubNetworkIDs is not None:
-            upperBoundsROW = [0.3] * len(self.fromSubNetworkIDs())
+            upperBoundsROW = [0.6] * len(self.fromSubNetworkIDs())
             lowerBoundsROW = [0.0] * len(self.fromSubNetworkIDs())
         else:
             upperBoundsROW = []
@@ -1294,7 +1419,7 @@ class Optimizer:
         bounds = list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway,
                           defaultAllocation + defaultHeadway))
         if self.__method == "shgo":
-            return bounds
+            return list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
         elif self.__method == "sklearn":
             return list(zip(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway))
         elif (self.__method == "noisy") | (self.__method == "SPSA"):
@@ -1303,7 +1428,7 @@ class Optimizer:
             return Bounds(lowerBoundsROW + lowerBoundsHeadway, upperBoundsROW + upperBoundsHeadway)
 
     def x0(self) -> np.ndarray:
-        network = [0.01] * self.nSubNetworks()
+        network = [0.0] * self.nSubNetworks()
         headways = [300.0] * self.nModes()
         return np.array(network + headways) * self.scaling()
 
@@ -1314,7 +1439,8 @@ class Optimizer:
         if x0 is None:
             x0 = self.x0()
         if self.__method == "shgo":
-            return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial")
+            return shgo(self.evaluate, self.getBounds(), sampling_method="simplicial",
+                        options={'disp': True, 'maxiter': 100})
         # elif self.__method == "sklearn":
         #     b = self.getBounds()
         #     return gp_minimize(self.evaluate, self.getBounds(), n_calls=1000, verbose=True)
@@ -1332,7 +1458,7 @@ class Optimizer:
             # return minimize(self.evaluate, x0, method='L-BFGS-B', bounds=self.getBounds(),
             #                 options={'eps': 0.002, 'iprint': 1})
             return minimize(self.evaluate, x0, method='TNC', bounds=self.getBounds(),
-                            options={'eps': 0.001, 'eta': 0.5, 'disp': True})
+                            options={'eps': 0.0005, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -1345,8 +1471,8 @@ class Optimizer:
 
 def startBar():
     modelInput = widgets.Dropdown(
-        options=['One microtype toy model', '4 microtype toy model', 'Los Angeles', 'Geotype A', 'Geotype B',
-                 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
+        options=['One microtype toy model', '4 microtype toy model', 'Los Angeles', 'Los Angeles (National params)',
+                 'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
         value='Los Angeles',
         description='Input data:',
         disabled=False,
@@ -1354,6 +1480,7 @@ def startBar():
     lookup = {'One microtype toy model': 'input-data-simpler',
               '4 microtype toy model': 'input-data',
               'Los Angeles': 'input-data-losangeles',
+              'Los Angeles (National params)': 'input-data-losangeles-national-params',
               'Geotype A': 'input-data-geotype-A',
               'Geotype B': 'input-data-geotype-B',
               'Geotype C': 'input-data-geotype-C',
@@ -1364,14 +1491,14 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 1, False)
+    model = Model("input-data-losangeles-national-params", 1, False)
     # optimizer = Optimizer(model, modesAndMicrotypes=None,
     #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])
     # model.collectAllCharacteristics()
     # # model.collectAllCharacteristics()
     # # print(model.getModeSpeeds())
-    # # model.collectAllCharacteristics()
+    # model.collectAllCharacteristics()
 
     # print(model.getModeSpeeds())
     # obj = Mock()
@@ -1388,19 +1515,27 @@ if __name__ == "__main__":
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('A', 'Bike'), ('B', 'Bus'), ('B', 'Bike')],
     #                       method="min")
 
-    optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bike')],
+    optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus')],
+                          fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike')],
                           method="min")
 
-    # optimizer.evaluate(optimizer.x0())
+    optimizer.evaluate(optimizer.x0())
+    optimizer.evaluate([0.05, 0.05, 0.05])
+    # model.data.updateMicrotypeNetworkLength('1', 0.75)
+    # model.data.updateMicrotypeNetworkLength('2', 0.75)
+    # optimizer.updateAlpha("Operator", 5.0)
+    # optimizer.updateAlpha("Externality", 5.0)
     # optimizer.minimize()
     print('-----0.0------')
-    optimizer.evaluate([0.02])
-    x, y = model.plotAllDynamicStats('n')
-    # model.interact.updatePlots()
-    print('-----0.15------')
-    optimizer.evaluate([0.15])
-    print('-----0.0------')
+
+    # optimizer.evaluate([0.0])
+
+    # model.collectAllCharacteristics()
+    # x, y = model.plotAllDynamicStats('n')
+    # # model.interact.updatePlots()
+    # print('-----0.15------')
+    # optimizer.evaluate([0.15])
+    # print('-----0.0------')
     # optimizer.evaluate([0.0])
     # print('-----0.0------')
     # optimizer.evaluate([0.0])

@@ -138,7 +138,7 @@ class Interact:
             currentMicrotypeFig['layout']['xaxis4']['title'] = 'Time (hr)'
             currentMicrotypeFig['layout']['yaxis5']['title'] = 'Auto speed (mi/hr)'
             currentMicrotypeFig['layout']['xaxis6']['title'] = 'Time (hr)'
-            currentMicrotypeFig['layout']['yaxis7']['title'] = 'Cost'
+            currentMicrotypeFig['layout']['yaxis7']['title'] = 'Contribution to Social Cost'
 
             microtypeFigs.append(currentMicrotypeFig)
 
@@ -162,7 +162,7 @@ class Interact:
                           column_titles=['Current', 'Reference'])
         )
 
-        bothCostFigs['layout']['yaxis']['title'] = 'Cost'
+        bothCostFigs['layout']['yaxis']['title'] = 'Contribution to Social Cost'
         bothCostFigs['layout']['xaxis']['title'] = 'Type'
         bothCostFigs['layout']['xaxis2']['title'] = 'Type'
 
@@ -170,7 +170,7 @@ class Interact:
             {'autosize': False, 'width': 900, 'height': 400, 'template': 'simple_white'})
 
         combinedCostDiffFig = go.FigureWidget(go.Figure())
-        combinedCostDiffFig['layout']['yaxis']['title'] = 'Difference in cost'
+        combinedCostDiffFig['layout']['yaxis']['title'] = 'Difference in social cost'
         combinedCostDiffFig.update_layout(template='simple_white')
 
         self.__dataToHandle['speed'] = {'current': dict(), 'ref': dict()}
@@ -204,17 +204,17 @@ class Interact:
                 microtypeFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=1, legendgroup=mode,
                                                mode='lines', showlegend=False)
                 self.__dataToHandle['modeSplit']['current'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
                 microtypeFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=2, col=2, legendgroup=mode,
                                                mode='lines',
                                                showlegend=False)
                 self.__dataToHandle['modeSplit']['ref'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
                 diffFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=1, col=1, legendgroup=mode,
                                           mode='lines',
                                           showlegend=True)
                 self.__dataToHandle['modeSplitDiff'][mode][mID] = diffFigs[idx].data[-1]
-                diffFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                diffFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
         for mode in self.model.scenarioData['modeData'].keys():
             self.__dataToHandle['modeSpeed']['current'][mode] = dict()
             self.__dataToHandle['modeSpeed']['ref'][mode] = dict()
@@ -223,33 +223,35 @@ class Interact:
                                                hovertext="Microtype " + mID + " " + mode, hoverinfo="text",
                                                showlegend=True, legendgroup=mode)
                 self.__dataToHandle['modeSpeed']['current'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
                 microtypeFigs[idx].add_scatter(x=[], y=[], visible=True, name=mode, row=1, col=2, mode='lines',
                                                showlegend=False, hovertext="Microtype " + mID + " " + mode,
                                                hoverinfo="text", legendgroup=mode)
                 self.__dataToHandle['modeSpeed']['ref'][mode][mID] = microtypeFigs[idx].data[-1]
-                microtypeFigs[idx].data[-1].line = {"shape": 'hv', "color": self.colors[mode]}
+                microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
                                        visible=True, row=4, col=1, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['current'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
                                        visible=True, row=4, col=2, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['ref'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            combinedCostDiffFig.add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            combinedCostDiffFig.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
                                         visible=True, name='Microtype ' + mID, showlegend=True)
             self.__dataToHandle['costDiff'][mID] = combinedCostDiffFig.data[-1]
             combinedCostDiffFig.data[-1].marker.color = self.colors[mID]
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4, visible=True,
+            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+                                 visible=True,
                                  name='Microtype ' + mID, showlegend=False, row=1, col=1)
             self.__dataToHandle['costCombined']['current'][mID] = bothCostFigs.data[-1]
             bothCostFigs.data[-1].marker.color = self.colors[mID]
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Externality', 'Lane dedication'], y=[0.] * 4, visible=True,
+            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+                                 visible=True,
                                  name='Microtype ' + mID, showlegend=True, row=1, col=2)
             self.__dataToHandle['costCombined']['ref'][mID] = bothCostFigs.data[-1]
             bothCostFigs.data[-1].marker.color = self.colors[mID]
@@ -294,6 +296,16 @@ class Interact:
         self.__downloadWidget = downloadButton
 
         self.__generateWidget = generateButton
+
+        networkLengthStack = []
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            microtypeText = widgets.HTML(
+                value="<center><b>Microtype " + mID + "</b></center>"
+            )
+            slider = widgets.FloatSlider(value=1.0, min=0.2, max=2.0, step=0.01, orientation='horizontal')
+            slider.observe(self.response, names="value")
+            self.__widgetIDtoField[slider.model_id] = ('networkLength', mID)
+            networkLengthStack.append(widgets.HBox([microtypeText, slider]))
 
         populationStack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -450,6 +462,28 @@ class Interact:
             dedicatedBikeStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[dedicatedBikeStack[-1].model_id] = ('dedicated', (mID, 'Bike'))
 
+        costTitleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
+        costBusStack = [widgets.HTML(value="<center><i>Bus</i></center>")]
+        costBusSeniorStack = [widgets.HTML(value="<center><i>Bus (Senior)</i></center>")]
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            costTitleStack.append(widgets.HTML(value="<center><i>{}</i></center>".format(mID)))
+            busData = self.model.scenarioData['modeData']['bus'].loc[
+                      self.model.scenarioData['modeData']['bus'].index == mID, :]
+
+            costBusStack.append(
+                widgets.FloatSlider(value=busData.PerStartCost[0], min=0, max=5.0, step=0.1,
+                                    layout=Layout(width='180px')))
+            costBusStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[costBusStack[-1].model_id] = ('fare', (mID, 'Bus'))
+
+            costBusSeniorStack.append(
+                widgets.FloatSlider(value=busData.PerStartCost[0] * busData.SeniorFareDiscount[0], min=0, max=5.0,
+                                    step=0.1,
+                                    layout=Layout(width='180px')))
+            costBusSeniorStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[costBusSeniorStack[-1].model_id] = ('fareSenior', (mID, 'Bus'))
+
         headwayStack = []
 
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -491,16 +525,20 @@ class Interact:
              widgets.VBox(externalityCostStack)])
 
         dataAccordion = widgets.Accordion(
-            [widgets.VBox(populationStack), widgets.VBox(utilStack), widgets.VBox(MFDstack)])
-        for ind, title in enumerate(('Population', 'Utility parameters', 'MFD parameters')):
+            [widgets.VBox(networkLengthStack), widgets.VBox(populationStack), widgets.VBox(utilStack),
+             widgets.VBox(MFDstack)])
+        for ind, title in enumerate(('Network Length', 'Population', 'Utility parameters', 'MFD parameters')):
             dataAccordion.set_title(ind, title)
 
         scenarioAccordion = widgets.Accordion(
             [widgets.HBox(
                 [widgets.VBox(dedicatedTitleStack), widgets.VBox(dedicatedBusStack), widgets.VBox(dedicatedBikeStack)]),
+                widgets.HBox(
+                    [widgets.VBox(costTitleStack), widgets.VBox(costBusStack),
+                     widgets.VBox(costBusSeniorStack)]),
                 widgets.VBox(headwayStack), widgets.VBox(coverageStack)])
 
-        for ind, title in enumerate(('Lane dedication', 'Bus headway (s)', 'Bus service area')):
+        for ind, title in enumerate(('Lane dedication', 'Cost', 'Bus headway (s)', 'Bus service area')):
             scenarioAccordion.set_title(ind, title)
 
         accordionChildren = [costAccordion, scenarioAccordion, dataAccordion]
@@ -555,13 +593,16 @@ class Interact:
             newValue = value
         else:
             print("BAD INPUT")
+            print(value)
+            print(changeType)
             return
         if changeType[0] == 'dedicated':
             microtype, modeName = changeType[1]
             roadDF = self.returnRoadNetworkLengths(microtype)
             modeDF = self.returnModeNetworkLengths(microtype, modeName)
-            totalLength = roadDF.sum()
-            newDedicatedLength = totalLength * newValue
+            routeLength = roadDF.sum() * self.model.scenarioData.data['modeData'][modeName.lower()].loc[microtype].get(
+                'CoveragePortion', 1)
+            newDedicatedLength = routeLength * newValue
             newMixedLength = modeDF.sum() - newDedicatedLength
             # NOTE: Right now this relies on the ordering of the input csv
             self.model.data.updateNetworkLength(modeDF.index[0], newMixedLength)
@@ -571,6 +612,12 @@ class Interact:
         if changeType[0] == 'headway':
             microtype, modeName = changeType[1]
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
+        if changeType[0] == 'fare':
+            microtype, modeName = changeType[1]
+            self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue)
+        if changeType[0] == 'fareSenior':
+            microtype, modeName = changeType[1]
+            self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue, True)
         if changeType[0] == 'coverage':
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
             self.model.readFiles()
@@ -595,6 +642,9 @@ class Interact:
         if changeType[0] == 'waveSpeed':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'waveSpeed'] = newValue
             self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'networkLength':
+            mID = changeType[1]
+            self.model.data.updateMicrotypeNetworkLength(mID, newValue)
         if changeType[0] == 'cost':
             mID, costType = changeType[1]
             if costType == "System":
@@ -647,7 +697,6 @@ class Interact:
     def updateCosts(self, message=None):
         if self.model.choice.broken | (not self.model.successful):
             print("Starting from a bad place so I'll reset")
-            self.model.microtypes.resetStateData()
             self.model.initializeAllTimePeriods(True)
         if self.__showFigure:
             self.__loadingWidget.value = "<center><i>Model Running</i></center>"

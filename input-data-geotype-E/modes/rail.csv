@@ -1,7 +1,7 @@
-MicrotypeID,Headway,PerStartCost,PerEndCost,PerMileCost,VehicleCapacity,StopSpacing,SpeedInMetersPerSecond,VehicleOperatingCostsPerHour,VehicleSize,CoveragePortion
-1,1200,4,0,0,2000,1600,20,230.0,10,0.2
-2,1200,4,0,0,2000,1600,20,230.0,10,0.1
-3,1200,4,0,0,2000,1600,20,230.0,10,0.02
-4,1200,4,0,0,2000,1600,20,230.0,10,0.02
-6,1200,4,0,0,2000,1600,20,230.0,10,0.02
-7,1200,4,0,0,2000,1600,20,230.0,10,0.01
+MicrotypeID,PerStartCost,DailyCostPerVehicle,geotype,VehicleRevenueHours,VehicleRevenueMiles,DirectionalRouteMiles,Headway,VehicleCapacity,VehicleSize,StopSpacing,SpeedInMetersPerSecond,CoveragePortion,coveragePortion,VehicleOperatingCostPerHour,PerEndCost,PerMileCost
+1,2.901597,4212,E,,,,7200.0,,,,,0.0,,175.5,0.0,0.0
+2,2.560273,4212,E,,,,7200.0,,,,,0.0,,175.5,0.0,0.0
+3,2.639381,4212,E,,,,7200.0,,,,,0.0,,175.5,0.0,0.0
+4,2.521363,4212,E,,,,7200.0,,,,,0.0,,175.5,0.0,0.0
+5,2.437784,4212,E,,,,7200.0,,,,,0.0,,175.5,0.0,0.0
+6,2.753173,4212,E,,,,7200.0,,,,,0.0,,175.5,0.0,0.0

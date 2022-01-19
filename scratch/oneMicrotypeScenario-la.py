@@ -3,8 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = "A"
-inFolder = "input-data-losangeles"
+inFolder = "input-data-losangeles-raw"
 outFolder = "input-data-losangeles"
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -31,7 +30,7 @@ newDir = os.path.join(ROOT_DIR, "..", outFolder)
 #     newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 #     newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 #     newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
-
+geotype = 'A'
 # %% PopulationGroups
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "PopulationGroups.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "PopulationGroups.csv")

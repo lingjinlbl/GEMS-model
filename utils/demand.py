@@ -180,6 +180,7 @@ class Demand:
         self.__toStarts = numpyData['toStarts']
         self.__toEnds = numpyData['toEnds']
         self.__toThroughDistance = numpyData['toThroughDistance']
+        self.__seniorODIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
         self.__shape = tuple
         self.tripRate = 0.0
         self.demandForPMT = 0.0
@@ -296,9 +297,13 @@ class Demand:
                 self.pop += pop
 
                 currentODindex = self.odiToIdx[odi]
-                currentPopIndex = self.diToIdx[demandIndex]
-                weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
-                self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                if demandIndex in self.diToIdx:
+                    currentPopIndex = self.diToIdx[demandIndex]
+                    weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
+                    self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                else:
+                    if tripRatePerHour > 0:
+                        print("What do we have here? Lost {} trips".format(tripRatePerHour))
 
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
@@ -332,7 +337,6 @@ class Demand:
         otherMatrix = self.__transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
 
-    # @profile
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=3, utilitiesArray=None, modeSplitArray=None):
         if utilitiesArray is not None:
             np.copyto(self.__modeSplitData, modeSplitFromUtils(utilitiesArray))
@@ -342,18 +346,25 @@ class Demand:
         for microtypeID, microtype in microtypes:
             microtype.resetDemand()
 
-        startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
-        startsByOrigin = np.einsum('ijk,ijl->lk', startsByMode, self.__toStarts)
-        startsByDestination = np.einsum('ijk,ijl->lk', startsByMode, self.__toEnds)
-        passengerMilesByMicrotype = np.einsum('ijk,ijl->lk', startsByMode, self.__toThroughDistance)
+        startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData,
+                                 optimize=['einsum_path', (0, 1)])
+        discountStartsByMode = np.einsum('...,...i->...i', self.__tripRate[self.__seniorODIs, :],
+                                         self.__modeSplitData[self.__seniorODIs, :, :],
+                                         optimize=['einsum_path', (0, 1)])
+        startsByOrigin = np.einsum('ijk,jl->lk', startsByMode, self.__toStarts, optimize=['einsum_path', (0, 1)])
+        discountStartsByOrigin = np.einsum('ijk,jl->lk', discountStartsByMode, self.__toStarts,
+                                           optimize=['einsum_path', (0, 1)])
+        startsByDestination = np.einsum('ijk,jl->lk', startsByMode, self.__toEnds, optimize=['einsum_path', (0, 1)])
+        passengerMilesByMicrotype = np.einsum('ijk,jl->lk', startsByMode, self.__toThroughDistance,
+                                              optimize=['einsum_path', (0, 1)])
         vehicleMilesByMicrotype = passengerMilesByMicrotype.copy()
 
         for mode, modeIdx in self.modeToIdx.items():
             for mID, mIdx in self.microtypeIdToIdx.items():
                 if microtypes[mID].networks.getMode(mode).fixedVMT:
                     vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
-        newData = np.stack([startsByOrigin, startsByDestination, passengerMilesByMicrotype, vehicleMilesByMicrotype],
-                           axis=-1)
+        newData = np.stack([startsByOrigin, startsByDestination, passengerMilesByMicrotype, vehicleMilesByMicrotype,
+                            discountStartsByOrigin], axis=-1)
 
         microtypes.updateNumpyDemand(newData)
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
@@ -370,7 +381,7 @@ class Demand:
         """
 
         for microtypeID, microtype in microtypes:
-            for modes, n in microtype.networks:
+            for n in microtype.networks:
                 # n.getNetworkStateData().resetBlockedDistance()
                 # n.getNetworkStateData().resetNonAutoAccumulation()
                 n.resetSpeeds()
@@ -398,11 +409,12 @@ class Demand:
         return self.__currentUtility
 
     def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray) -> np.ndarray:
-        newUtilities = utils(self.__population.numpy, choiceCharacteristicsArray)
-        if self.__currentUtility.size > 0:
-            np.copyto(self.__currentUtility, newUtilities)
-        else:
-            self.__currentUtility = newUtilities
+        newUtilities = utilsWithExcludedModes(self.__population.numpy, choiceCharacteristicsArray,
+                                              self.__population.transitLayerUtility)
+        # if self.__currentUtility.size > 0:
+        #     np.copyto(self.__currentUtility, newUtilities)
+        # else:
+        #     self.__currentUtility = newUtilities
         return newUtilities
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
@@ -439,7 +451,7 @@ class Demand:
 
     def getSummedCharacteristics(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics) -> np.ndarray:
         startsByMode = np.einsum('...,...i->...i', self.__tripRate, self.__modeSplitData)
-        totalsByModeAndCharacteristic = np.einsum('ijk,jkl->kl', startsByMode, collectedChoiceCharacteristics.numpy)
+        totalsByModeAndCharacteristic = np.einsum('ijk,ijkl->kl', startsByMode, collectedChoiceCharacteristics.numpy)
         if np.any(np.isnan(totalsByModeAndCharacteristic)):
             print('Something went wrong')
         return totalsByModeAndCharacteristic
@@ -476,8 +488,23 @@ def utils(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
     k: mode
     l: parameter
     """
-    utils = np.einsum('ikl,jkl->ijk', popVars, choiceChars)
+    utils = np.einsum('ikl,ijkl->ijk', popVars, choiceChars)
     return utils
+
+
+def utilsWithExcludedModes(popVars: np.ndarray, choiceChars: np.ndarray, transitLayerUtility: np.ndarray) -> np.ndarray:
+    """ Indices:
+    i: population group (demand index)
+    j: OD index
+    k: mode
+    l: parameter
+    """
+    utils = np.einsum('ikl,ijkl->ijk', popVars, choiceChars)
+    paddedUtils = utils[:, :, :, None]  # np.repeat(utils[:, :, :, None], transitLayerUtility.shape[-1], axis=3)
+    paddedTransitLayer = transitLayerUtility[None, None, :, :]
+    # np.repeat(np.repeat(transitLayerUtility[None, :, :], utils.shape[1], axis=0)[None, :, :, :],
+    # utils.shape[0], axis=0)
+    return paddedUtils + paddedTransitLayer
 
 
 def modeSplitFromUtils(utilities: np.ndarray) -> np.ndarray:
@@ -487,12 +514,20 @@ def modeSplitFromUtils(utilities: np.ndarray) -> np.ndarray:
     return probabilities
 
 
-def modeSplitMatrixCalc(popVars: np.ndarray, choiceChars: np.ndarray) -> np.ndarray:
-    expUtils = np.exp(utils(popVars, choiceChars))
+def modeSplitFromUtilsWithExcludedModes(utilities: np.ndarray, transitLayerPortion: np.ndarray) -> np.ndarray:
+    expUtils = np.exp(utilities)
     probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
     probabilities[np.isnan(expUtils)] = 0
-    # print(probabilities[0,0,:])
-    return probabilities
+    """ Indices:
+    i: population group (demand index)
+    j: OD index
+    k: mode
+    l: transit layer
+    """
+    # TODO Optimize this
+    weightedProbabilities = np.einsum('ijkl,jl->ijk', probabilities, transitLayerPortion,
+                                      optimize=['einsum_path', (0, 1)])
+    return weightedProbabilities
 
 
 def correctModeSplit(modeSplit: np.ndarray) -> np.ndarray:

@@ -86,7 +86,7 @@ class ModeSplit:
         if data is None:
             if mapping is None:
                 self.__modeToIdx = dict()
-                self.__data = np.ndarray(0)
+                self.__data = np.ndarray([])
                 self.__modes = []
             else:
                 self.__modeToIdx = {val: idx for idx, val in enumerate(mapping.keys())}
@@ -293,6 +293,9 @@ class DemandIndex:
     def __hash__(self):
         return self.__hash
 
+    def isSenior(self):
+        return "senior" in self.populationGroupType.lower()
+
     def __str__(self):
         return "Home: " + self.homeMicrotype + ", type: " + self.populationGroupType + ", purpose: " + self.tripPurpose
 
@@ -423,7 +426,7 @@ class TripGeneration:
             self.__tripClasses[self.__currentTimePeriod] = dict()
         return self.__tripClasses[self.__currentTimePeriod]
 
-    def setTimePeriod(self, timePeriod: str):
+    def setTimePeriod(self, timePeriod: int):
         self.__currentTimePeriod = timePeriod
 
     def __setitem__(self, key: (str, str), value: float):
@@ -479,7 +482,7 @@ class OriginDestination:
             self.__originDestination[self.__currentTimePeriod] = dict()
         return self.__originDestination[self.__currentTimePeriod]
 
-    def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame):
+    def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame, modeAvailability: pd.DataFrame):
         self.__ods = ods
         self.__distances = distances
         print("|  Loaded ", len(ods), " ODs and ", len(distances), "unique distance bins")
@@ -487,18 +490,29 @@ class OriginDestination:
         for timePeriodId, duration in self.__timePeriods:
             self.initializeTimePeriod(timePeriodId, self.__timePeriods.getTimePeriodName(timePeriodId))
 
-        for demandIndex, currentPopIndex in self.__scenarioData.diToIdx.items():
-            od = self[demandIndex]
-            # currentPopIndex = self.__scenarioData.diToIdx[demandIndex]
-            for odi, portion in od.items():
-                currentODindex = self.__scenarioData.odiToIdx[odi]
-                self.__modelData['toStarts'][
-                    currentPopIndex, currentODindex, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
-                self.__modelData['toEnds'][
-                    currentPopIndex, currentODindex, self.__scenarioData.microtypeIdToIdx[odi.d]] = 1.0
-                # TODO: Expand through distance to have a mode dimension, then filter and reallocate
-                self.__modelData['toThroughDistance'][:, currentODindex,
-                :] = self.__transitionMatrices.assignmentMatrix(odi) * self.__distanceBins[odi.distBin]
+        for originMicrotype in self.__scenarioData.microtypeIds:
+            for destinationMicrotype in self.__scenarioData.microtypeIds:
+                sub = modeAvailability.loc[(modeAvailability['OriginMicrotypeID'] == originMicrotype) & (
+                        modeAvailability['DestinationMicrotypeID'] == destinationMicrotype), :]
+                for distanceBin in self.__distances.DistanceBinID:
+                    odi = ODindex(originMicrotype, destinationMicrotype, distanceBin)
+                    if odi in self.__scenarioData.odiToIdx:
+                        for row in sub.itertuples():
+                            self.__modelData['toTransitLayer'][
+                                self.__scenarioData.odiToIdx[odi], self.__scenarioData.transitLayerToIdx[
+                                    row.TransitLayer]] = row.Portion
+
+        for transitLayer, idx in self.__scenarioData.transitLayerToIdx.items():
+            modeIncluded = np.array(
+                [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.modeToIdx.keys()])
+            self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
+
+        for odi, idx in self.__scenarioData.odiToIdx.items():
+            self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
+            self.__modelData['toEnds'][idx, self.__scenarioData.microtypeIdToIdx[odi.d]] = 1.0
+            # TODO: Expand through distance to have a mode dimension, then filter and reallocate
+            self.__modelData['toThroughDistance'][idx, :] = self.__transitionMatrices.assignmentMatrix(odi) * \
+                                                            self.__distanceBins[odi.distBin]
 
     def __len__(self):
         return len(self.originDestination)
@@ -640,7 +654,7 @@ class TransitionMatrices:
     def __init__(self, scenarioData):
         self.__names = []
         self.__scenarioData = scenarioData
-        self.__diameters = np.ndarray(0)
+        self.__diameters = np.ndarray([])
         self.__data = dict()
         self.__transitionMatrices = dict()
         self.__currentTimePeriod = 0

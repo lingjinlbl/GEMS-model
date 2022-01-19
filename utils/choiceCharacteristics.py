@@ -149,14 +149,23 @@ class ModalChoiceCharacteristics:
 
 
 class CollectedChoiceCharacteristics:
-    def __init__(self, scenarioData, demand, numpyData):
+    def __init__(self, scenarioData, demand, numpyData, fixedData):
         self.__scenarioData = scenarioData
         self.__demand = demand
         self.modes = scenarioData.getModes()
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
         self.__numpy = numpyData['choiceCharacteristics']
+        self.__fleetSize = numpyData['fleetSize']
+        self.__fixedData = fixedData
         self.__broken = False
+        self.__cache = dict()
+
+    def clearCache(self, category=None):
+        if category is None:
+            self.__cache.clear()
+        else:
+            self.__cache.pop(category)
 
     @property
     def odiToIdx(self):
@@ -175,6 +184,10 @@ class CollectedChoiceCharacteristics:
         return self.__scenarioData.paramToIdx
 
     @property
+    def diToIdx(self):
+        return self.__scenarioData.diToIdx
+
+    @property
     def numpy(self) -> np.ndarray:
         return self.__numpy
 
@@ -186,36 +199,44 @@ class CollectedChoiceCharacteristics:
         self.__choiceCharacteristics[key] = value
 
     def __getitem__(self, item) -> ModalChoiceCharacteristics:
-        odi, mode = item
-        return self.__numpy[self.odiToIdx[odi], self.modeToIdx[mode], :]
+        di, odi, mode = item
+        return self.__numpy[self.diToIdx[di], self.odiToIdx[odi], self.modeToIdx[mode], :]
         # return self.__choiceCharacteristics[item]
 
-    def toDataFrame(self):
+    def toDataFrame(self):  # self.homeMicrotype, self.populationGroupType, self.tripPurpose
         odis = [odi.toTuple() for odi in self.odiToIdx.keys()]
+        dis = [di.toTuple() for di in self.diToIdx.keys()]
         modes = self.modeToIdx.keys()
         params = self.paramToIdx.keys()
-        tuples = [(a, b, c, d, e) for (a, b, c), d, e in product(odis, modes, params)]
-        mi = pd.MultiIndex.from_tuples(tuples, names=(
-            'originMicrotype', 'destinationMicrotype', 'distanceBin', 'mode', 'parameter'))
+        tuples = [(f, g, h, a, b, c, d, e) for (f, g, h), (a, b, c), d, e in product(dis, odis, modes, params)]
+        mi = pd.MultiIndex.from_tuples(tuples, names=('homeMicrotype', 'populationGroup', 'tripPurpose',
+                                                      'originMicrotype', 'destinationMicrotype', 'distanceBin', 'mode',
+                                                      'parameter'))
         return pd.DataFrame({"Value": self.__numpy.flatten()}, index=mi).unstack()
 
     def initializeChoiceCharacteristics(self, microtypes, distanceBins: DistanceBins):
         self.__distanceBins = distanceBins
-        self.__numpy[:, :, self.paramToIdx['intercept']] = 1
-        for odIndex in self.odiToIdx.keys():
-            if odIndex.d != 'None' and odIndex.o != 'None':
-                common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
-                modes = set.intersection(*common_modes)
-                for mode in self.modes:
-                    if mode not in modes:
-                        # print("Excluding mode ", mode, "in ODI", odIndex)
-                        self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
-                self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
-                                                           data=self.__numpy[self.odiToIdx[odIndex], :, :])
+        self.__numpy[:, :, :, self.paramToIdx['intercept']] = 1
+        for odIndex, odIndexIdx in self.odiToIdx.items():
+            # if odIndex.d != 'None' and odIndex.o != 'None':
+            #     common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
+            #     modes = set.intersection(*common_modes)
+            #     for mode in self.modes:
+            #         if mode not in modes:
+            #             # print("Excluding mode ", mode, "in ODI", odIndex)
+            #             self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
+            #     self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
+            #                                                data=self.__numpy[self.odiToIdx[odIndex], :, :])
+            self.__numpy[:, odIndexIdx, :, self.paramToIdx['distance']] = distanceBins[odIndex.distBin]
 
     def resetChoiceCharacteristics(self):
-        self.__numpy[~np.isnan(self.__numpy)] *= 0.0
-        self.__numpy[:, :, self.paramToIdx['intercept']] = 1
+        # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
+        #  'unprotected_travel_time': 5, 'distance': 6}
+        for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:
+            self.__numpy[:, :, :, self.paramToIdx[param]] = 0.0
+        # self.__numpy[~np.isnan(self.__numpy)] *= 0.0
+        self.__numpy[:, :, :, self.paramToIdx['intercept']] = 1
+        self.clearCache()
 
     def updateChoiceCharacteristics(self, microtypes) -> np.ndarray:
         self.resetChoiceCharacteristics()
@@ -224,16 +245,30 @@ class CollectedChoiceCharacteristics:
                                           self.__demand.toThroughDistance)  # Right now it's a waste to recalculate it every time but it might come in handy at some point?
         self.__broken = broken
 
-        for odIndex in self.odiToIdx.keys():
-            if odIndex.d != 'None' and odIndex.o != 'None':
-                common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
-                modes = set.intersection(*common_modes)
-                for mode in modes:
-                    microtypes[odIndex.o].addStartTimeCostWait(mode, self[odIndex, mode])
-                    microtypes[odIndex.d].addEndTimeCostWait(mode, self[odIndex, mode])
+        allCosts = self.__fixedData['microtypeCosts']
 
-        self.__numpy[:, :, self.paramToIdx['travel_time']] = travelTimeInHours
-        self.__numpy[:, :, self.paramToIdx['unprotected_travel_time']] = travelTimeInHours * mixedTravelPortion
+        microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.modeToIdx['walk'], None]) * self.__fixedData[
+            'accessDistance']
+
+        accessSeconds = self.__cache.setdefault(
+            'accessDistance', np.einsum('im,ki->km', microtypeAccessSeconds,
+                                        self.__fixedData['toStarts'] + self.__fixedData['toEnds']))
+
+        bikeFleetDensity = self.__cache.setdefault(
+            'bikeFleetDensity', np.einsum('im,ki->km', self.__fleetSize, self.__fixedData['toStarts']))
+        startCosts = self.__cache.setdefault(
+            'startCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 0], self.__fixedData['toStarts']))
+        endCosts = self.__cache.setdefault(
+            'endCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 1], self.__fixedData['toEnds']))
+        throughCosts = self.__cache.setdefault(
+            'throughCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 2], self.__fixedData['toThroughDistance']))
+
+        self.__numpy[:, :, :, self.paramToIdx['cost']] = startCosts + endCosts + throughCosts
+        self.__numpy[:, :, :, self.paramToIdx['travel_time']] = travelTimeInHours[None, :]
+        self.__numpy[:, :, :, self.paramToIdx['unprotected_travel_time']] = (travelTimeInHours * mixedTravelPortion)[
+                                                                            None, :]
+        self.__numpy[:, :, :, self.paramToIdx['mode_density']] = bikeFleetDensity[None, :, :]
+        self.__numpy[:, :, :, self.paramToIdx['access_time']] = accessSeconds[None, :] / 3600.
         return self.__numpy
 
     def isBroken(self):
@@ -248,13 +283,13 @@ def speedToTravelTime(modeSpeed: np.ndarray, toThroughDistance: np.ndarray) -> (
     modeSpeed[(modeSpeed < 0.001) | np.isnan(modeSpeed)] = 0.001
     modeSecondsPerMeter = (1 / modeSpeed)
     modeSecondsPerMeter[np.isinf(modeSecondsPerMeter)] = 0.0
-    assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
+    assignmentMatrix = toThroughDistance * 1609.34
     throughTravelTimeInSeconds = assignmentMatrix @ modeSecondsPerMeter
     return throughTravelTimeInSeconds / 3600.0, broken
 
 
 def mixedPortion(mixedPortionByMicrotype: np.ndarray, toThroughDistance: np.ndarray):
-    assignmentMatrix = np.max(toThroughDistance, axis=0) * 1609.34
+    assignmentMatrix = toThroughDistance * 1609.34
     mixedTrafficDistance = assignmentMatrix @ mixedPortionByMicrotype
     full = np.ones_like(mixedPortionByMicrotype)
     out = mixedTrafficDistance / (assignmentMatrix @ full)

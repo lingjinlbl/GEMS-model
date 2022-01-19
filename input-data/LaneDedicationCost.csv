@@ -1,9 +1,9 @@
 MicrotypeID,ModeTypeID,CostPerMeter
-A,Bus,0.1
-B,Bus,0.1
-C,Bus,0.1
-D,Bus,0.1
-A,Bike,0.01
-B,Bike,0.01
-C,Bike,0.01
-D,Bike,0.01
+A,bus,0.1
+B,bus,0.1
+C,bus,0.1
+D,bus,0.1
+A,bike,0.01
+B,bike,0.01
+C,bike,0.01
+D,bike,0.01

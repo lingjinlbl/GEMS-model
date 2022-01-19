@@ -9,7 +9,8 @@ class TravelDemand:
         else:
             self.__data = data
         if dataToIdx is None:
-            self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'throughDistance': 3}
+            self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'throughTrips': 2, 'throughDistance': 3,
+                                'discountTripStarts': 4}
         else:
             self.__dataToIdx = dataToIdx
 
@@ -20,6 +21,14 @@ class TravelDemand:
     @tripStartRatePerHour.setter
     def tripStartRatePerHour(self, value):
         self.__data[self.__dataToIdx['tripStarts']] = value
+
+    @property
+    def discountTripStartRatePerHour(self):
+        return self.__data[self.__dataToIdx['discountTripStarts']]
+
+    @discountTripStartRatePerHour.setter
+    def discountTripStartRatePerHour(self, value):
+        self.__data[self.__dataToIdx['discountTripStarts']] = value
 
     @property
     def tripEndRatePerHour(self):
@@ -55,6 +64,7 @@ class TravelDemand:
 
     def reset(self):
         self.tripStartRatePerHour = 0.0
+        self.discountTripStartRatePerHour = 0.0
         self.tripEndRatePerHour = 0.0
         self.rateOfPmtPerHour = 0.0
 
@@ -77,11 +87,11 @@ class TravelDemands:
     def __getitem__(self, item: str) -> TravelDemand:
         return self._demands[item]
 
-    def setEndRate(self, mode: str, rate: float):
-        self._demands[mode].tripEndRatePerHour = rate
-
-    def setStartRate(self, mode: str, rate: float):
-        self._demands[mode].tripStartRatePerHour = rate
+    # def setEndRate(self, mode: str, rate: float):
+    #     self._demands[mode].tripEndRatePerHour = rate
+    #
+    # def setStartRate(self, mode: str, rate: float):
+    #     self._demands[mode].tripStartRatePerHour = rate
 
     def getEndRate(self, mode: str):
         if mode in self._demands:
