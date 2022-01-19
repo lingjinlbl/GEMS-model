@@ -4,15 +4,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from model import Model
+from model import Model, Optimizer
 
 
 def test_find_equilibrium():
     ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     a = Model(ROOT_DIR + "/../input-data")
+    o = Optimizer(a)
     a.initializeTimePeriod(1)
     a.findEquilibrium()
-    busLaneDistance = np.arange(50, 3950, 100)
+    busLaneDistance = np.arange(0.0, 0.5, 0.05)
     busSpeed = []
     carSpeedA = []
     carSpeedB = []
@@ -23,13 +24,12 @@ def test_find_equilibrium():
     userCosts = []
     operatorCosts = []
     ldCosts = []
-    allCosts = []
+    allCosts = dict()
     initialDistance = a.scenarioData['subNetworkData'].at[2, "Length"]
     for dist in busLaneDistance:
-        a.scenarioData['subNetworkData'].at[10, "Length"] = dist
-        a.scenarioData['subNetworkData'].at[2, "Length"] = initialDistance - dist
-        a.microtypes.updateNetworkData()
-        a.findEquilibrium()
+        a.interact.modifyModel((('dedicated', 'Bus'), 'B'), dist)
+        a.collectAllCharacteristics()
+        c = o.sumAllCosts()
         ms = a.getModeSplit(1)
 
         speeds = pd.DataFrame(a.microtypes.getModeSpeeds())
@@ -40,10 +40,8 @@ def test_find_equilibrium():
         carSpeedD.append(speeds.loc["D", "auto"])
         busModeShare.append(ms[a.scenarioData.modeToIdx["bus"]])
         carModeShare.append(ms[a.scenarioData.modeToIdx["auto"]])
-        operatorCosts, vectorUserCosts, externalities = a.collectAllCosts()
-        ldCosts.append(0.014 * dist)
-        x, y = a.plotAllDynamicStats("costs")
-        allCosts.append(y.sum().sum())
+
+        allCosts[dist] = c
 
     plt.scatter(busLaneDistance, busSpeed, marker='<', label="Bus")
 
@@ -70,20 +68,21 @@ def test_find_equilibrium():
     plt.savefig(ROOT_DIR + "/../plots/buslanevsmodeshare.png")
 
     plt.clf()
-    plt.scatter(busLaneDistance, allCosts)
-    # plt.scatter(busLaneDistance, userCosts, label="user")
-    # plt.scatter(busLaneDistance, operatorCosts, label="operator")
-    # plt.scatter(busLaneDistance, ldCosts, label="lane dedication")
-    plt.xlabel("Bus Lane Distance In Microtype B")
-    plt.ylabel("Costs")
-    plt.legend()
-    if not os.path.exists(ROOT_DIR + "/../plots"):
-        os.mkdir(ROOT_DIR + "/../plots")
-    plt.savefig(ROOT_DIR + "/../plots/buslanevscost.png")
+    # plt.scatter(busLaneDistance, allCosts)
+    # # plt.scatter(busLaneDistance, userCosts, label="user")
+    # # plt.scatter(busLaneDistance, operatorCosts, label="operator")
+    # # plt.scatter(busLaneDistance, ldCosts, label="lane dedication")
+    # plt.xlabel("Bus Lane Distance In Microtype B")
+    # plt.ylabel("Costs")
+    # plt.legend()
+    # if not os.path.exists(ROOT_DIR + "/../plots"):
+    #     os.mkdir(ROOT_DIR + "/../plots")
+    # plt.savefig(ROOT_DIR + "/../plots/buslanevscost.png")
 
     #    assert busSpeed[-1] / busSpeed[0] > 1.005  # bus lanes speed up bus traffic by a real amount
 
     a = Model(ROOT_DIR + "/../input-data")
+    o = Optimizer(a)
     a.initializeTimePeriod(1)
     a.findEquilibrium()
     headways = np.arange(60, 900, 60)
@@ -95,7 +94,7 @@ def test_find_equilibrium():
     busModeShare = []
     carModeShare = []
     userCosts = []
-    operatorCosts = []
+    allCosts = dict()
     for hw in headways:
         a.scenarioData["modeData"]["bus"].loc["A", "Headway"] = hw
         a.microtypes.updateNetworkData()
@@ -109,10 +108,8 @@ def test_find_equilibrium():
         carSpeedD.append(speeds.loc["D", "auto"])
         busModeShare.append(ms[a.scenarioData.modeToIdx["bus"]])
         carModeShare.append(ms[a.scenarioData.modeToIdx["auto"]])
-        operatorCostDF, vectorUserCosts, externalities = a.collectAllCosts()
-        x, y = a.plotAllDynamicStats("costs")
-        userCosts.append(y.loc['User'].sum())
-        operatorCosts.append(y.loc['Operator'].sum())
+        c = o.sumAllCosts()
+        allCosts[hw] = c
 
     plt.clf()
     plt.scatter(headways, busSpeed, marker='<', label="Bus")
@@ -140,7 +137,7 @@ def test_find_equilibrium():
     plt.savefig(ROOT_DIR + "/../plots/headwayvsmodeshare.png")
 
     plt.clf()
-    plt.scatter(headways, userCosts)
+    plt.scatter(headways, pd.concat(allCosts)['User'].unstack()['A'].values)
     # plt.scatter(headways, operatorCosts)
     plt.xlabel("Bus Headway In Microtype A")
     plt.ylabel("User costs")
