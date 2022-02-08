@@ -1,4 +1,4 @@
-MicrotypeID,ModeTypeID,CostPerVehicleMile,CostPerPassengerMile
+MicrotypeID,Mode,CostPerVehicleMile,CostPerPassengerMile
 1,bus,2.00968821745848,0
 1,auto,0.39909478080345795,0
 2,bus,1.6759034780911801,0

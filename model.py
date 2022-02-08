@@ -311,12 +311,12 @@ class ScenarioData:
                                                         "From": str}).set_index(
             ["OriginMicrotypeID", "DestinationMicrotypeID", "DistanceBinID", "From"])
         self["laneDedicationCost"] = pd.read_csv(os.path.join(self.__path, "LaneDedicationCost.csv"),
-                                                 dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
+                                                 dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
         self["modeData"] = self.loadModeData()
         self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         self["modeExternalities"] = pd.read_csv(os.path.join(self.__path, "ModeExternalities.csv"),
-                                                dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "ModeTypeID"])
+                                                dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
         self["modeAvailability"] = pd.read_csv(os.path.join(self.__path, "ModeAvailability.csv"),
                                                dtype={"OriginMicrotypeID": str, "DestinationMicrotypeID": str})
         self.defineIndices()
@@ -482,6 +482,12 @@ class Data:
             return self.__tripRate
         else:
             return self.__tripRate[timePeriod, :, :]
+
+    def updateTripRate(self, newTripRate, timePeriod=None):
+        if timePeriod is None:
+            np.copyto(self.__tripRate, newTripRate)
+        else:
+            np.copyto(self.__tripRate[timePeriod, :, :], newTripRate)
 
     def updateMicrotypeNetworkLength(self, microtypeID, newMultiplier):
         mask = self.__subNetworkToMicrotype[self.scenarioData.microtypeIdToIdx[microtypeID], :]
@@ -1310,7 +1316,7 @@ class Optimizer:
             modes = self.toSubNetworkIDs()
             # self.model.scenarioData["modeToSubNetworkData"].loc[
             # self.model.scenarioData["modeToSubNetworkData"]["SubnetworkID"].isin(
-            #     self.toSubNetworkIDs()), "ModeTypeID"]
+            #     self.toSubNetworkIDs()), "Mode"]
             perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
                 pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
             cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)  # TODO: Convert back to real numbers
@@ -1472,6 +1478,7 @@ class Optimizer:
 def startBar():
     modelInput = widgets.Dropdown(
         options=['One microtype toy model', '4 microtype toy model', 'Los Angeles', 'Los Angeles (National params)',
+                 'California A', 'California B', 'California C', 'California D', 'California E', 'California F',
                  'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
         value='Los Angeles',
         description='Input data:',
@@ -1481,6 +1488,12 @@ def startBar():
               '4 microtype toy model': 'input-data',
               'Los Angeles': 'input-data-losangeles',
               'Los Angeles (National params)': 'input-data-losangeles-national-params',
+              'California A': 'input-data-california-A',
+              'California B': 'input-data-california-B',
+              'California C': 'input-data-california-C',
+              'California D': 'input-data-california-D',
+              'California E': 'input-data-california-E',
+              'California F': 'input-data-california-F',
               'Geotype A': 'input-data-geotype-A',
               'Geotype B': 'input-data-geotype-B',
               'Geotype C': 'input-data-geotype-C',
@@ -1491,12 +1504,13 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles-national-params", 1, False)
-    # optimizer = Optimizer(model, modesAndMicrotypes=None,
-    #                       fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
-    # optimizer.evaluate([0.1])
-    # model.collectAllCharacteristics()
-    # # model.collectAllCharacteristics()
+    model = Model("input-data-california-A", 1, False)
+    optimizer = Optimizer(model, modesAndMicrotypes=None,
+                          fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
+    optimizer.evaluate([0.1])
+
+    allCosts = optimizer.sumAllCosts()
+    # #
     # # print(model.getModeSpeeds())
     # model.collectAllCharacteristics()
 

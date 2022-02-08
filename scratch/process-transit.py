@@ -134,55 +134,55 @@ collected = []
 
 # Sub = out.loc[out['ModesAllowed'] == "Auto-Bike", ['ModesAllowed']]
 # Sub['SubnetworkID'] = Sub.index.copy().values
-# Sub['ModeTypeID'] = "auto"
+# Sub['Mode'] = "auto"
 #
 # collected.append(Sub)
 #
 # Sub = out.loc[out['ModesAllowed'] == "Auto-Bike", ['ModesAllowed']]
 # Sub['SubnetworkID'] = Sub.index.copy().values
-# Sub['ModeTypeID'] = "bike"
+# Sub['Mode'] = "bike"
 #
 # collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Auto-Bus-Bike", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "auto"
+Sub['Mode'] = "auto"
 
 collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Auto-Bus-Bike", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "bus"
+Sub['Mode'] = "bus"
 
 collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Auto-Bus-Bike", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "bike"
+Sub['Mode'] = "bike"
 
 collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Bus", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "bus"
+Sub['Mode'] = "bus"
 
 collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Walk", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "walk"
+Sub['Mode'] = "walk"
 
 collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Rail", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "rail"
+Sub['Mode'] = "rail"
 
 collected.append(Sub)
 
 Sub = out.loc[out['ModesAllowed'] == "Bike", ['ModesAllowed']]
 Sub['SubnetworkID'] = Sub.index.copy().values
-Sub['ModeTypeID'] = "bike"
+Sub['Mode'] = "bike"
 
 collected.append(Sub)
 

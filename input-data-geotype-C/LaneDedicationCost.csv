@@ -1,4 +1,4 @@
-MicrotypeID,ModeTypeID,CostPerMeter
+MicrotypeID,Mode,CostPerMeter
 1,bus,0.06183717
 1,bike,0.012367433999999998
 2,bus,0.06163746

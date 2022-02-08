@@ -1,4 +1,4 @@
-ModesAllowed,SubnetworkID,ModeTypeID
+ModesAllowed,SubnetworkID,Mode
 Auto-Bus-Bike,90,auto
 Auto-Bus-Bike,110,auto
 Auto-Bus-Bike,105,bike
