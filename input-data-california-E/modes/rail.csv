@@ -1,0 +1,7 @@
+MicrotypeID,PerStartCost,DailyCostPerVehicle,DirectionalRouteMiles,PopulationMicrotypeID,SpeedInMetersPerSecond,StopSpacingKM,Headway,VehicleCapacity,VehicleSize,VehicleRevenueHoursPerDay,VehicleRevenueMilesPerDay,CoveragePortion,StopSpacing,VehicleOperatingCostPerHour,PerEndCost,PerMileCost
+1,2.901597,4212,,,,,7200.0,,,,,,1200.0,210.6,0.0,0.0
+2,2.560273,4212,,4833.0,,,7200.0,,,,,,1200.0,210.6,0.0,0.0
+3,2.639381,4212,,16752.0,,1.6206462,7200.0,,,,,,1200.0,210.6,0.0,0.0
+4,2.521363,4212,,,,,7200.0,,,,,,1200.0,210.6,0.0,0.0
+5,2.437784,4212,,20421.0,,0.7014969,7200.0,,,,,,1200.0,210.6,0.0,0.0
+6,2.753173,4212,,1046.0,,0.930062,7200.0,,,,,,1200.0,210.6,0.0,0.0
