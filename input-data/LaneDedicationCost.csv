@@ -1,4 +1,4 @@
-MicrotypeID,ModeTypeID,CostPerMeter
+MicrotypeID,Mode,CostPerMeter
 A,bus,0.1
 B,bus,0.1
 C,bus,0.1

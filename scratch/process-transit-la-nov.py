@@ -76,32 +76,32 @@ for id, microtypeInfo in subNetworksRaw.iterrows():
     AutoBusBike.update(defaults[microtypeId])
     subNetworksOut[subNetworkId] = pd.Series(AutoBusBike)
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'auto'}))
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'bus'}))
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'bike'}))
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
     subNetworkId += 1
 
     Walk = {'MicrotypeID': id, 'ModesAllowed': 'Walk', 'Dedicated': True, 'Length': lengthInMeters / 5.0}
     Walk.update(defaults['walk'])
     subNetworksOut[subNetworkId] = pd.Series(Walk)
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Walk', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'walk'}))
+        pd.Series({'ModesAllowed': 'Walk', 'SubnetworkID': subNetworkId, 'Mode': 'walk'}))
     subNetworkId += 1
 
     Bus = {'MicrotypeID': id, 'ModesAllowed': 'Bus', 'Dedicated': True, 'Length': 0.}
     Bus.update(defaults['bus'])
     subNetworksOut[subNetworkId] = pd.Series(Bus)
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Bus', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'bus'}))
+        pd.Series({'ModesAllowed': 'Bus', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
     subNetworkId += 1
 
     Bike = {'MicrotypeID': id, 'ModesAllowed': 'Bike', 'Dedicated': True, 'Length': 0.}
     Bike.update(defaults['bike'])
     subNetworksOut[subNetworkId] = pd.Series(Bike)
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Bike', 'SubnetworkID': subNetworkId, 'ModeTypeID': 'bike'}))
+        pd.Series({'ModesAllowed': 'Bike', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
     subNetworkId += 1
 
 subNetworksOut = pd.DataFrame(subNetworksOut).transpose().rename_axis("SubnetworkID")

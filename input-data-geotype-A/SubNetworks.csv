@@ -19,13 +19,13 @@ SubnetworkID,Dedicated,Length,MFD,MicrotypeID,ModesAllowed,Type,avgLinkLength,ca
 17,True,0.0,bottleneck,4,Bus,Road,50.0,0.4,,,17.0,
 18,True,0.0,fixed,4,Bike,Road,,,,,5.0,
 19,True,28192707.8012,fixed,4,Rail,Rail,,,,,20.0,
-20,False,213540639.16589808,bottleneck,5,Auto-Bus-Bike,Road,50.0,0.38,0.0,0.0,18.8,0.0
+20,False,213540639.1658981,bottleneck,5,Auto-Bus-Bike,Road,50.0,0.38,0.0,0.0,18.8,0.0
 21,True,42708127.83317962,fixed,5,Walk,Sidewalk,,,,,1.35,
 22,True,0.0,bottleneck,5,Bus,Road,50.0,0.4,,,17.0,
 23,True,0.0,fixed,5,Bike,Road,,,,,5.0,
 24,True,28192707.8012,fixed,5,Rail,Rail,,,,,20.0,
-25,False,52576764.63531233,bottleneck,6,Auto-Bus-Bike,Road,50.0,0.38,0.0,0.0,18.8,0.0
-26,True,10515352.927062463,fixed,6,Walk,Sidewalk,,,,,1.35,
+25,False,52576764.635312326,bottleneck,6,Auto-Bus-Bike,Road,50.0,0.38,0.0,0.0,18.8,0.0
+26,True,10515352.927062465,fixed,6,Walk,Sidewalk,,,,,1.35,
 27,True,0.0,bottleneck,6,Bus,Road,50.0,0.4,,,17.0,
 28,True,0.0,fixed,6,Bike,Road,,,,,5.0,
 29,True,28192707.8012,fixed,6,Rail,Rail,,,,,20.0,

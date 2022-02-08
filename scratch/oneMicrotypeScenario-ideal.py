@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = "F"
+geotype = "A"
 inFolder = "input-data-transgeo"
 outFolder = "input-data-geotype-" + geotype
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -70,7 +70,7 @@ newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 # %% LaneDedicationCost
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "LaneDedicationCost.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "LaneDedicationCost.csv")
-df = pd.read_csv(oldPath)
+df = pd.read_csv(oldPath).rename(columns={"Mode": "Mode"})
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
@@ -79,7 +79,7 @@ newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "ModeExternalities.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "ModeExternalities.csv")
 df = pd.read_csv(oldPath)
-newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
+newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :].rename(columns={"Mode": "Mode"})
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 

@@ -345,9 +345,9 @@ class MicrotypeCollection:
                             self.__transitionMatrixNetworkIdx[self.__networkIdToIdx[subNetworkId]] = True
 
                     for n in joined.itertuples():
-                        subNetworkToModes.setdefault(subNetwork, []).append(n.ModeTypeID.lower())
-                        allModes.add(n.ModeTypeID.lower())
-                        self.__modeToMicrotype.setdefault(n.ModeTypeID.lower(), set()).add(microtypeId)
+                        subNetworkToModes.setdefault(subNetwork, []).append(n.Mode.lower())
+                        allModes.add(n.Mode.lower())
+                        self.__modeToMicrotype.setdefault(n.Mode.lower(), set()).add(microtypeId)
                 for mode in allModes:
                     modeToModeData[mode] = self.modeData[mode]
                 netCol = NetworkCollection(subNetworkToModes, modeToModeData, microtypeId,
