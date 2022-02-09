@@ -46,7 +46,7 @@ class ScenarioData:
         self.__modeToIdx = dict()
         self.__passengerModeToIdx = dict()
         self.__freightModeToIdx = dict()
-        self.__dataToIdx = dict()
+        self.__demandDataTypeToIdx = dict()
         self.__microtypeIdToIdx = dict()
         self.__paramToIdx = dict()
         self.__transitLayerToIdx = dict()
@@ -76,8 +76,8 @@ class ScenarioData:
         return self.__modeToIdx
 
     @property
-    def dataToIdx(self):
-        return self.__dataToIdx
+    def demandDataTypeToIdx(self):
+        return self.__demandDataTypeToIdx
 
     @property
     def passengerModeToIdx(self):
@@ -107,6 +107,10 @@ class ScenarioData:
     def freightModeToIdx(self):
         return self.__freightModeToIdx
 
+    @property
+    def firstFreightIdx(self):
+        return len(self.passengerModeToIdx)
+
     def __setitem__(self, key: str, value):
         self.data[key] = value
 
@@ -128,6 +132,15 @@ class ScenarioData:
                                    dtype={"MicrotypeID": str}).set_index("MicrotypeID")
             modeData['AccessDistanceMultiplier'] = 0.3
             collected[file.split(".")[0]] = modeData
+        return collected
+
+    def loadFleetData(self):
+        collected = dict()
+        (_, _, fileNames) = next(os.walk(os.path.join(self.__path, "fleets")))
+        for file in fileNames:
+            fleetData = pd.read_csv(os.path.join(self.__path, "fleets", file)).set_index("Fleet")
+            for fleetName, data in fleetData.iterrows():
+                collected[fleetName] = data
         return collected
 
     def loadData(self):
@@ -163,6 +176,7 @@ class ScenarioData:
         self["laneDedicationCost"] = pd.read_csv(os.path.join(self.__path, "LaneDedicationCost.csv"),
                                                  dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
         self["modeData"] = self.loadModeData()
+        self["fleetData"] = self.loadFleetData()
         self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         self["modeExternalities"] = pd.read_csv(os.path.join(self.__path, "ModeExternalities.csv"),
@@ -210,8 +224,8 @@ class ScenarioData:
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(
             odJoinedToDistance.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID']).groups)}
 
-        self.__dataToIdx = {'tripStarts': 0, 'tripEnds': 1, 'passengerDistance': 3, 'vehicleDistance': 4,
-                            'discountTripStarts': 5}
+        self.__demandDataTypeToIdx = {'tripStarts': 0, 'tripEnds': 1, 'passengerDistance': 3, 'vehicleDistance': 4,
+                                      'discountTripStarts': 5}
 
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
@@ -252,7 +266,7 @@ class ShapeParams:
         self.nMicrotypes = len(scenarioData.microtypeIdToIdx)
         self.nSubNetworks = len(scenarioData['subNetworkData'])
         self.nParams = len(scenarioData.paramToIdx)
-        self.nDemandDataTypes = len(scenarioData.dataToIdx)
+        self.nDemandDataTypes = len(scenarioData.demandDataTypeToIdx)
         self.nTransitLayers = len(scenarioData.transitLayerToIdx)
 
 
@@ -266,7 +280,7 @@ class Data:
         #############
 
         self.__demandData = np.zeros(
-            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nPassengerModes,
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal,
              self.params.nDemandDataTypes))
         self.__modeSplit = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes), dtype=float)
@@ -283,7 +297,7 @@ class Data:
              self.params.nParams),
             dtype=float)
         self.__microtypeCosts = np.zeros(
-            (self.params.nMicrotypes, self.params.nDIs, self.params.nPassengerModes, 3), dtype=float)
+            (self.params.nMicrotypes, self.params.nDIs, self.params.nModesTotal, 3), dtype=float)
         self.__transitLayerUtility = np.zeros((self.params.nPassengerModes, self.params.nTransitLayers), dtype=float)
         self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nPassengerModes, self.params.nParams),
                                            dtype=float)

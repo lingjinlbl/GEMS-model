@@ -177,7 +177,7 @@ class CollectedChoiceCharacteristics:
 
     @property
     def dataToIdx(self):
-        return self.__scenarioData.dataToIdx
+        return self.__scenarioData.demandDataTypeToIdx
 
     @property
     def paramToIdx(self):
@@ -239,23 +239,25 @@ class CollectedChoiceCharacteristics:
         self.clearCache()
 
     def updateChoiceCharacteristics(self, microtypes) -> np.ndarray:
+        endIdx = self.__scenarioData.firstFreightIdx
         self.resetChoiceCharacteristics()
-        travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed, self.__demand.toThroughDistance)
-        mixedTravelPortion = mixedPortion(microtypes.numpyMixedTrafficDistance,
+        travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed[:, :endIdx],
+                                                      self.__demand.toThroughDistance)
+        mixedTravelPortion = mixedPortion(microtypes.numpyMixedTrafficDistance[:, :endIdx],
                                           self.__demand.toThroughDistance)  # Right now it's a waste to recalculate it every time but it might come in handy at some point?
         self.__broken = broken
 
-        allCosts = self.__fixedData['microtypeCosts']
+        allCosts = self.__fixedData['microtypeCosts'][:, :, :endIdx, :]  # only grab this for passenger modes
 
-        microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.modeToIdx['walk'], None]) * self.__fixedData[
-            'accessDistance']
+        accessDistance = self.__fixedData['accessDistance'][:, :endIdx]
+        microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.modeToIdx['walk'], None]) * accessDistance
 
         accessSeconds = self.__cache.setdefault(
             'accessDistance', np.einsum('im,ki->km', microtypeAccessSeconds,
                                         self.__fixedData['toStarts'] + self.__fixedData['toEnds']))
 
         bikeFleetDensity = self.__cache.setdefault(
-            'bikeFleetDensity', np.einsum('im,ki->km', self.__fleetSize, self.__fixedData['toStarts']))
+            'bikeFleetDensity', np.einsum('im,ki->km', self.__fleetSize[:, :endIdx], self.__fixedData['toStarts']))
         startCosts = self.__cache.setdefault(
             'startCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 0], self.__fixedData['toStarts']))
         endCosts = self.__cache.setdefault(

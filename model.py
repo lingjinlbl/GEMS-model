@@ -156,8 +156,12 @@ class Model:
         return self.scenarioData.modeToIdx
 
     @property
+    def passengerModeToIdx(self):
+        return self.scenarioData.passengerModeToIdx
+
+    @property
     def dataToIdx(self):
-        return self.scenarioData.dataToIdx
+        return self.scenarioData.demandDataTypeToIdx
 
     @property
     def microtypeIdToIdx(self):
@@ -622,7 +626,7 @@ class Model:
         for timePeriodID, timePeriodName in self.timePeriodNames().items():
             dfs = {}
             userCostMatrix = userCostMatrixByTimePeriod[timePeriodID]
-            for mode, idx in self.modeToIdx.items():
+            for mode, idx in self.passengerModeToIdx.items():
                 data = userCostMatrix[:, :, idx]
                 df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(),
                                                                         names=['homeMicrotype', 'populationGroupType',
@@ -920,7 +924,7 @@ def startBar():
 if __name__ == "__main__":
     model = Model("input-data", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
+                          fromToSubNetworkIDs=[('A', 'Bike')], method="opt")
     optimizer.evaluate([0.1])
 
     allCosts = optimizer.sumAllCosts()

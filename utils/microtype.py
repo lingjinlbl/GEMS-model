@@ -9,6 +9,7 @@ from numba import njit
 from .OD import TransitionMatrix, Allocation
 from .choiceCharacteristics import ChoiceCharacteristics
 from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, CollectedNetworkStateData
+from .freight import FreightMode
 
 
 class CollectedTotalOperatorCosts:
@@ -133,16 +134,16 @@ class Microtype:
 
 
 def getFlows(self):
-    return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
+    return [mode.getPassengerFlow() for mode in self.networks.passengerModes.values()]
 
 
 def getSpeeds(self):
-    return [mode.getSpeed() for mode in self.networks.modes.values()]
+    return [mode.getSpeed() for mode in self.networks.passengerModes.values()]
 
 
 def getDemandsForPMT(self):
     return [mode.getPassengerFlow() for mode in
-            self.networks.modes.values()]
+            self.networks.passengerModes.values()]
 
 
 def __str__(self):
@@ -155,6 +156,8 @@ class MicrotypeCollection:
         self.__microtypes = dict()
         self.__scenarioData = scenarioData
         self.modeData = scenarioData["modeData"]
+        self.__firstFreightModeIdx = len(self.modeData)
+        self.fleetData = scenarioData["fleetData"]
         self.transitionMatrix = None
         # self.collectedNetworkStateData = CollectedNetworkStateData()
         self.__modeToMicrotype = dict()
@@ -175,7 +178,7 @@ class MicrotypeCollection:
         self.__numpyInstantaneousAccumulation = supplyData['subNetworkInstantaneousAutoAccumulation']
         self.__accessDistance = supplyData['accessDistance']
         self.__microtypeCosts = supplyData['microtypeCosts']
-        self.__freightProduction = supplyData['freightProduction']  # only set to nonzero when production is fixed
+        self.__numpyFreightProduction = supplyData['freightProduction']  # only set to nonzero when production is fixed
         self.__transitionMatrixNetworkIdx = supplyData['transitionMatrixNetworkIdx']
         self.__nonAutoModes = supplyData['nonAutoModes']
         self.__nInit = supplyData['subNetworkPreviousAutoAccumulation']
@@ -207,12 +210,12 @@ class MicrotypeCollection:
         return self.__scenarioData.freightModeToIdx
 
     @property
-    def paramToIdx(self):
-        return self.__scenarioData.paramToIdx
+    def demandDataTypeToIdx(self):
+        return self.__scenarioData.demandDataTypeToIdx
 
     @property
-    def dataToIdx(self):
-        return self.__scenarioData.dataToIdx
+    def paramToIdx(self):
+        return self.__scenarioData.paramToIdx
 
     @property
     def microtypeIdToIdx(self):
@@ -263,8 +266,8 @@ class MicrotypeCollection:
         return pd.DataFrame(self.tripEndRateByMode.flatten(),
                             index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))
 
-    def updateNumpyDemand(self, data):
-        np.copyto(self.__numpyDemand, data)
+    def updateNumpyPassengerDemand(self, data):
+        self.__numpyDemand[:, :self.__firstFreightModeIdx, :] = data
 
     def updateNetworkData(self):
         for m in self.__microtypes.values():
@@ -307,7 +310,10 @@ class MicrotypeCollection:
 
     def initializeFreightProduction(self):
         for (mID, freightMode), VMT in self.__scenarioData["freightDemand"].itertuples(index=True):
-            self.__freightProduction[self.microtypeIdToIdx[mID], self.freightModeToIdx[freightMode]] = VMT
+            self.__numpyFreightProduction[
+                self.microtypeIdToIdx[mID], self.freightModeToIdx[freightMode]] = VMT  # TODO: Delete
+            self.__numpyDemand[self.microtypeIdToIdx[mID], self.modeToIdx[freightMode], self.demandDataTypeToIdx[
+                'vehicleDistance']] = VMT
 
     def importMicrotypes(self, override=False):
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
@@ -358,14 +364,19 @@ class MicrotypeCollection:
                         allModes.add(n.Mode.lower())
                         self.__modeToMicrotype.setdefault(n.Mode.lower(), set()).add(microtypeId)
                 for mode in allModes:
-                    modeToModeData[mode] = self.modeData[mode]
+                    if mode in self.modeData:
+                        modeToModeData[mode] = self.modeData[mode]
+                    else:
+                        modeToModeData[mode] = self.fleetData[mode]
                 netCol = NetworkCollection(subNetworkToModes, modeToModeData, microtypeId,
                                            self.__numpyDemand[self.microtypeIdToIdx[microtypeId], :, :],
                                            self.__numpyMicrotypeSpeed[self.microtypeIdToIdx[microtypeId], :],
                                            self.__microtypeCosts[self.microtypeIdToIdx[microtypeId], :, :, :],
                                            self.__numpyFleetSize[self.microtypeIdToIdx[microtypeId], :],
+                                           self.__numpyFreightProduction[self.microtypeIdToIdx[microtypeId], :],
                                            self.__accessDistance[self.microtypeIdToIdx[microtypeId], :],
-                                           self.dataToIdx, self.modeToIdx, self.diToIdx)
+                                           self.demandDataTypeToIdx, self.modeToIdx, self.freightModeToIdx,
+                                           self.diToIdx)
                 self[microtypeId] = Microtype(microtypeId, netCol, self.paramToIdx)
                 # self.collectedNetworkStateData.addMicrotype(self[microtypeId])
 

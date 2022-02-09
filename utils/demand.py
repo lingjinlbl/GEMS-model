@@ -210,6 +210,10 @@ class Demand:
         return self.__scenarioData.modeToIdx
 
     @property
+    def passengerModeToIdx(self):
+        return self.__scenarioData.passengerModeToIdx
+
+    @property
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
 
@@ -362,11 +366,13 @@ class Demand:
         for mode, modeIdx in self.modeToIdx.items():
             for mID, mIdx in self.microtypeIdToIdx.items():
                 if microtypes[mID].networks.getMode(mode).fixedVMT:
-                    vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
+                    if mode in self.passengerModeToIdx:
+                        vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
+                        # We're dealing with fixed VMT from freight elsewhere
         newData = np.stack([startsByOrigin, startsByDestination, passengerMilesByMicrotype, vehicleMilesByMicrotype,
                             discountStartsByOrigin], axis=-1)
 
-        microtypes.updateNumpyDemand(newData)
+        microtypes.updateNumpyPassengerDemand(newData)
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
 
         """
