@@ -1,0 +1,9 @@
+MicrotypeID,Mode,VMTPerHour
+A,freight_combo,100
+A,freight_single,50
+B,freight_combo,50
+B,freight_single,25
+C,freight_combo,25
+C,freight_single,25
+D,freight_combo,25
+D,freight_single,25

@@ -504,7 +504,7 @@ class OriginDestination:
 
         for transitLayer, idx in self.__scenarioData.transitLayerToIdx.items():
             modeIncluded = np.array(
-                [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.modeToIdx.keys()])
+                [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.passengerModeToIdx.keys()])
             self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
 
         for odi, idx in self.__scenarioData.odiToIdx.items():

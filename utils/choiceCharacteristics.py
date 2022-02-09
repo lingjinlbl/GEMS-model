@@ -152,7 +152,7 @@ class CollectedChoiceCharacteristics:
     def __init__(self, scenarioData, demand, numpyData, fixedData):
         self.__scenarioData = scenarioData
         self.__demand = demand
-        self.modes = scenarioData.getModes()
+        self.modes = scenarioData.getPassengerModes()
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
         self.__numpy = numpyData['choiceCharacteristics']

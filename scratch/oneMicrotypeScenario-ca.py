@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = 'F'
+geotype = 'A'
 
 inFolder = "input-data-california"
 outFolder = "input-data-california-" + geotype
@@ -109,6 +109,14 @@ oldPath = os.path.join(ROOT_DIR, "..", inFolder, "RoadNetworkCosts.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "RoadNetworkCosts.csv")
 df = pd.read_csv(oldPath)
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :].replace("hv", "auto")
+newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
+newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
+
+# %% FreightDemand
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "FreightDemand.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "FreightDemand.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 

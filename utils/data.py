@@ -44,6 +44,8 @@ class ScenarioData:
         self.__diToIdx = dict()  # TODO: Just define this once at the beginning of everything
         self.__odiToIdx = dict()
         self.__modeToIdx = dict()
+        self.__passengerModeToIdx = dict()
+        self.__freightModeToIdx = dict()
         self.__dataToIdx = dict()
         self.__microtypeIdToIdx = dict()
         self.__paramToIdx = dict()
@@ -78,6 +80,14 @@ class ScenarioData:
         return self.__dataToIdx
 
     @property
+    def passengerModeToIdx(self):
+        return self.__passengerModeToIdx
+
+    @property
+    def freightModeToIdx(self):
+        return self.__freightModeToIdx
+
+    @property
     def microtypeIdToIdx(self):
         return self.__microtypeIdToIdx
 
@@ -92,6 +102,10 @@ class ScenarioData:
     @property
     def transitLayerToIdx(self):
         return self.__transitLayerToIdx
+
+    @property
+    def freightModeToIdx(self):
+        return self.__freightModeToIdx
 
     def __setitem__(self, key: str, value):
         self.data[key] = value
@@ -155,6 +169,8 @@ class ScenarioData:
                                                 dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
         self["modeAvailability"] = pd.read_csv(os.path.join(self.__path, "ModeAvailability.csv"),
                                                dtype={"OriginMicrotypeID": str, "DestinationMicrotypeID": str})
+        self["freightDemand"] = pd.read_csv(os.path.join(self.__path, "FreightDemand.csv"),
+                                            dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
         self.defineIndices()
 
     def appendTripPurposeToPopulationGroups(self, populationGroups, tripPurposes):
@@ -172,7 +188,13 @@ class ScenarioData:
             return pd.concat(out)
 
     def defineIndices(self):
-        self.__modeToIdx = {mode: idx for idx, mode in enumerate(self["modeData"].keys())}
+        self.__passengerModeToIdx = {mode: idx for idx, mode in enumerate(self["modeData"].keys())}
+        self.__freightModeToIdx = {mode: idx for idx, mode in
+                                   enumerate(self["freightDemand"].index.levels[1].to_list())}
+        freightModeToGeneralIdx = {mode: idx + len(self.__passengerModeToIdx) for idx, mode in
+                                   enumerate(self["freightDemand"].index.levels[1].to_list())}
+        self.__modeToIdx = {**self.__passengerModeToIdx, **freightModeToGeneralIdx}
+        # Starting in Python 3.9 we can re place with | operator
 
         odJoinedToDistance = self['originDestinations'].merge(self['distanceDistribution'],
                                                               on=["OriginMicrotypeID", "DestinationMicrotypeID"],
@@ -212,8 +234,8 @@ class ScenarioData:
 
     # def reallocate(self, fromSubNetwork, toSubNetwork, dist):
 
-    def getModes(self):
-        return set(self.__modeToIdx.keys())
+    def getPassengerModes(self):
+        return set(self.__passengerModeToIdx.keys())
 
 
 class ShapeParams:
@@ -222,7 +244,9 @@ class ShapeParams:
         self.timeStepInSeconds = timeStepInSeconds
         self.nTimePeriods = len(scenarioData['timePeriods']) * nSubBins
         self.nTimeSteps = int(scenarioData['timePeriods']['DurationInHours'].sum() * 3600 / timeStepInSeconds)
-        self.nModes = len(scenarioData.modeToIdx)
+        self.nPassengerModes = len(scenarioData.passengerModeToIdx)
+        self.nFreightModes = len(scenarioData.freightModeToIdx)
+        self.nModesTotal = self.nPassengerModes + self.nFreightModes
         self.nDIs = len(scenarioData.diToIdx)
         self.nODIs = len(scenarioData.odiToIdx)
         self.nMicrotypes = len(scenarioData.microtypeIdToIdx)
@@ -242,9 +266,10 @@ class Data:
         #############
 
         self.__demandData = np.zeros(
-            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes, self.params.nDemandDataTypes))
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nPassengerModes,
+             self.params.nDemandDataTypes))
         self.__modeSplit = np.zeros(
-            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes), dtype=float)
         self.__tripRate = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs), dtype=float)
         self.__toStarts = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
@@ -252,15 +277,17 @@ class Data:
         self.__toThroughDistance = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toTransitLayer = np.zeros((self.params.nODIs, self.params.nTransitLayers), dtype=float)
         self.__utilities = np.zeros(
-            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes), dtype=float)
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes), dtype=float)
         self.__choiceCharacteristics = np.zeros(
-            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nModes, self.params.nParams),
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes,
+             self.params.nParams),
             dtype=float)
         self.__microtypeCosts = np.zeros(
-            (self.params.nMicrotypes, self.params.nDIs, self.params.nModes, 3), dtype=float)
-        self.__transitLayerUtility = np.zeros((self.params.nModes, self.params.nTransitLayers), dtype=float)
-        self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams), dtype=float)
-        self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nModes, self.params.nParams),
+            (self.params.nMicrotypes, self.params.nDIs, self.params.nPassengerModes, 3), dtype=float)
+        self.__transitLayerUtility = np.zeros((self.params.nPassengerModes, self.params.nTransitLayers), dtype=float)
+        self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nPassengerModes, self.params.nParams),
+                                           dtype=float)
+        self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nPassengerModes, self.params.nParams),
                                                 dtype=float)
 
         #############
@@ -268,29 +295,33 @@ class Data:
         #############
         self.__microtypeLengthMultiplier = np.ones(self.params.nMicrotypes, dtype=float)
         self.__subNetworkToMicrotype = np.zeros((self.params.nMicrotypes, self.params.nSubNetworks), dtype=bool)
-        self.__microtypeSpeed = np.zeros((self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
-        self.__accessDistance = np.zeros((self.params.nMicrotypes, self.params.nModes))
+        self.__microtypeSpeed = np.zeros(
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
+        self.__accessDistance = np.zeros((self.params.nMicrotypes, self.params.nModesTotal))
         self.__microtypeMixedTrafficDistance = np.zeros(
-            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
         self.__fleetSize = np.zeros(
-            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModes))
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
         self.__subNetworkAverageSpeed = np.zeros(
-            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
+            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkAccumulation = np.zeros(
-            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
+            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkBlockedDistance = np.zeros(
-            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
+            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkOperatingSpeed = np.zeros(
-            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModes))
-        self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModes))
+            (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModesTotal))
+        self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
+        self.__subNetworkOriginalLength = np.zeros((self.params.nSubNetworks, 1))
         self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__instantaneousTime = np.arange(self.params.nTimeSteps) * self.params.timeStepInSeconds
         self.__transitionMatrixNetworkIdx = np.zeros(self.params.nSubNetworks, dtype=bool)
-        self.__nonAutoModes = np.array([True] * len(self.scenarioData.modeToIdx))
+        self.__nonAutoModes = np.array([True] * self.params.nModesTotal)
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
         self.__MFDs = [[] for _ in range(self.params.nSubNetworks)]
+        self.__freightProduction = np.zeros(
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nFreightModes), dtype=float)
 
     def setModeStartCosts(self, mode, microtype, newCost, senior=None):
         data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
@@ -325,7 +356,7 @@ class Data:
         else:
             np.copyto(self.__tripRate[timePeriod, :, :], newTripRate)
 
-    def updateMicrotypeNetworkLength(self, microtypeID, newMultiplier):
+    def updateMicrotypeNetworkLength(self, microtypeID, newMultiplier):  # TODO: Use subNetworkOriginalLength
         mask = self.__subNetworkToMicrotype[self.scenarioData.microtypeIdToIdx[microtypeID], :]
         oldMultiplier = self.__microtypeLengthMultiplier[self.scenarioData.microtypeIdToIdx[microtypeID]]
         self.__subNetworkLength[mask] *= newMultiplier / oldMultiplier
@@ -375,6 +406,7 @@ class Data:
             supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
             supply['microtypeCosts'] = self.__microtypeCosts
             supply['MFDs'] = self.__MFDs
+            supply['freightProduction'] = self.__freightProduction
         else:
             startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
             supply = dict()
@@ -387,6 +419,7 @@ class Data:
             supply['subNetworkAccumulation'] = self.__subNetworkAccumulation[timePeriodIdx, :, :]
             supply['subNetworkBlockedDistance'] = self.__subNetworkBlockedDistance[timePeriodIdx, :, :]
             supply['subNetworkOperatingSpeed'] = self.__subNetworkOperatingSpeed[timePeriodIdx, :, :]
+            supply['freightProduction'] = self.__freightProduction[timePeriodIdx, :, :]
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]

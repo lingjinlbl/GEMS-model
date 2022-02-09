@@ -158,10 +158,11 @@ class MicrotypeCollection:
         self.transitionMatrix = None
         # self.collectedNetworkStateData = CollectedNetworkStateData()
         self.__modeToMicrotype = dict()
-        self.__networkIdToIdx = dict()
+        self.__networkIdToIdx = scenarioData.subNetworkIdToIdx
         self.__numpyDemand = supplyData['demandData']
         self.__numpyMicrotypeSpeed = supplyData['microtypeSpeed']
-        self.__numpyFleetSize = supplyData['fleetSize']
+        self.__numpyFleetSize = supplyData[
+            'fleetSize']  # Only nonzero when fleet size (rather than production) is fixed
         self.__numpyMicrotypeMixedTrafficDistance = supplyData['microtypeMixedTrafficDistance']
         self.__diameters = np.ndarray([0])
         self.__numpyNetworkAccumulation = supplyData['subNetworkAccumulation']
@@ -174,6 +175,7 @@ class MicrotypeCollection:
         self.__numpyInstantaneousAccumulation = supplyData['subNetworkInstantaneousAutoAccumulation']
         self.__accessDistance = supplyData['accessDistance']
         self.__microtypeCosts = supplyData['microtypeCosts']
+        self.__freightProduction = supplyData['freightProduction']  # only set to nonzero when production is fixed
         self.__transitionMatrixNetworkIdx = supplyData['transitionMatrixNetworkIdx']
         self.__nonAutoModes = supplyData['nonAutoModes']
         self.__nInit = supplyData['subNetworkPreviousAutoAccumulation']
@@ -199,6 +201,10 @@ class MicrotypeCollection:
     @property
     def modeToIdx(self):
         return self.__scenarioData.modeToIdx
+
+    @property
+    def freightModeToIdx(self):
+        return self.__scenarioData.freightModeToIdx
 
     @property
     def paramToIdx(self):
@@ -299,14 +305,17 @@ class MicrotypeCollection:
     def getModeStartRatePerSecond(self, mode):
         return np.array([microtype.getModeStartRate(mode) / 3600. for mID, microtype in self])
 
+    def initializeFreightProduction(self):
+        for (mID, freightMode), VMT in self.__scenarioData["freightDemand"].itertuples(index=True):
+            self.__freightProduction[self.microtypeIdToIdx[mID], self.freightModeToIdx[freightMode]] = VMT
+
     def importMicrotypes(self, override=False):
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
-
+        self.initializeFreightProduction()
         subNetworkData = self.__scenarioData["subNetworkData"]
         subNetworkCharacteristics = self.__scenarioData["subNetworkDataFull"]
         modeToSubNetworkData = self.__scenarioData["modeToSubNetworkData"]
         microtypeData = self.__scenarioData["microtypeIDs"]
-        self.__networkIdToIdx = {networkId: idx for idx, networkId in enumerate(subNetworkCharacteristics.index)}
         self.__diameters = np.zeros(len(microtypeData), dtype=float)
         for microtypeId, idx in self.microtypeIdToIdx.items():
             self.__diameters[idx] = microtypeData.loc[microtypeId, 'DiameterInMiles'] * 1609.34

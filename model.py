@@ -918,7 +918,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-A", 1, False)
+    model = Model("input-data", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
                           fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     optimizer.evaluate([0.1])
