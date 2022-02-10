@@ -403,6 +403,9 @@ class Model:
         # modeMicrotypeAccumulation = np.einsum('ijk,mj->ikm', s['subNetworkAccumulation'], s['subNetworkToMicrotype'])
         return self.microtypes.getOperatorCosts()
 
+    def getFreightOperatorCosts(self):
+        return self.microtypes.getFreightOperatorCosts()
+
     def modifyNetworks(self, networkModification=None,
                        scheduleModification=None):
         # originalScenarioData = self.__initialScenarioData.copy()
@@ -442,6 +445,7 @@ class Model:
 
     def collectAllCosts(self, event=None):
         operatorCosts = CollectedTotalOperatorCosts()
+        freightOperatorCosts = CollectedTotalOperatorCosts()
         externalities = dict()
         vectorUserCosts = dict()
         for timePeriod, durationInHours in self.__timePeriods:
@@ -449,8 +453,9 @@ class Model:
             matCosts = self.getMatrixUserCosts() * durationInHours
             vectorUserCosts[timePeriod] = matCosts
             operatorCosts += self.getOperatorCosts() * durationInHours
+            freightOperatorCosts += self.getFreightOperatorCosts() * durationInHours
             externalities[timePeriod] = self.__externalities.calcuate(self.microtypes) * durationInHours
-        return operatorCosts, vectorUserCosts, externalities
+        return operatorCosts, freightOperatorCosts, vectorUserCosts, externalities
 
     def updatePopulation(self):
         for timePeriod, durationInHours in self.__timePeriods:
@@ -600,7 +605,7 @@ class Model:
                                                              self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
-            operatorCosts, vectorUserCosts, externalities = self.collectAllCosts()
+            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = self.collectAllCosts()
             x = list(self.microtypeIdToIdx.keys())
             userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
                 level='homeMicrotype').sum(axis=0)
@@ -765,11 +770,12 @@ class Optimizer:
         return np.array([1.0] * self.nSubNetworks() + [0.001] * self.nModes())
 
     def sumAllCosts(self):
-        operatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
+        operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
         if self.model.choice.broken | (not self.model.successful):
             return np.nan
         operatorCostsByMicrotype = operatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
         operatorRevenuesByMicrotype = operatorCosts.toDataFrame()['Revenue'].unstack().sum(axis=1)
+        freightCostsByMicrotype = freightOperatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
         userCostsByMicrotype = self.model.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
             level='homeMicrotype').sum(axis=0)
         externalityCostsByMicrotype = pd.Series(sum([e.sum(axis=1) for e in externalities.values()]),
@@ -788,6 +794,7 @@ class Optimizer:
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
+        output['Freight'] = freightCostsByMicrotype * self.__alphas['User']
         output['Operator'] = operatorCostsByMicrotype * self.__alphas['Operator']
         output['Revenue'] = - operatorRevenuesByMicrotype * self.__alphas['Operator']
         output['Externality'] = externalityCostsByMicrotype * self.__alphas['Externality']

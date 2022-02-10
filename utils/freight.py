@@ -5,15 +5,15 @@ from utils.data import Data
 
 class FreightMode:
     def __init__(self, name, networks: list, params: pd.DataFrame, microtypeId: str, demandData: np.ndarray,
-                 microtypeSpeed: np.ndarray, microtypeProduction: np.ndarray):
+                 microtypeSpeed: np.ndarray, fleetSize: np.ndarray):
         self.name = name
         self.params = params
         self._params = params.to_numpy()
         self.modeParamsColumnToIdx = {i: params.index.get_loc(i) for i in params.index}
         self.microtypeId = microtypeId
         self.microtypeSpeed = microtypeSpeed
-        self.microtypeProduction = microtypeProduction
-        self.microtypeProductionFromDemand = demandData
+        self.microtypeProduction = demandData
+        self.microtypeAccumulation = fleetSize
 
         self._networkSpeed = [n.getModeNetworkSpeed(name) for n in networks]
         self._networkOperatingSpeed = [n.getModeOperatingSpeed(name) for n in networks]
@@ -28,6 +28,10 @@ class FreightMode:
     def relativeLength(self):
         return self._params[self.modeParamsColumnToIdx["VehicleSize"]]
 
+    @property
+    def operatingCostPerHour(self):
+        return self._params[self.modeParamsColumnToIdx["OperatingCostPerHour"]]
+
     def getDemandForVmtPerHour(self):
         return self.microtypeProduction[0]
 
@@ -39,9 +43,14 @@ class FreightMode:
         self.microtypeSpeed[0] = self._networkSpeed[0][0]
 
     def assignVmtToNetworks(self):
+        # Eventually expand this to handle multiple networks
         productionInVehicleMetersPerSecond = self.microtypeProduction[0] * 1609.34 / 3600
         operatingSpeed = self._networkOperatingSpeed[0][0]
         self._networkAccumulation[0][0] = productionInVehicleMetersPerSecond / operatingSpeed
+        self.microtypeAccumulation[0] = self._networkAccumulation[0][0]
+
+    def getOperatorCosts(self):
+        return self.microtypeAccumulation[0] * self.operatingCostPerHour
 
     def updateModeBlockedDistance(self):
         pass

@@ -25,7 +25,7 @@ for i, h in enumerate(headways):
     for j, a in enumerate(allocations):
         optimizer.updateAndRunModel(np.array([a, h]))
         if model.successful:
-            operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
             allCosts = optimizer.sumAllCosts()
             dedicationCosts = model.getDedicationCostByMicrotype()
             operatorCosts = operatorCosts.toDataFrame()

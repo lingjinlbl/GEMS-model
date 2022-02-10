@@ -446,6 +446,12 @@ class MicrotypeCollection:
             operatorCosts[mID] = microtype.networks.getModeOperatingCosts()
         return operatorCosts
 
+    def getFreightOperatorCosts(self):
+        operatorCosts = CollectedTotalOperatorCosts()
+        for mID, microtype in self:
+            operatorCosts[mID] = microtype.networks.getFreightModeOperatingCosts()
+        return operatorCosts
+
     """
     def getStateData(self) -> CollectedNetworkStateData:
         data = CollectedNetworkStateData()

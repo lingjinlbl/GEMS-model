@@ -552,7 +552,7 @@ class NetworkCollection:
                 freightProduction = self.__freightProduction[self.__freightModeToIdx[modeName], None]
                 mode = FreightMode(modeName, networks, params, microtypeID,
                                    travelDemandData[self.__demandDataTypeToIdx['vehicleDistance'], None], speedData,
-                                   freightProduction)
+                                   fleetSize)
                 self.__freightModes[modeName] = mode
             else:
                 print("BAD!")
@@ -611,6 +611,12 @@ class NetworkCollection:
         out = TotalOperatorCosts()
         for name, mode in self.passengerModes().items():
             out[name] = (mode.getOperatorCosts(), mode.getOperatorRevenues())
+        return out
+
+    def getFreightModeOperatingCosts(self):
+        out = TotalOperatorCosts()
+        for name, mode in self.freightModes().items():
+            out[name] = (mode.getOperatorCosts(), 0.0)
         return out
 
     def iterModes(self):
