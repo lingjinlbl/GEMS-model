@@ -230,27 +230,32 @@ class Interact:
                 self.__dataToHandle['modeSpeed']['ref'][mode][mID] = microtypeFigs[idx].data[-1]
                 microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Freight', 'Operator', 'Revenue', 'Externality', 'Lane dedication'],
+                                       y=[0.] * 4,
                                        visible=True, row=4, col=1, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['current'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Freight', 'Operator', 'Revenue', 'Externality', 'Lane dedication'],
+                                       y=[0.] * 4,
                                        visible=True, row=4, col=2, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['ref'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            combinedCostDiffFig.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            combinedCostDiffFig.add_bar(x=['User', 'Freight', 'Operator', 'Revenue', 'Externality', 'Lane dedication'],
+                                        y=[0.] * 4,
                                         visible=True, name='Microtype ' + mID, showlegend=True)
             self.__dataToHandle['costDiff'][mID] = combinedCostDiffFig.data[-1]
             combinedCostDiffFig.data[-1].marker.color = self.colors[mID]
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            bothCostFigs.add_bar(x=['User', 'Freight', 'Operator', 'Revenue', 'Externality', 'Lane dedication'],
+                                 y=[0.] * 4,
                                  visible=True,
                                  name='Microtype ' + mID, showlegend=False, row=1, col=1)
             self.__dataToHandle['costCombined']['current'][mID] = bothCostFigs.data[-1]
             bothCostFigs.data[-1].marker.color = self.colors[mID]
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            bothCostFigs.add_bar(x=['User', 'Freight', 'Operator', 'Revenue', 'Externality', 'Lane dedication'],
+                                 y=[0.] * 4,
                                  visible=True,
                                  name='Microtype ' + mID, showlegend=True, row=1, col=2)
             self.__dataToHandle['costCombined']['ref'][mID] = bothCostFigs.data[-1]
