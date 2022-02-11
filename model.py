@@ -776,6 +776,8 @@ class Optimizer:
         operatorCostsByMicrotype = operatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
         operatorRevenuesByMicrotype = operatorCosts.toDataFrame()['Revenue'].unstack().sum(axis=1)
         freightCostsByMicrotype = freightOperatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
+        if len(freightCostsByMicrotype) == 0:
+            freightCostsByMicrotype = operatorCostsByMicrotype * 0.0
         userCostsByMicrotype = self.model.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
             level='homeMicrotype').sum(axis=0)
         externalityCostsByMicrotype = pd.Series(sum([e.sum(axis=1) for e in externalities.values()]),
@@ -929,9 +931,9 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, False)
+    model = Model("input-data-losangeles", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A', 'Bike')], method="opt")
+                          fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
     optimizer.evaluate([0.1])
 
     allCosts = optimizer.sumAllCosts()
