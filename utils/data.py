@@ -307,7 +307,7 @@ class Data:
         #############
         # Supply side
         #############
-        self.__microtypeLengthMultiplier = np.ones(self.params.nMicrotypes, dtype=float)
+        self.__microtypeLengthMultiplier = np.ones((self.params.nTimePeriods, self.params.nMicrotypes), dtype=float)
         self.__subNetworkToMicrotype = np.zeros((self.params.nMicrotypes, self.params.nSubNetworks), dtype=bool)
         self.__microtypeSpeed = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
@@ -326,7 +326,7 @@ class Data:
             (self.params.nTimePeriods, self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
-        self.__subNetworkOriginalLength = np.zeros((self.params.nSubNetworks, 1))
+        self.__subNetworkScaledLength = np.zeros((self.params.nSubNetworks, 1))
         self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__instantaneousTime = np.arange(self.params.nTimeSteps) * self.params.timeStepInSeconds
@@ -370,11 +370,25 @@ class Data:
         else:
             np.copyto(self.__tripRate[timePeriod, :, :], newTripRate)
 
-    def updateMicrotypeNetworkLength(self, microtypeID, newMultiplier):  # TODO: Use subNetworkOriginalLength
-        mask = self.__subNetworkToMicrotype[self.scenarioData.microtypeIdToIdx[microtypeID], :]
-        oldMultiplier = self.__microtypeLengthMultiplier[self.scenarioData.microtypeIdToIdx[microtypeID]]
-        self.__subNetworkLength[mask] *= newMultiplier / oldMultiplier
-        self.__microtypeLengthMultiplier[self.scenarioData.microtypeIdToIdx[microtypeID]] = newMultiplier
+    def updateMicrotypeNetworkLength(self, microtypeID=None, newMultiplier=None):
+        if newMultiplier is None:
+            if microtypeID is None:
+                for mIDx in self.scenarioData.microtypeIdToIdx.values():
+                    microtypeMask = self.__subNetworkToMicrotype[mIDx, :]
+                    subnetworkMask = microtypeMask & self.__transitionMatrixNetworkIdx
+                    self.__subNetworkScaledLength[subnetworkMask] = self.__microtypeLengthMultiplier[:,
+                                                                    mIDx].max() * self.__subNetworkLength[
+                                                                        subnetworkMask]
+            else:
+                mIDx = self.scenarioData.microtypeIdToIdx[microtypeID]
+                microtypeMask = self.__subNetworkToMicrotype[mIDx, :]
+                subnetworkMask = microtypeMask & self.__transitionMatrixNetworkIdx
+                self.__subNetworkScaledLength[subnetworkMask] = self.__microtypeLengthMultiplier[:, mIDx].max() * \
+                                                                self.__subNetworkLength[subnetworkMask]
+        else:
+            mask = self.__subNetworkToMicrotype[self.scenarioData.microtypeIdToIdx[microtypeID], :]
+            self.__subNetworkScaledLength[mask] = newMultiplier * self.__subNetworkLength[mask]
+            self.__microtypeLengthMultiplier[:, self.scenarioData.microtypeIdToIdx[microtypeID]] = newMultiplier
 
     @property
     def t(self):
@@ -412,6 +426,7 @@ class Data:
             supply['subNetworkOperatingSpeed'] = self.__subNetworkOperatingSpeed
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
+            supply['subNetworkScaledLength'] = self.__subNetworkScaledLength
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation
             supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
@@ -436,6 +451,7 @@ class Data:
             supply['freightProduction'] = self.__freightProduction[timePeriodIdx, :, :]
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
+            supply['subNetworkScaledLength'] = self.__subNetworkScaledLength
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
                                                                 :, startTimeStep:endTimeStep]
@@ -488,6 +504,7 @@ class Data:
         fixedData = dict()
         fixedData['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
         fixedData['subNetworkLength'] = self.__subNetworkLength
+        fixedData['subNetworkScaledLength'] = self.__subNetworkScaledLength
         fixedData['toStarts'] = self.__toStarts
         fixedData['toEnds'] = self.__toEnds
         fixedData['microtypeCosts'] = self.__microtypeCosts
@@ -505,4 +522,5 @@ class Data:
     def updateNetworkLength(self, networkId, newLength):
         idx = self.scenarioData.subNetworkIdToIdx[networkId]
         self.__subNetworkLength[idx] = newLength * \
-                                       self.__microtypeLengthMultiplier[self.__subNetworkToMicrotype[:, idx]][0]
+                                       self.__microtypeLengthMultiplier[:, self.__subNetworkToMicrotype[:, idx]].max(
+                                           axis=0)[0]

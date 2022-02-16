@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
+from mock import Mock
 # from skopt import gp_minimize, forest_minimize
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices
@@ -14,7 +15,6 @@ from utils.demand import Demand, Externalities, modeSplitFromUtilsWithExcludedMo
 from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
-from utils.network import CollectedNetworkStateData
 from utils.population import Population
 from utils.data import Data, ScenarioData
 
@@ -128,7 +128,6 @@ class Model:
                                                      self.__transitionMatrices, self.__fixedData,
                                                      self.scenarioData)
         self.__externalities = Externalities(self.scenarioData)
-        self.__networkStateData = dict()
         self.__printLoc = stdout
         self.__interactive = interactive
         self.__tolerance = 2e-11
@@ -198,17 +197,8 @@ class Model:
         return self.__choice[self.__currentTimePeriod]
 
     @property
-    def networkStateData(self):
-        if self.__currentTimePeriod not in self.__networkStateData:
-            self.__networkStateData[self.__currentTimePeriod] = CollectedNetworkStateData()
-        return self.__networkStateData[self.__currentTimePeriod]
-
-    @property
     def successful(self):
         return self.__successful
-
-    def getNetworkStateData(self, timePeriod) -> CollectedNetworkStateData:
-        return self.__networkStateData[timePeriod]
 
     def getCurrentTimePeriodDuration(self):
         return self.__timePeriods[self.currentTimePeriod]
@@ -244,6 +234,7 @@ class Model:
         self.__successful = True
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod, override)
+        self.data.updateMicrotypeNetworkLength()
 
     def fromVector(self, flatUtilitiesArray):
         return np.reshape(flatUtilitiesArray, self.demand.currentUtilities().shape)
@@ -432,16 +423,9 @@ class Model:
         """Note: Are we always going to go through them in order? Should maybe just store time periods
         as a dataframe and go by index. But, we're not keeping track of all accumulations so in that sense
         we always need to go in order."""
-        networkStateData = self.networkStateData
         self.__currentTimePeriod = timePeriod
         self.__originDestination.setTimePeriod(timePeriod)
         self.__tripGeneration.setTimePeriod(timePeriod)
-        if networkStateData:
-            if not preserve:
-                if not init:
-                    self.microtypes.importPreviousStateData(networkStateData)
-                # else:
-                #     self.microtypes.resetStateData()
 
     def collectAllCosts(self, event=None):
         operatorCosts = CollectedTotalOperatorCosts()
@@ -588,17 +572,17 @@ class Model:
                     [self.getModeSplit(0, microtypeID=microtype)] + [self.getModeSplit(p, microtypeID=microtype) for p
                                                                      in self.timePeriods().keys()])
                 return x, y
-        elif type.lower() == "cartrips":
-            autoProdsMFD = [0.]
-            autoProdsDemand = [0.]
-            for p in self.timePeriods().keys():
-                sd = self.getNetworkStateData(p)
-                autoProdsMFD.append(sd.getAutoProduction().sum(axis=1).sum() / 1609.34)
-                autoProdsDemand.append(self.getModePMT(p)[self.modeToIdx['auto']])
-
-            x = np.cumsum([0] + [val for val in self.timePeriods().values()])
-            y = np.vstack([autoProdsMFD, autoProdsDemand]).transpose()
-            return x, y
+        # elif type.lower() == "cartrips":
+        #     autoProdsMFD = [0.]
+        #     autoProdsDemand = [0.]
+        #     for p in self.timePeriods().keys():
+        #         sd = self.getNetworkStateData(p)
+        #         autoProdsMFD.append(sd.getAutoProduction().sum(axis=1).sum() / 1609.34)
+        #         autoProdsDemand.append(self.getModePMT(p)[self.modeToIdx['auto']])
+        #
+        #     x = np.cumsum([0] + [val for val in self.timePeriods().values()])
+        #     y = np.vstack([autoProdsMFD, autoProdsDemand]).transpose()
+        #     return x, y
         elif type.lower() == "modespeeds":
             x = np.cumsum([0] + [val for val in self.timePeriods().values()])
             y = pd.concat([self.getModeSpeeds(0).stack()] + [self.getModeSpeeds(val).stack() for val in
@@ -750,20 +734,22 @@ class Optimizer:
         else:
             return 0.0
 
-    def updateAndRunModel(self, reallocations: np.ndarray):
-        if self.__fromToSubNetworkIDs is not None:
-            networkModification = NetworkModification(reallocations[:self.nSubNetworks()], self.__fromToSubNetworkIDs)
-        else:
-            networkModification = None
-        if self.__modesAndMicrotypes is not None:
-            transitModification = TransitScheduleModification(reallocations[-self.nModes():],
-                                                              self.__modesAndMicrotypes)
-        else:
-            transitModification = None
-        if self.model.choice.broken | (not self.model.successful):
-            print("Starting from a bad place so I'll reset")
-            self.model.initializeAllTimePeriods(True)
-        self.model.modifyNetworks(networkModification, transitModification)
+    def updateAndRunModel(self, reallocations=None):
+        if reallocations is not None:
+            if self.__fromToSubNetworkIDs is not None:
+                networkModification = NetworkModification(reallocations[:self.nSubNetworks()],
+                                                          self.__fromToSubNetworkIDs)
+            else:
+                networkModification = None
+            if self.__modesAndMicrotypes is not None:
+                transitModification = TransitScheduleModification(reallocations[-self.nModes():],
+                                                                  self.__modesAndMicrotypes)
+            else:
+                transitModification = None
+            if self.model.choice.broken | (not self.model.successful):
+                print("Starting from a bad place so I'll reset")
+                self.model.initializeAllTimePeriods(True)
+            self.model.modifyNetworks(networkModification, transitModification)
         self.model.collectAllCharacteristics()
 
     def scaling(self):
@@ -931,21 +917,23 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-losangeles", 1, False)
+    model = Model("input-data", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bike')], method="opt")
-    optimizer.evaluate([0.1])
-
-    allCosts = optimizer.sumAllCosts()
+                          fromToSubNetworkIDs=[('A', 'Bike')], method="opt")
+    # optimizer.evaluate([0.1])
+    #
+    # allCosts = optimizer.sumAllCosts()
     # #
     # # print(model.getModeSpeeds())
     # model.collectAllCharacteristics()
 
     # print(model.getModeSpeeds())
-    # obj = Mock()
-    # obj.new = 17.5
-    #
-    # model.interact.modifyModel(('vMax', 1), obj)
+    obj = Mock()
+    obj.new = 0.5
+
+    model.interact.modifyModel(('networkLength', 'A'), obj)
+    optimizer.updateAndRunModel()
+    allCosts = optimizer.sumAllCosts()
     # model.collectAllCharacteristics()
     # print(model.getModeSpeeds())
     # display(model.interact.grid)

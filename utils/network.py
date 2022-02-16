@@ -92,7 +92,6 @@ class Network:
         self._modes = dict()
         self.dedicated = characteristics.loc[subNetworkId, "Dedicated"]
         self.isJammed = False
-        # self._networkStateData = NetworkStateData().initFromNetwork(self)
         self.__modeToIdx = modeToIdx
         self.modeNetworkSpeed = modeNetworkSpeed
         self.modeOperatingSpeed = modeOperatingSpeed
@@ -345,7 +344,6 @@ class Network:
             if 'auto' in self.getModeNames() and not overrideMatrix:
                 # print("THIS WILL BREAK THINGS")
                 return self.modeNetworkSpeed[self.__modeToIdx['auto']]
-                # return self._networkStateData.averageSpeed
             else:
                 if Q is None:
                     Qtot = sum([VMT for VMT in self._VMT.values()]) * mph2mps
@@ -356,7 +354,7 @@ class Network:
                             Qtot += Qmode * mph2mps
                 if Qtot == 0:
                     return self.freeFlowSpeed
-                self._Q_curr = Qtot
+
                 L_tot = self.L - self.getBlockedDistance()
                 L_0 = 10 * 1609.34  # TODO: Get average distance, don't hardcode
                 t = 3 * 3600.  # TODO: Add timestep duration in seconds
@@ -380,10 +378,6 @@ class Network:
                     V_init = self.getSpeedFromMFD(N_init)
                     V_final = self.getSpeedFromMFD(N_final)
                     V_steadyState = 0
-                # self._networkStateData.N_final = N_final
-                # self._networkStateData.V_init = V_init
-                # self._networkStateData.V_final = V_final
-                # self._networkStateData.V_steadyState = V_steadyState
                 if overrideMatrix:
                     self.base_speed = max([0.1, (V_init + V_final) / 2.0])
                 return max([2.0, (V_init + V_final) / 2.0])  # TODO: Actually take the integral
@@ -420,24 +414,8 @@ class Network:
     def getModeValues(self) -> list:
         return list(self._modes.values())
 
-    # def updateFromMFD(self, v, n):
-    #     self._networkStateData.finalSpeed = v[-1]
-    #     self._networkStateData.finalAccumulation = n[-1]
-    # self._networkStateData.averageSpeed = np.mean(v)
-
     def getVMT(self, mode):
         return self.modeAccumulation(mode) * self.modeNetworkSpeed(mode)
-
-    # def getNetworkStateData(self):
-    #     return self._networkStateData
-
-    # def setInitialStateData(self, oldNetworkStateData):
-    #     if len(oldNetworkStateData.n > 0):
-    #         self._networkStateData.initialAccumulation = oldNetworkStateData.n[-1]
-    #         self._networkStateData.initialSpeed = oldNetworkStateData.v[-1]
-    #         self._networkStateData.initialTime = oldNetworkStateData.t[-1]
-    # self._networkStateData.nonAutoAccumulation = oldNetworkStateData.nonAutoAccumulation
-    # self._networkStateData.blockedDistance = oldNetworkStateData.blockedDistance
 
 
 class NetworkCollection:
@@ -584,10 +562,6 @@ class NetworkCollection:
             m.assignVmtToNetworks()
             m.updateModeBlockedDistance()
 
-        # for modes, n in self:
-        #     nonAutoAccumulation = n.getAccumulationExcluding('auto')
-        #     n.getNetworkStateData().nonAutoAccumulation = nonAutoAccumulation
-
     def __getitem__(self, item):
         return self._networks[item]
 
@@ -621,146 +595,3 @@ class NetworkCollection:
 
     def iterModes(self):
         return iter(self.__passengerModes)
-
-
-class NetworkStateData:
-    def __init__(self, data=None):
-        if data is None:
-            self.__data = dict()
-            self.finalAccumulation = 0.0
-            self.finalProduction = 0.0
-            self.initialSpeed = np.inf
-            self.finalSpeed = np.inf
-            self.steadyStateSpeed = np.inf
-            self.initialAccumulation = 0.0
-            self.nonAutoAccumulation = 0.0
-            self.blockedDistance = 0.0
-            self.averageSpeed = 0.0
-            self.initialTime = 0.0
-            self.defaultSpeed = 0.0
-            self.inflow = np.zeros(0)
-            self.outflow = np.zeros(0)
-            self.flowMatrix = np.zeros(0)
-            self.v = np.zeros(0)
-            self.n = np.zeros(0)
-            self.t = np.zeros(0)
-        else:
-            self.finalAccumulation = data.finalAccumulation
-            self.finalProduction = data.finalProduction
-            self.initialSpeed = data.initialSpeed
-            self.finalSpeed = data.finalSpeed
-            self.steadyStateSpeed = data.steadyStateSpeed
-            self.initialAccumulation = data.initialAccumulation
-            self.nonAutoAccumulation = data.nonAutoAccumulation
-            self.blockedDistance = data.blockedDistance
-            self.averageSpeed = data.averageSpeed
-            self.initialTime = data.initialTime
-            self.inflow = data.inflow
-            self.outflow = data.outflow
-            self.flowMatrix = data.flowMatrix
-            self.defaultSpeed = data.defaultSpeed
-            self.v = data.v
-            self.n = data.n
-            self.t = data.t
-
-    def initFromNetwork(self, network: Network):
-        self.initialSpeed = network.freeFlowSpeed
-        self.finalSpeed = network.freeFlowSpeed
-        self.steadyStateSpeed = network.freeFlowSpeed
-        self.averageSpeed = network.freeFlowSpeed
-        self.defaultSpeed = network.freeFlowSpeed
-        return self
-
-    def resetBlockedDistance(self):
-        self.blockedDistance = 0.0
-
-    def resetNonAutoAccumulation(self):
-        self.nonAutoAccumulation = 0.0
-
-    def reset(self):
-        self.__data = dict()
-        self.finalAccumulation = 0.0
-        self.finalProduction = 0.0
-        self.initialSpeed = np.inf
-        self.finalSpeed = np.inf
-        self.steadyStateSpeed = np.inf
-        self.initialAccumulation = 0.0
-        self.nonAutoAccumulation = 0.0
-        self.blockedDistance = 0.0
-        self.averageSpeed = self.defaultSpeed
-        self.initialTime = 0.0
-        self.inflow = np.zeros(0)
-        self.outflow = np.zeros(0)
-        self.flowMatrix = np.zeros(0)
-        self.v = np.zeros(0)
-        self.n = np.zeros(0)
-        self.t = np.zeros(0)
-
-
-class CollectedNetworkStateData:
-    def __init__(self):
-        self.__data = dict()
-
-    def __setitem__(self, key, value: NetworkStateData):
-        self.__data[key] = value
-
-    def __getitem__(self, item) -> NetworkStateData:
-        return self.__data[item]
-
-    def resetAll(self):
-        for _, val in self.__data.items():
-            val.reset()
-        return self
-
-    def getAutoProduction(self):
-        prods = []
-        for (mID, modes), val in self.__data.items():
-            if "auto" in modes:
-                if len(val.t) == 0:
-                    continue
-                else:
-                    prod = np.zeros(len(val.t) - 1)
-                    for i in np.arange(len(val.t) - 1):
-                        dt = val.t[i + 1] - val.t[i]
-                        prod[i] = val.v[i] * val.n[i] * dt
-                    prods.append(prod)
-                    # prods.append(np.sum(val.v * val.n) * (val.t[1] - val.t[0]))
-        return np.array(prods)
-
-    def addMicrotype(self, microtype):
-        for network in microtype.networks:
-            self[(microtype.microtypeID, 'a')] = network.getNetworkStateData()
-
-    def adoptPreviousMicrotypeState(self, microtype):
-        for modes, network in microtype.networks:
-            network.setInitialStateData(self[(microtype.microtypeID, modes)])
-
-    def getAutoSpeeds(self):
-        speeds = []
-        ns = []
-        inflows = []
-        outflows = []
-        matrices = []
-        ts = None
-        labels = []
-        for (mID, modes), val in self.__data.items():
-            if "auto" in modes:
-                speeds.append(val.v[:-1])
-                ns.append(val.n[:-1])
-                inflows.append(val.inflow[:-1])
-                outflows.append(val.outflow[:-1])
-                if len(val.flowMatrix.shape) == 2:
-                    matrices.append(val.flowMatrix[:, :-1])
-                else:
-                    matrices.append(val.flowMatrix[:-1])
-                if ts is None:
-                    ts = val.t[:-1]
-                labels.append((mID, modes))
-        return ts, np.stack(speeds, axis=-1), np.stack(ns, axis=-1), np.stack(
-            inflows, axis=-1), np.stack(outflows, axis=-1), np.stack(matrices, axis=-1), labels
-
-    def __bool__(self):
-        return len(self.__data) > 0
-
-    def __iter__(self):
-        return iter(self.__data.items())

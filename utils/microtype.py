@@ -8,7 +8,7 @@ from numba import njit
 
 from .OD import TransitionMatrix, Allocation
 from .choiceCharacteristics import ChoiceCharacteristics
-from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, CollectedNetworkStateData
+from .network import Network, NetworkCollection, Costs, TotalOperatorCosts
 from .freight import FreightMode
 
 
@@ -170,6 +170,7 @@ class MicrotypeCollection:
         self.__diameters = np.ndarray([0])
         self.__numpyNetworkAccumulation = supplyData['subNetworkAccumulation']
         self.__numpyNetworkLength = supplyData['subNetworkLength']
+        self.__numpyScaledNetworkLength = supplyData['subNetworkScaledLength']
         self.__numpyNetworkVehicleSize = supplyData['subNetworkVehicleSize']
         self.__numpyNetworkSpeed = supplyData['subNetworkAverageSpeed']
         self.__numpyNetworkOperatingSpeed = supplyData['subNetworkOperatingSpeed']
@@ -355,6 +356,9 @@ class MicrotypeCollection:
                                          self.__numpyNetworkLength[self.__networkIdToIdx[subNetworkId], :],
                                          self.__MFDs[self.__networkIdToIdx[subNetworkId]],
                                          self.modeToIdx)
+                    self.__numpyScaledNetworkLength[self.__networkIdToIdx[subNetworkId], :] = self.__numpyNetworkLength[
+                                                                                              self.__networkIdToIdx[
+                                                                                                  subNetworkId], :]
                     if collectMatrixIds:
                         if 'auto' in subNetwork.modesAllowed.lower():  # Simple fix for now while we just have 1 auto network per microtype
                             self.__transitionMatrixNetworkIdx[self.__networkIdToIdx[subNetworkId]] = True
@@ -405,7 +409,7 @@ class MicrotypeCollection:
                     speedFunctions[idx] = autoNetwork.MFD
         n_init = self.__nInit[self.__transitionMatrixNetworkIdx]
         L_blocked = self.__numpyNetworkBlockedDistance[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
-        L_eff = self.__numpyNetworkLength[self.__transitionMatrixNetworkIdx, 0] - L_blocked
+        L_eff = self.__numpyScaledNetworkLength[self.__transitionMatrixNetworkIdx, 0] - L_blocked
         n_other = (self.__numpyNetworkAccumulation[self.__transitionMatrixNetworkIdx, :][:,
                    self.nonAutoModes] * self.__numpyNetworkVehicleSize[self.__transitionMatrixNetworkIdx, :][:,
                                         self.nonAutoModes]).sum(axis=1)
