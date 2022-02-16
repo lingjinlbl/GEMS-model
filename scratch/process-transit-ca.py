@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import numpy as np
+import shutil
 
 miles2meters = 1609.34
 headwayFactor = 2 / 24.
@@ -94,11 +95,15 @@ for id, microtypeInfo in subNetworksRaw.iterrows():
     AutoBusBike.update(defaults[microtypeId])
     subNetworksOut[subNetworkId] = pd.Series(AutoBusBike)
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
     modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
+    modeToSubNetworkOut.append(
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_combo'}))
+    modeToSubNetworkOut.append(
+        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_single'}))
     subNetworkId += 1
 
     Walk = {'MicrotypeID': id, 'ModesAllowed': 'Walk', 'Dedicated': True, 'Length': lengthInMeters / 5.0}
@@ -186,4 +191,15 @@ newPath = os.path.join(ROOT_DIR, "..", "input-data-california", "TripGeneration.
 df = pd.read_csv(oldPath).rename(columns={"PopulationGroupID": "PopulationGroupTypeID"})
 df.to_csv(newPath, index=False)
 
-print('dpone')
+newDir = os.path.join(ROOT_DIR, "..", "input-data-california", "fleets")
+if os.path.exists(newDir):
+    shutil.rmtree(newDir)
+os.makedirs(newDir)
+
+freight = pd.DataFrame(
+    {'freight_single': {'VehicleSize': 2.0, 'MaximumSpeedMetersPerSecond': 20.0, 'OperatingCostPerHour': 30.0},
+     'freight_combo': {'VehicleSize': 4.0, 'MaximumSpeedMetersPerSecond': 20.0,
+                       'OperatingCostPerHour': 40.0}}).transpose()
+freight.index.name = "Fleet"
+freight.to_csv(os.path.join(newDir, 'freight.csv'))
+print('done')

@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = 'A'
+geotype = 'F'
 
 inFolder = "input-data-california"
 outFolder = "input-data-california-" + geotype
@@ -24,6 +24,8 @@ modesDir = os.path.join(ROOT_DIR, "..", outFolder, "modes")
 if os.path.exists(modesDir):
     shutil.rmtree(modesDir)
 os.makedirs(modesDir)
+
+shutil.copytree(os.path.join(ROOT_DIR, "..", inFolder, "fleets"), os.path.join(ROOT_DIR, "..", outFolder, "fleets"))
 
 for mode in ["auto", "bike", "bus", "rail", "walk"]:
     oldPath = os.path.join(ROOT_DIR, "..", inFolder, "modes", mode + ".csv")
