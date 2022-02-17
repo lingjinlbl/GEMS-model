@@ -456,28 +456,6 @@ class MicrotypeCollection:
             operatorCosts[mID] = microtype.networks.getFreightModeOperatingCosts()
         return operatorCosts
 
-    """
-    def getStateData(self) -> CollectedNetworkStateData:
-        data = CollectedNetworkStateData()
-        for mID, microtype in self:
-            data.addMicrotype(microtype)
-        return data
-
-    def importPreviousStateData(self, networkStateData: CollectedNetworkStateData):
-        for mID, microtype in self:
-            networkStateData.adoptPreviousMicrotypeState(microtype)
-
-    def resetStateData(self):
-        for _, nsd in self.collectedNetworkStateData:
-            nsd.reset()
-    """
-
-    # def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
-    #     if self.transitionMatrix.names == transitionMatrix.names:
-    #         self.transitionMatrix = transitionMatrix
-    #     else:
-    #         print("MICROTYPE NAMES IN TRANSITION MATRIX DON'T MATCH")
-
     def emptyTransitionMatrix(self):
         return TransitionMatrix(self.transitionMatrix.names)
 
