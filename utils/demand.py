@@ -222,7 +222,7 @@ class Demand:
                                         names=('homeMicrotype', 'populationGroupType', 'tripPurpose'))
         odis = pd.MultiIndex.from_tuples([odi.toTuple() for odi in self.odiToIdx.keys()],
                                          names=('originMicrotype', 'destinationMicrotype', 'distanceBin'))
-        modes = list(self.modeToIdx.keys())
+        modes = list(self.passengerModeToIdx.keys())
         tuples = [(a, b, c, d, e, f, g) for (a, b, c), (d, e, f), g in product(dis, odis, modes)]
         mi = pd.MultiIndex.from_tuples(tuples, names=(
             'homeMicrotype', 'populationGroupType', 'tripPurpose', 'originMicrotype', 'destinationMicrotype',

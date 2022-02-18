@@ -615,7 +615,7 @@ class Model:
         for timePeriodID, timePeriodName in self.timePeriodNames().items():
             dfs = {}
             userCostMatrix = userCostMatrixByTimePeriod[timePeriodID]
-            for mode, idx in self.modeToIdx.items():
+            for mode, idx in self.passengerModeToIdx.items():
                 data = userCostMatrix[:, :, idx]
                 df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(),
                                                                         names=['homeMicrotype', 'populationGroupType',
@@ -933,6 +933,7 @@ if __name__ == "__main__":
     model.interact.modifyModel(('networkLength', 'A'), obj)
     optimizer.updateAndRunModel()
     allCosts = optimizer.sumAllCosts()
+    out = model.toPandas()
     # model.collectAllCharacteristics()
     # print(model.getModeSpeeds())
     # display(model.interact.grid)
