@@ -700,6 +700,7 @@ class Interact:
         axs[3, 0].set_ylabel('mode split')
 
     def updateCosts(self, message=None):
+        self.__downloadHTML.format(payload="")
         if self.model.choice.broken | (not self.model.successful):
             print("Starting from a bad place so I'll reset")
             self.model.initializeAllTimePeriods(True)
