@@ -615,7 +615,7 @@ class Model:
         for timePeriodID, timePeriodName in self.timePeriodNames().items():
             dfs = {}
             userCostMatrix = userCostMatrixByTimePeriod[timePeriodID]
-            for mode, idx in self.passengerModeToIdx.items():
+            for mode, idx in self.modeToIdx.items():
                 data = userCostMatrix[:, :, idx]
                 df = pd.DataFrame(data, index=pd.MultiIndex.from_tuples(self.diTuples(),
                                                                         names=['homeMicrotype', 'populationGroupType',
