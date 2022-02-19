@@ -213,9 +213,12 @@ class ScenarioData:
         odJoinedToDistance = self['originDestinations'].merge(self['distanceDistribution'],
                                                               on=["OriginMicrotypeID", "DestinationMicrotypeID"],
                                                               suffixes=("_OD", "_Dist"), how="right")
+        odJoinedToDistance = odJoinedToDistance.loc[odJoinedToDistance.OriginMicrotypeID.isin(
+            odJoinedToDistance.HomeMicrotypeID) & odJoinedToDistance.DestinationMicrotypeID.isin(
+            odJoinedToDistance.HomeMicrotypeID)]
         popGroupJoinedToTripGeneration = self.data['populations'].merge(self.data['tripGeneration'],
                                                                         on=['PopulationGroupTypeID'],
-                                                                        suffixes=("_pop", "_trip"), how="right")
+                                                                        suffixes=("_pop", "_trip"), how="inner")
         nestedDIs = popGroupJoinedToTripGeneration.groupby(
             ['MicrotypeID', 'PopulationGroupTypeID', 'TripPurposeID']).groups
         # nestedDIs = list(product(homeMicrotypeIDs, groupAndPurpose))

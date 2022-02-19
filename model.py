@@ -916,9 +916,9 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, False)
+    model = Model("input-data-california-F", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A', 'Bike')], method="opt")
+                          fromToSubNetworkIDs=[('2', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])
     #
     # allCosts = optimizer.sumAllCosts()
@@ -930,7 +930,7 @@ if __name__ == "__main__":
     obj = Mock()
     obj.new = 0.5
 
-    model.interact.modifyModel(('networkLength', 'A'), obj)
+    model.interact.modifyModel(('networkLength', '2'), obj)
     optimizer.updateAndRunModel()
     allCosts = optimizer.sumAllCosts()
     out = model.toPandas()

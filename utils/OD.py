@@ -730,6 +730,7 @@ class TransitionMatrices:
             odi = ODindex(*key)
             if odi in self.odiToIdx:
                 df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
+                df = df[df.index]
                 self.__data[odi] = df  # TODO: Delete this
                 self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
                 startVec = np.zeros((1, len(microtypeIDs)))
