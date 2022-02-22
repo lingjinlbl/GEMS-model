@@ -757,8 +757,8 @@ class Optimizer:
 
     def sumAllCosts(self):
         operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
-        if self.model.choice.broken | (not self.model.successful):
-            return np.nan
+        # if self.model.choice.broken | (not self.model.successful):
+        #     return np.nan
         operatorCostsByMicrotype = operatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
         operatorRevenuesByMicrotype = operatorCosts.toDataFrame()['Revenue'].unstack().sum(axis=1)
         freightCostsByMicrotype = freightOperatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
@@ -776,9 +776,10 @@ class Optimizer:
                     self.model.scenarioData['subNetworkDataFull'].Type == "Road"), "Length"]
         dedicationCostsByMicrotype = pd.Series(0.0, index=sorted(self.model.microtypeIdToIdx))
         for _, val in dedication.iterrows():
-            costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
-                (val.MicrotypeID, val.ModesAllowed.lower()), 0.0)
-            dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
+            if val.MicrotypeID in self.model.microtypeIdToIdx:
+                costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
+                    (val.MicrotypeID, val.ModesAllowed.lower()), 0.0)
+                dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
@@ -916,7 +917,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-F", 1, False)
+    model = Model("input-data-california-A", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
                           fromToSubNetworkIDs=[('2', 'Bike')], method="opt")
     # optimizer.evaluate([0.1])
