@@ -161,8 +161,13 @@ class Network:
         if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
             if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "modified-quadratic":
                 a = self.__data[self.dataColumnToIdx["a"]]
-                criticalDensity = self.__data[self.dataColumnToIdx["criticalDensity"]]
-                densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+                criticalDensity = self.__data[self.dataColumnToIdx["b"]]  # b OR k'
+                densityMax = self.__data[self.dataColumnToIdx["k_jam"]]  # k_jam
+
+                # (2 a K - 2 a b ) (1 - B/k) -> -a b^2 / (4 k)
+                #  - a b^2 / k 2
+                # factor = a * ( b - b/2) = a b / 2
+                # spd = ab/2 * (1 - b / k ) = ab/2 - ab^2 / 2k
 
                 @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
                 def _MFD(density):
@@ -177,7 +182,7 @@ class Network:
 
             elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "loder":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
-                densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+                densityMax = self.__data[self.dataColumnToIdx["k_jam"]]
                 capacityFlow = self.__data[self.dataColumnToIdx["capacityFlow"]]
                 smoothingFactor = self.__data[self.dataColumnToIdx["smoothingFactor"]]
                 waveSpeed = self.__data[self.dataColumnToIdx["waveSpeed"]]
@@ -202,7 +207,7 @@ class Network:
 
             elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "quadratic":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
-                densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+                densityMax = self.__data[self.dataColumnToIdx["k_jam"]]
 
                 @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
                 def _MFD(density):
@@ -218,6 +223,19 @@ class Network:
                         return capacityFlow / density
                     else:
                         return vMax
+
+            elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "rural":
+                a = self.__data[self.dataColumnToIdx["a"]]
+                b = self.__data[self.dataColumnToIdx["b"]]
+
+                @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+                def _MFD(density):
+                    if density < (b / 2):
+                        out = max(a * (density - b), 0.01)
+                        return out
+                    else:
+                        out = max(-a * b ** 2 / (4 * density), 0.01)
+                        return out
 
             else:
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]
@@ -267,7 +285,7 @@ class Network:
 
     @property
     def jamDensity(self):
-        densityMax = self.__data[self.dataColumnToIdx["densityMax"]]
+        densityMax = self.__data[self.dataColumnToIdx["k_jam"]]
         if np.isnan(densityMax) | (densityMax <= 0.0):
             return self.__data[self.dataColumnToIdx["capacityFlow"]] / self.__data[self.dataColumnToIdx["vMax"]] * 4.
         else:

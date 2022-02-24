@@ -401,8 +401,8 @@ class Interact:
                                      )
                 parameterVBox[-1].observe(self.response, names="value")
                 self.__widgetIDtoField[parameterVBox[-1].model_id] = ('vMax', row.Index)
-                if ~np.isnan(row.densityMax):
-                    parameterVBox.append(widgets.FloatSlider(value=row.densityMax, min=0.1, max=0.3, step=0.002,
+                if ~np.isnan(row.k_jam):
+                    parameterVBox.append(widgets.FloatSlider(value=row.k_jam, min=0.1, max=0.3, step=0.002,
                                                              description="Jam density (veh/m)",
                                                              orientation='horizontal',
                                                              style={'description_width': '1.25in'}))
@@ -636,7 +636,7 @@ class Interact:
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'vMax'] = newValue
             self.model.microtypes.recompileMFDs()  # TODO: simplify to only microtyype
         if changeType[0] == 'densityMax':
-            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'densityMax'] = newValue
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'k_jam'] = newValue
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'capacityFlow':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow'] = newValue

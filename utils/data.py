@@ -148,11 +148,14 @@ class ScenarioData:
         Fills the data dict() with values, the dict() contains data pertaining to various data labels and given csv
         data.
         """
+        subnetworkColumns = ["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
+                             "capacityFlow", "smoothingFactor", "waveSpeed", "a", "b",
+                             "criticalDensity", "k_jam"]
+        renamedColumns = {"criticalDensity": "b", "densityMax": "k_jam"}
         self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                             usecols=["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
-                                                      "capacityFlow", "smoothingFactor", "waveSpeed", "a",
-                                                      "criticalDensity"],
-                                             index_col="SubnetworkID", dtype={"MicrotypeID": str}).fillna(0.0)
+                                             usecols=lambda x: x in subnetworkColumns,
+                                             index_col="SubnetworkID",
+                                             dtype={"MicrotypeID": str}).fillna(0.0).rename(columns=renamedColumns)
         self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                                  index_col="SubnetworkID", dtype={"MicrotypeID": str})
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))

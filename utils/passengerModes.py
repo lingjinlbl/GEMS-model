@@ -236,8 +236,8 @@ class BikeMode(Mode):
             # self._VMT[n] = VMT
             # n.setVMT(self.name, self._VMT[n])
             # if np.isnan(VMT / n.getModeNetworkSpeed(self.name)):
-            #     print('STOPPPPP')
-            n.setModeAccumulation(self.name, VMT / n.getModeNetworkSpeed(self.name))
+            acc = VMT / n.getModeNetworkSpeed(self.name)
+            n.setModeAccumulation(self.name, acc)
             # self._N_eff[n] = VMT / self._speed[n] * self.relativeLength
             # n.setN(self.name, self._N_eff[n])
 

@@ -61,22 +61,22 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 
 """
 
-defaults = {'1': {'a': -100.0, 'criticalDensity': 0.118, 'densityMax': 0.15,
+defaults = {'1': {'a': -97.3, 'b': 0.12, 'k_jam': 0.5,
                   'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road', 'smoothingFactor': np.nan,
-                  'waveSpeed': np.nan},
-            '2': {'a': -182.0, 'criticalDensity': 0.085, 'densityMax': 0.15,
+                  'waveSpeed': np.nan, 'vMax': 11.6},
+            '2': {'a': -183.0, 'b': 0.0849, 'k_jam': 0.0849,
                   'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
-            '3': {'vMax': 14.8, 'capacityFlow': 0.344,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '4': {'vMax': 14.5, 'capacityFlow': 0.305,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '5': {'vMax': 15.5, 'capacityFlow': 0.292,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '6': {'vMax': 19.4, 'capacityFlow': 0.325,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
+            '3': {'a': -357.0, 'b': 0.0632, 'k_jam': 0.0632,
+                  'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
+            '4': {'a': -243.0, 'b': 0.0784, 'k_jam': 0.0784,
+                  'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
+            '5': {'a': -240.0, 'b': 0.0791, 'k_jam': 0.0791,
+                  'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
+            '6': {'a': -515.56, 'b': 0.0376,
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
             'bus': {'vMax': 17.0, 'capacityFlow': 0.4, 'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             'walk': {'vMax': 1.35, 'MFD': 'fixed', 'Type': 'Sidewalk'},
-            'bike': {'vMax': 5., 'densityMax': 0.15, 'MFD': 'fixed', 'Type': 'Road'},
+            'bike': {'vMax': 5., 'k_jam': 0.15, 'MFD': 'fixed', 'Type': 'Road'},
             'rail': {'vMax': 20., 'MFD': 'fixed', 'Type': 'Rail'}
             }
 
