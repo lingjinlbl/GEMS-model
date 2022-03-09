@@ -743,7 +743,7 @@ class TransitionMatrices:
                     # Something weird about eigs?
                     vec = vec[:, 0]
                 tripDistribution = np.real_if_close(vec[:-1]) / np.real_if_close(vec[:-1]).sum()
-                if np.isreal(lam):
+                if np.all(np.isreal(lam)):
                     if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
                         print('Something went wrong in loading transition matrices')
                     self.__assignmentMatrices[self.odiToIdx[odi], :] = np.squeeze(tripDistribution)

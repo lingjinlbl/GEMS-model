@@ -152,10 +152,11 @@ class ScenarioData:
                              "capacityFlow", "smoothingFactor", "waveSpeed", "a", "b",
                              "criticalDensity", "k_jam"]
         renamedColumns = {"criticalDensity": "b", "densityMax": "k_jam"}
-        self["subNetworkData"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                             usecols=lambda x: x in subnetworkColumns,
-                                             index_col="SubnetworkID",
-                                             dtype={"MicrotypeID": str}).fillna(0.0).rename(columns=renamedColumns)
+        subNetworkData = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
+                                     usecols=lambda x: x in subnetworkColumns,
+                                     index_col="SubnetworkID",
+                                     dtype={"MicrotypeID": str}).fillna(0.0).rename(columns=renamedColumns)
+        self["subNetworkData"] = subNetworkData.loc[:, ~subNetworkData.columns.duplicated()]
         self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                                  index_col="SubnetworkID", dtype={"MicrotypeID": str})
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
@@ -527,6 +528,8 @@ class Data:
 
     def updateNetworkLength(self, networkId, newLength):
         idx = self.scenarioData.subNetworkIdToIdx[networkId]
-        self.__subNetworkLength[idx] = newLength * \
-                                       self.__microtypeLengthMultiplier[:, self.__subNetworkToMicrotype[:, idx]].max(
-                                           axis=0)[0]
+        self.__subNetworkLength[idx] = newLength
+        self.__subNetworkScaledLength[idx] = newLength * \
+                                             self.__microtypeLengthMultiplier[:,
+                                             self.__subNetworkToMicrotype[:, idx]].max(
+                                                 axis=0)[0]
