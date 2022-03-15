@@ -212,6 +212,9 @@ HomeMicrotypeID,TimePeriodID,PopulationGroupTypeID,TripPurposeID,OriginMicrotype
 2,9,LowIncVeh,other,2,2,1.0
 2,17,LowIncVeh,home,2,2,0.541030049825792
 2,17,LowIncVeh,school,2,2,1.0
+3,13,LowIncVehSenior,home,6,3,1.0
+3,16,LowIncVehSenior,home,3,3,1.0
+3,16,LowIncVehSenior,leisure,3,3,1.0
 4,12,LowIncVehSenior,leisure,5,5,0.256164144620247
 4,18,HighIncVehSenior,school,4,4,1.0
 4,14,LowIncVeh,leisure,2,5,1.0

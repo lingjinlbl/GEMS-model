@@ -156,6 +156,7 @@ class ScenarioData:
                                      usecols=lambda x: x in subnetworkColumns,
                                      index_col="SubnetworkID",
                                      dtype={"MicrotypeID": str}).fillna(0.0).rename(columns=renamedColumns)
+        subNetworkData.loc[subNetworkData.k_jam == 0.0, 'k_jam'] = 0.15
         self["subNetworkData"] = subNetworkData.loc[:, ~subNetworkData.columns.duplicated()]
         self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                                  index_col="SubnetworkID", dtype={"MicrotypeID": str})

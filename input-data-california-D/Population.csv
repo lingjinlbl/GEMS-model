@@ -4,6 +4,8 @@ MicrotypeID,Population,PopulationGroupTypeID
 2,1721,LowIncNoVeh
 2,1711,HighIncVehSenior
 2,3250,HighIncVeh
+3,108,HighIncVehSenior
+3,46,LowIncVehSenior
 4,466,LowIncVehSenior
 4,357,HighIncVehSenior
 4,3305,HighIncVeh

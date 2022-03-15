@@ -178,7 +178,7 @@ class Network:
                         return a * (density - criticalDensity)
                     else:
                         factor = a * (2 * crossoverDensity - criticalDensity)
-                        return factor * (density - densityMax) / density
+                        return max(factor * (density - densityMax) / density, 0.1)
 
             elif self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "loder":
                 vMax = self.__data[self.dataColumnToIdx["vMax"]]

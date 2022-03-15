@@ -1,4 +1,8 @@
 MicrotypeID,CostPerVehicleMile,Mode,CostPerPassengerMile
+1,0.294781341319121,freight_combo,0.0
+1,0.532781001440097,bus,0.0
+1,0.320699450684415,auto,0.0
+1,0.294781341319121,freight_single,0.0
 2,0.296007042882813,freight_combo,0.0
 2,0.321591599727662,auto,0.0
 2,0.550499982687287,bus,0.0
@@ -7,6 +11,10 @@ MicrotypeID,CostPerVehicleMile,Mode,CostPerPassengerMile
 3,0.329022713109255,auto,0.0
 3,0.345945732309239,freight_combo,0.0
 3,0.345945732309239,freight_single,0.0
+4,0.302853454621037,freight_single,0.0
+4,0.302853454621037,freight_combo,0.0
+4,0.562390887235953,bus,0.0
+4,0.32299557496848,auto,0.0
 5,0.339566925765201,auto,0.0
 5,0.374759019549146,freight_combo,0.0
 5,0.374759019549146,freight_single,0.0

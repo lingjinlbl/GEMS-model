@@ -4,7 +4,7 @@ from sys import stdout
 import ipywidgets as widgets
 import numpy as np
 import pandas as pd
-from noisyopt import minimizeCompass, minimizeSPSA
+# from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
 from mock import Mock
 # from skopt import gp_minimize, forest_minimize
@@ -916,25 +916,27 @@ def startBar():
     return modelInput, lookup
 
 
+4
+
 if __name__ == "__main__":
     model = Model("input-data-california-A", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('2', 'Bike')], method="opt")
-    # optimizer.evaluate([0.1])
+                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
+    optimizer.evaluate([0.01])
+    optimizer.evaluate([0.05])
     #
     # allCosts = optimizer.sumAllCosts()
     # #
     # # print(model.getModeSpeeds())
-    # model.collectAllCharacteristics()
-
+    # model.collectAllCharacteristics()=
     # print(model.getModeSpeeds())
-    obj = Mock()
-    obj.new = 0.5
-
-    model.interact.modifyModel(('networkLength', '2'), obj)
-    optimizer.updateAndRunModel()
-    allCosts = optimizer.sumAllCosts()
-    out = model.toPandas()
+    # obj = Mock()
+    # obj.new = 0.5
+    #
+    # model.interact.modifyModel(('networkLength', '2'), obj)
+    # optimizer.updateAndRunModel()
+    # allCosts = optimizer.sumAllCosts()
+    # out = model.toPandas()
     # model.collectAllCharacteristics()
     # print(model.getModeSpeeds())
     # display(model.interact.grid)
@@ -945,12 +947,12 @@ if __name__ == "__main__":
     #                       fromToSubNetworkIDs=[('A', 'Bus'), ('A', 'Bike'), ('B', 'Bus'), ('B', 'Bike')],
     #                       method="min")
 
-    optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus')],
-                          fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike')],
-                          method="min")
-
-    optimizer.evaluate(optimizer.x0())
-    optimizer.evaluate([0.05, 0.05, 0.05])
+    # optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus')],
+    #                       fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike')],
+    #                       method="min")
+    #
+    # optimizer.evaluate(optimizer.x0())
+    # optimizer.evaluate([0.05, 0.05, 0.05])
     # model.data.updateMicrotypeNetworkLength('1', 0.75)
     # model.data.updateMicrotypeNetworkLength('2', 0.75)
     # optimizer.updateAlpha("Operator", 5.0)
