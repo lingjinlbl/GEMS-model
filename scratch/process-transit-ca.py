@@ -210,6 +210,11 @@ newPath = os.path.join(ROOT_DIR, "..", "input-data-california", "TripGeneration.
 df = pd.read_csv(oldPath).rename(columns={"PopulationGroupID": "PopulationGroupTypeID"})
 df.to_csv(newPath, index=False)
 
+# %% TransitionMatrix
+oldPath = os.path.join(ROOT_DIR, "..", "input-data-california-raw", "TransitionMatrix.csv")
+newPath = os.path.join(ROOT_DIR, "..", "input-data-california", "TransitionMatrix.csv")
+shutil.copyfile(oldPath, newPath)
+
 newDir = os.path.join(ROOT_DIR, "..", "input-data-california", "fleets")
 if os.path.exists(newDir):
     shutil.rmtree(newDir)
