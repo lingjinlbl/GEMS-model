@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotypes = ['A', 'B', 'C', 'D']
+geotypes = ['A', 'B', 'C', 'D', 'E', 'F']
 
 inFolder = "input-data-california"
 outFolder = "input-data-california-" + '_'.join(geotypes)

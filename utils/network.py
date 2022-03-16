@@ -478,6 +478,14 @@ class NetworkCollection:
             return self.__passengerModes[mode]
         else:
             return self.__freightModes[mode]
+        
+    def fixedVMT(self, mode):
+        if mode in self.__passengerModes:
+            return self.__passengerModes[mode].fixedVMT
+        elif mode in self.__freightModes:
+            return self.__freightModes[mode].fixedVMT
+        else:
+            return False
 
     def getModeVMT(self, mode):
         return self.getMode(mode).getDemandForVmtPerHour()

@@ -86,25 +86,44 @@ subNetworkId = 0
 
 for id, microtypeInfo in subNetworksRaw.iterrows():
     microtypeId = id[-1]
-    busInfo = busInput.loc[id]
-    railInfo = railInput.loc[id]
-    lengthInMeters = microtypeInfo.LengthNetworkLaneMiles * miles2meters
-    coveragePortion = busInfo.DirectionalRouteMiles / microtypeInfo.LengthNetworkLaneMiles / interliningFactor
-    busInput.loc[id, "CoveragePortion"] = coveragePortion
-    AutoBusBike = {'MicrotypeID': id, 'ModesAllowed': 'Auto-Bus-Bike', 'Dedicated': False, 'Length': lengthInMeters}
-    AutoBusBike.update(defaults[microtypeId])
-    subNetworksOut[subNetworkId] = pd.Series(AutoBusBike)
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_combo'}))
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_single'}))
-    subNetworkId += 1
+    if id in busInput.index:
+        busInfo = busInput.loc[id]
+        railInfo = railInput.loc[id]
+        lengthInMeters = microtypeInfo.LengthNetworkLaneMiles * miles2meters
+        coveragePortion = busInfo.DirectionalRouteMiles / microtypeInfo.LengthNetworkLaneMiles / interliningFactor
+        busInput.loc[id, "CoveragePortion"] = coveragePortion
+        AutoBusBike = {'MicrotypeID': id, 'ModesAllowed': 'Auto-Bus-Bike', 'Dedicated': False, 'Length': lengthInMeters}
+        AutoBusBike.update(defaults[microtypeId])
+        subNetworksOut[subNetworkId] = pd.Series(AutoBusBike)
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_combo'}))
+        modeToSubNetworkOut.append(
+            pd.Series(
+                {'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_single'}))
+        subNetworkId += 1
+    else:
+        railInfo = railInput.loc[id]
+        lengthInMeters = microtypeInfo.LengthNetworkLaneMiles * miles2meters
+        coveragePortion = 0.0
+        AutoBike = {'MicrotypeID': id, 'ModesAllowed': 'Auto-Bike', 'Dedicated': False, 'Length': lengthInMeters}
+        AutoBike.update(defaults[microtypeId])
+        subNetworksOut[subNetworkId] = pd.Series(AutoBike)
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_combo'}))
+        modeToSubNetworkOut.append(
+            pd.Series(
+                {'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_single'}))
+        subNetworkId += 1
 
     Walk = {'MicrotypeID': id, 'ModesAllowed': 'Walk', 'Dedicated': True, 'Length': lengthInMeters / 5.0}
     Walk.update(defaults['walk'])

@@ -294,20 +294,24 @@ class Demand:
 
             for odi, portion in od.items():
                 tripRatePerHour = ratePerHourPerCapita * pop * portion
+                if tripRatePerHour <= 0.0:
+                    continue
                 self.tripRate += tripRatePerHour
                 demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
 
                 self.demandForPMT += demandForPMT
                 self.pop += pop
-
-                currentODindex = self.odiToIdx[odi]
-                if demandIndex in self.diToIdx:
-                    currentPopIndex = self.diToIdx[demandIndex]
-                    weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
-                    self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                if odi in self.odiToIdx:
+                    currentODindex = self.odiToIdx[odi]
+                    if demandIndex in self.diToIdx:
+                        currentPopIndex = self.diToIdx[demandIndex]
+                        weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
+                        self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                    else:
+                        if tripRatePerHour > 0:
+                            print("What do we have here? Lost {} trips".format(tripRatePerHour))
                 else:
-                    if tripRatePerHour > 0:
-                        print("What do we have here? Lost {} trips".format(tripRatePerHour))
+                    print("Lost {} trips from ODI ".format(tripRatePerHour), str(odi))
 
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
@@ -365,7 +369,7 @@ class Demand:
 
         for mode, modeIdx in self.modeToIdx.items():
             for mID, mIdx in self.microtypeIdToIdx.items():
-                if microtypes[mID].networks.getMode(mode).fixedVMT:
+                if microtypes[mID].networks.fixedVMT(mode):
                     if mode in self.passengerModeToIdx:
                         vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
                         # We're dealing with fixed VMT from freight elsewhere

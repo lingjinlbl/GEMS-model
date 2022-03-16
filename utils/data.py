@@ -104,10 +104,6 @@ class ScenarioData:
         return self.__transitLayerToIdx
 
     @property
-    def freightModeToIdx(self):
-        return self.__freightModeToIdx
-
-    @property
     def firstFreightIdx(self):
         return len(self.passengerModeToIdx)
 
@@ -148,18 +144,23 @@ class ScenarioData:
         Fills the data dict() with values, the dict() contains data pertaining to various data labels and given csv
         data.
         """
+        self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
+                                           dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         subnetworkColumns = ["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
                              "capacityFlow", "smoothingFactor", "waveSpeed", "a", "b",
-                             "criticalDensity", "k_jam"]
+                             "criticalDensity", "k_jam", "MicrotypeID"]
         renamedColumns = {"criticalDensity": "b", "densityMax": "k_jam"}
         subNetworkData = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                      usecols=lambda x: x in subnetworkColumns,
                                      index_col="SubnetworkID",
                                      dtype={"MicrotypeID": str}).fillna(0.0).rename(columns=renamedColumns)
+        subNetworkData = subNetworkData.loc[subNetworkData.MicrotypeID.isin(self['microtypeIDs'].MicrotypeID)]
         subNetworkData.loc[subNetworkData.k_jam == 0.0, 'k_jam'] = 0.15
         self["subNetworkData"] = subNetworkData.loc[:, ~subNetworkData.columns.duplicated()]
-        self["subNetworkDataFull"] = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
-                                                 index_col="SubnetworkID", dtype={"MicrotypeID": str})
+        subNetworkDataFull = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
+                                         index_col="SubnetworkID", dtype={"MicrotypeID": str})
+        self["subNetworkDataFull"] = subNetworkDataFull.loc[
+            subNetworkDataFull.MicrotypeID.isin(self['microtypeIDs'].MicrotypeID)]
         self["modeToSubNetworkData"] = pd.read_csv(os.path.join(self.__path, "ModeToSubNetwork.csv"))
         self["microtypeAssignment"] = pd.read_csv(os.path.join(self.__path, "MicrotypeAssignment.csv"),
                                                   dtype={"FromMicrotypeID": str, "ToMicrotypeID": str,
@@ -182,8 +183,7 @@ class ScenarioData:
                                                  dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
         self["modeData"] = self.loadModeData()
         self["fleetData"] = self.loadFleetData()
-        self["microtypeIDs"] = pd.read_csv(os.path.join(self.__path, "Microtypes.csv"),
-                                           dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
+
         self["modeExternalities"] = pd.read_csv(os.path.join(self.__path, "ModeExternalities.csv"),
                                                 dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
         self["modeAvailability"] = pd.read_csv(os.path.join(self.__path, "ModeAvailability.csv"),
@@ -219,15 +219,17 @@ class ScenarioData:
                                                               on=["OriginMicrotypeID", "DestinationMicrotypeID"],
                                                               suffixes=("_OD", "_Dist"), how="right")
         odJoinedToDistance = odJoinedToDistance.loc[odJoinedToDistance.OriginMicrotypeID.isin(
-            odJoinedToDistance.HomeMicrotypeID) & odJoinedToDistance.DestinationMicrotypeID.isin(
-            odJoinedToDistance.HomeMicrotypeID)]
+            self['microtypeIDs'].MicrotypeID) & odJoinedToDistance.DestinationMicrotypeID.isin(
+            self['microtypeIDs'].MicrotypeID) & odJoinedToDistance.HomeMicrotypeID.isin(
+            self['microtypeIDs'].MicrotypeID)]
         popGroupJoinedToTripGeneration = self.data['populations'].merge(self.data['tripGeneration'],
                                                                         on=['PopulationGroupTypeID'],
                                                                         suffixes=("_pop", "_trip"), how="inner")
         nestedDIs = popGroupJoinedToTripGeneration.groupby(
             ['MicrotypeID', 'PopulationGroupTypeID', 'TripPurposeID']).groups
         # nestedDIs = list(product(homeMicrotypeIDs, groupAndPurpose))
-        DIs = [(hID, popGroup, purpose) for hID, popGroup, purpose in nestedDIs]
+        DIs = [(hID, popGroup, purpose) for hID, popGroup, purpose in nestedDIs if
+               hID in self['microtypeIDs'].MicrotypeID]
         self.__diToIdx = {DemandIndex(*di): idx for idx, di in enumerate(DIs)}
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(
             odJoinedToDistance.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID']).groups)}

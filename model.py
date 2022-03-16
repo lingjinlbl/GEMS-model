@@ -916,14 +916,12 @@ def startBar():
     return modelInput, lookup
 
 
-4
-
 if __name__ == "__main__":
     model = Model("input-data-california-A", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
                           fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
     optimizer.evaluate([0.01])
-    optimizer.evaluate([0.05])
+    optimizer.evaluate([0.02])
     #
     # allCosts = optimizer.sumAllCosts()
     # #
