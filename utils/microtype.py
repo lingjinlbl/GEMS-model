@@ -8,7 +8,8 @@ from numba import njit
 
 from .OD import TransitionMatrix, Allocation
 from .choiceCharacteristics import ChoiceCharacteristics
-from .network import Network, NetworkCollection, Costs, TotalOperatorCosts, CollectedNetworkStateData
+from .network import Network, NetworkCollection, Costs, TotalOperatorCosts
+from .freight import FreightMode
 
 
 class CollectedTotalOperatorCosts:
@@ -133,16 +134,16 @@ class Microtype:
 
 
 def getFlows(self):
-    return [mode.getPassengerFlow() for mode in self.networks.modes.values()]
+    return [mode.getPassengerFlow() for mode in self.networks.passengerModes.values()]
 
 
 def getSpeeds(self):
-    return [mode.getSpeed() for mode in self.networks.modes.values()]
+    return [mode.getSpeed() for mode in self.networks.passengerModes.values()]
 
 
 def getDemandsForPMT(self):
     return [mode.getPassengerFlow() for mode in
-            self.networks.modes.values()]
+            self.networks.passengerModes.values()]
 
 
 def __str__(self):
@@ -155,17 +156,21 @@ class MicrotypeCollection:
         self.__microtypes = dict()
         self.__scenarioData = scenarioData
         self.modeData = scenarioData["modeData"]
+        self.__firstFreightModeIdx = len(self.modeData)
+        self.fleetData = scenarioData["fleetData"]
         self.transitionMatrix = None
         # self.collectedNetworkStateData = CollectedNetworkStateData()
         self.__modeToMicrotype = dict()
-        self.__networkIdToIdx = dict()
+        self.__networkIdToIdx = scenarioData.subNetworkIdToIdx
         self.__numpyDemand = supplyData['demandData']
         self.__numpyMicrotypeSpeed = supplyData['microtypeSpeed']
-        self.__numpyFleetSize = supplyData['fleetSize']
+        self.__numpyFleetSize = supplyData[
+            'fleetSize']  # Only nonzero when fleet size (rather than production) is fixed
         self.__numpyMicrotypeMixedTrafficDistance = supplyData['microtypeMixedTrafficDistance']
         self.__diameters = np.ndarray([0])
         self.__numpyNetworkAccumulation = supplyData['subNetworkAccumulation']
         self.__numpyNetworkLength = supplyData['subNetworkLength']
+        self.__numpyScaledNetworkLength = supplyData['subNetworkScaledLength']
         self.__numpyNetworkVehicleSize = supplyData['subNetworkVehicleSize']
         self.__numpyNetworkSpeed = supplyData['subNetworkAverageSpeed']
         self.__numpyNetworkOperatingSpeed = supplyData['subNetworkOperatingSpeed']
@@ -174,6 +179,7 @@ class MicrotypeCollection:
         self.__numpyInstantaneousAccumulation = supplyData['subNetworkInstantaneousAutoAccumulation']
         self.__accessDistance = supplyData['accessDistance']
         self.__microtypeCosts = supplyData['microtypeCosts']
+        self.__numpyFreightProduction = supplyData['freightProduction']  # only set to nonzero when production is fixed
         self.__transitionMatrixNetworkIdx = supplyData['transitionMatrixNetworkIdx']
         self.__nonAutoModes = supplyData['nonAutoModes']
         self.__nInit = supplyData['subNetworkPreviousAutoAccumulation']
@@ -201,12 +207,16 @@ class MicrotypeCollection:
         return self.__scenarioData.modeToIdx
 
     @property
-    def paramToIdx(self):
-        return self.__scenarioData.paramToIdx
+    def freightModeToIdx(self):
+        return self.__scenarioData.freightModeToIdx
 
     @property
-    def dataToIdx(self):
-        return self.__scenarioData.dataToIdx
+    def demandDataTypeToIdx(self):
+        return self.__scenarioData.demandDataTypeToIdx
+
+    @property
+    def paramToIdx(self):
+        return self.__scenarioData.paramToIdx
 
     @property
     def microtypeIdToIdx(self):
@@ -257,8 +267,8 @@ class MicrotypeCollection:
         return pd.DataFrame(self.tripEndRateByMode.flatten(),
                             index=pd.MultiIndex.from_product([self.microtypeIdToIdx.keys(), self.modeToIdx.keys()]))
 
-    def updateNumpyDemand(self, data):
-        np.copyto(self.__numpyDemand, data)
+    def updateNumpyPassengerDemand(self, data):
+        self.__numpyDemand[:, :self.__firstFreightModeIdx, :] = data
 
     def updateNetworkData(self):
         for m in self.__microtypes.values():
@@ -299,14 +309,20 @@ class MicrotypeCollection:
     def getModeStartRatePerSecond(self, mode):
         return np.array([microtype.getModeStartRate(mode) / 3600. for mID, microtype in self])
 
+    def initializeFreightProduction(self):
+        for (mID, freightMode), VMT in self.__scenarioData["freightDemand"].itertuples(index=True):
+            self.__numpyFreightProduction[
+                self.microtypeIdToIdx[mID], self.freightModeToIdx[freightMode]] = VMT  # TODO: Delete
+            self.__numpyDemand[self.microtypeIdToIdx[mID], self.modeToIdx[freightMode], self.demandDataTypeToIdx[
+                'vehicleDistance']] = VMT
+
     def importMicrotypes(self, override=False):
         # uniqueMicrotypes = subNetworkData["MicrotypeID"].unique()
-
+        self.initializeFreightProduction()
         subNetworkData = self.__scenarioData["subNetworkData"]
         subNetworkCharacteristics = self.__scenarioData["subNetworkDataFull"]
         modeToSubNetworkData = self.__scenarioData["modeToSubNetworkData"]
         microtypeData = self.__scenarioData["microtypeIDs"]
-        self.__networkIdToIdx = {networkId: idx for idx, networkId in enumerate(subNetworkCharacteristics.index)}
         self.__diameters = np.zeros(len(microtypeData), dtype=float)
         for microtypeId, idx in self.microtypeIdToIdx.items():
             self.__diameters[idx] = microtypeData.loc[microtypeId, 'DiameterInMiles'] * 1609.34
@@ -340,6 +356,9 @@ class MicrotypeCollection:
                                          self.__numpyNetworkLength[self.__networkIdToIdx[subNetworkId], :],
                                          self.__MFDs[self.__networkIdToIdx[subNetworkId]],
                                          self.modeToIdx)
+                    self.__numpyScaledNetworkLength[self.__networkIdToIdx[subNetworkId], :] = self.__numpyNetworkLength[
+                                                                                              self.__networkIdToIdx[
+                                                                                                  subNetworkId], :]
                     if collectMatrixIds:
                         if 'auto' in subNetwork.modesAllowed.lower():  # Simple fix for now while we just have 1 auto network per microtype
                             self.__transitionMatrixNetworkIdx[self.__networkIdToIdx[subNetworkId]] = True
@@ -349,14 +368,19 @@ class MicrotypeCollection:
                         allModes.add(n.Mode.lower())
                         self.__modeToMicrotype.setdefault(n.Mode.lower(), set()).add(microtypeId)
                 for mode in allModes:
-                    modeToModeData[mode] = self.modeData[mode]
+                    if mode in self.modeData:
+                        modeToModeData[mode] = self.modeData[mode]
+                    else:
+                        modeToModeData[mode] = self.fleetData[mode]
                 netCol = NetworkCollection(subNetworkToModes, modeToModeData, microtypeId,
                                            self.__numpyDemand[self.microtypeIdToIdx[microtypeId], :, :],
                                            self.__numpyMicrotypeSpeed[self.microtypeIdToIdx[microtypeId], :],
                                            self.__microtypeCosts[self.microtypeIdToIdx[microtypeId], :, :, :],
                                            self.__numpyFleetSize[self.microtypeIdToIdx[microtypeId], :],
+                                           self.__numpyFreightProduction[self.microtypeIdToIdx[microtypeId], :],
                                            self.__accessDistance[self.microtypeIdToIdx[microtypeId], :],
-                                           self.dataToIdx, self.modeToIdx, self.diToIdx)
+                                           self.demandDataTypeToIdx, self.modeToIdx, self.freightModeToIdx,
+                                           self.diToIdx)
                 self[microtypeId] = Microtype(microtypeId, netCol, self.paramToIdx)
                 # self.collectedNetworkStateData.addMicrotype(self[microtypeId])
 
@@ -385,7 +409,7 @@ class MicrotypeCollection:
                     speedFunctions[idx] = autoNetwork.MFD
         n_init = self.__nInit[self.__transitionMatrixNetworkIdx]
         L_blocked = self.__numpyNetworkBlockedDistance[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
-        L_eff = self.__numpyNetworkLength[self.__transitionMatrixNetworkIdx, 0] - L_blocked
+        L_eff = self.__numpyScaledNetworkLength[self.__transitionMatrixNetworkIdx, 0] - L_blocked
         n_other = (self.__numpyNetworkAccumulation[self.__transitionMatrixNetworkIdx, :][:,
                    self.nonAutoModes] * self.__numpyNetworkVehicleSize[self.__transitionMatrixNetworkIdx, :][:,
                                         self.nonAutoModes]).sum(axis=1)
@@ -426,27 +450,11 @@ class MicrotypeCollection:
             operatorCosts[mID] = microtype.networks.getModeOperatingCosts()
         return operatorCosts
 
-    """
-    def getStateData(self) -> CollectedNetworkStateData:
-        data = CollectedNetworkStateData()
+    def getFreightOperatorCosts(self):
+        operatorCosts = CollectedTotalOperatorCosts()
         for mID, microtype in self:
-            data.addMicrotype(microtype)
-        return data
-
-    def importPreviousStateData(self, networkStateData: CollectedNetworkStateData):
-        for mID, microtype in self:
-            networkStateData.adoptPreviousMicrotypeState(microtype)
-
-    def resetStateData(self):
-        for _, nsd in self.collectedNetworkStateData:
-            nsd.reset()
-    """
-
-    # def updateTransitionMatrix(self, transitionMatrix: TransitionMatrix):
-    #     if self.transitionMatrix.names == transitionMatrix.names:
-    #         self.transitionMatrix = transitionMatrix
-    #     else:
-    #         print("MICROTYPE NAMES IN TRANSITION MATRIX DON'T MATCH")
+            operatorCosts[mID] = microtype.networks.getFreightModeOperatingCosts()
+        return operatorCosts
 
     def emptyTransitionMatrix(self):
         return TransitionMatrix(self.transitionMatrix.names)
@@ -484,7 +492,6 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_ot
     nTimeSteps = N.shape[1]
 
     N[:, 0] = n_init
-    n_prev = n_init
 
     def v(n, n_other, L_eff, speedFunctions):
         density = (n + n_other) / L_eff
@@ -510,6 +517,5 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_ot
         n_t = spillback(n_t, tripStartRate, infl, outfl, dt)
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
-        n_prev = N[:, t]
 
     return N

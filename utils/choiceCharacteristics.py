@@ -152,7 +152,7 @@ class CollectedChoiceCharacteristics:
     def __init__(self, scenarioData, demand, numpyData, fixedData):
         self.__scenarioData = scenarioData
         self.__demand = demand
-        self.modes = scenarioData.getModes()
+        self.modes = scenarioData.getPassengerModes()
         self.__choiceCharacteristics = dict()
         self.__distanceBins = DistanceBins()
         self.__numpy = numpyData['choiceCharacteristics']
@@ -172,12 +172,12 @@ class CollectedChoiceCharacteristics:
         return self.__scenarioData.odiToIdx
 
     @property
-    def modeToIdx(self):
-        return self.__scenarioData.modeToIdx
+    def passengerModeToIdx(self):
+        return self.__scenarioData.passengerModeToIdx
 
     @property
     def dataToIdx(self):
-        return self.__scenarioData.dataToIdx
+        return self.__scenarioData.demandDataTypeToIdx
 
     @property
     def paramToIdx(self):
@@ -200,13 +200,13 @@ class CollectedChoiceCharacteristics:
 
     def __getitem__(self, item) -> ModalChoiceCharacteristics:
         di, odi, mode = item
-        return self.__numpy[self.diToIdx[di], self.odiToIdx[odi], self.modeToIdx[mode], :]
+        return self.__numpy[self.diToIdx[di], self.odiToIdx[odi], self.passengerModeToIdx[mode], :]
         # return self.__choiceCharacteristics[item]
 
     def toDataFrame(self):  # self.homeMicrotype, self.populationGroupType, self.tripPurpose
         odis = [odi.toTuple() for odi in self.odiToIdx.keys()]
         dis = [di.toTuple() for di in self.diToIdx.keys()]
-        modes = self.modeToIdx.keys()
+        modes = self.passengerModeToIdx.keys()
         params = self.paramToIdx.keys()
         tuples = [(f, g, h, a, b, c, d, e) for (f, g, h), (a, b, c), d, e in product(dis, odis, modes, params)]
         mi = pd.MultiIndex.from_tuples(tuples, names=('homeMicrotype', 'populationGroup', 'tripPurpose',
@@ -218,15 +218,6 @@ class CollectedChoiceCharacteristics:
         self.__distanceBins = distanceBins
         self.__numpy[:, :, :, self.paramToIdx['intercept']] = 1
         for odIndex, odIndexIdx in self.odiToIdx.items():
-            # if odIndex.d != 'None' and odIndex.o != 'None':
-            #     common_modes = [microtypes[odIndex.o].mode_names, microtypes[odIndex.d].mode_names]
-            #     modes = set.intersection(*common_modes)
-            #     for mode in self.modes:
-            #         if mode not in modes:
-            #             # print("Excluding mode ", mode, "in ODI", odIndex)
-            #             self.__numpy[self.odiToIdx[odIndex], self.modeToIdx[mode], :] = np.nan
-            #     self[odIndex] = ModalChoiceCharacteristics(self.modeToIdx, distanceBins[odIndex.distBin],
-            #                                                data=self.__numpy[self.odiToIdx[odIndex], :, :])
             self.__numpy[:, odIndexIdx, :, self.paramToIdx['distance']] = distanceBins[odIndex.distBin]
 
     def resetChoiceCharacteristics(self):
@@ -239,23 +230,25 @@ class CollectedChoiceCharacteristics:
         self.clearCache()
 
     def updateChoiceCharacteristics(self, microtypes) -> np.ndarray:
+        endIdx = self.__scenarioData.firstFreightIdx
         self.resetChoiceCharacteristics()
-        travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed, self.__demand.toThroughDistance)
-        mixedTravelPortion = mixedPortion(microtypes.numpyMixedTrafficDistance,
+        travelTimeInHours, broken = speedToTravelTime(microtypes.numpySpeed[:, :endIdx],
+                                                      self.__demand.toThroughDistance)
+        mixedTravelPortion = mixedPortion(microtypes.numpyMixedTrafficDistance[:, :endIdx],
                                           self.__demand.toThroughDistance)  # Right now it's a waste to recalculate it every time but it might come in handy at some point?
         self.__broken = broken
 
-        allCosts = self.__fixedData['microtypeCosts']
+        allCosts = self.__fixedData['microtypeCosts'][:, :, :endIdx, :]  # only grab this for passenger modes
 
-        microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.modeToIdx['walk'], None]) * self.__fixedData[
-            'accessDistance']
+        accessDistance = self.__fixedData['accessDistance'][:, :endIdx]
+        microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.passengerModeToIdx['walk'], None]) * accessDistance
 
         accessSeconds = self.__cache.setdefault(
             'accessDistance', np.einsum('im,ki->km', microtypeAccessSeconds,
                                         self.__fixedData['toStarts'] + self.__fixedData['toEnds']))
 
         bikeFleetDensity = self.__cache.setdefault(
-            'bikeFleetDensity', np.einsum('im,ki->km', self.__fleetSize, self.__fixedData['toStarts']))
+            'bikeFleetDensity', np.einsum('im,ki->km', self.__fleetSize[:, :endIdx], self.__fixedData['toStarts']))
         startCosts = self.__cache.setdefault(
             'startCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 0], self.__fixedData['toStarts']))
         endCosts = self.__cache.setdefault(

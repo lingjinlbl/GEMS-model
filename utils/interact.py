@@ -230,27 +230,32 @@ class Interact:
                 self.__dataToHandle['modeSpeed']['ref'][mode][mID] = microtypeFigs[idx].data[-1]
                 microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Freight', 'Transit', 'Revenue', 'Externality', 'Lane dedication'],
+                                       y=[0.] * 4,
                                        visible=True, row=4, col=1, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['current'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            microtypeFigs[idx].add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            microtypeFigs[idx].add_bar(x=['User', 'Freight', 'Transit', 'Revenue', 'Externality', 'Lane dedication'],
+                                       y=[0.] * 4,
                                        visible=True, row=4, col=2, name='Microtype ' + mID, legendgroup="Costs",
                                        showlegend=False)
             self.__dataToHandle['cost']['ref'][mID] = microtypeFigs[idx].data[-1]
             microtypeFigs[idx].data[-1].marker.color = self.colors[mID]
-            combinedCostDiffFig.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            combinedCostDiffFig.add_bar(x=['User', 'Freight', 'Transit', 'Revenue', 'Externality', 'Lane dedication'],
+                                        y=[0.] * 4,
                                         visible=True, name='Microtype ' + mID, showlegend=True)
             self.__dataToHandle['costDiff'][mID] = combinedCostDiffFig.data[-1]
             combinedCostDiffFig.data[-1].marker.color = self.colors[mID]
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            bothCostFigs.add_bar(x=['User', 'Freight', 'Transit', 'Revenue', 'Externality', 'Lane dedication'],
+                                 y=[0.] * 4,
                                  visible=True,
                                  name='Microtype ' + mID, showlegend=False, row=1, col=1)
             self.__dataToHandle['costCombined']['current'][mID] = bothCostFigs.data[-1]
             bothCostFigs.data[-1].marker.color = self.colors[mID]
-            bothCostFigs.add_bar(x=['User', 'Operator', 'Revenue', 'Externality', 'Lane dedication'], y=[0.] * 4,
+            bothCostFigs.add_bar(x=['User', 'Freight', 'Transit', 'Revenue', 'Externality', 'Lane dedication'],
+                                 y=[0.] * 4,
                                  visible=True,
                                  name='Microtype ' + mID, showlegend=True, row=1, col=2)
             self.__dataToHandle['costCombined']['ref'][mID] = bothCostFigs.data[-1]
@@ -396,8 +401,8 @@ class Interact:
                                      )
                 parameterVBox[-1].observe(self.response, names="value")
                 self.__widgetIDtoField[parameterVBox[-1].model_id] = ('vMax', row.Index)
-                if ~np.isnan(row.densityMax):
-                    parameterVBox.append(widgets.FloatSlider(value=row.densityMax, min=0.1, max=0.3, step=0.002,
+                if ~np.isnan(row.k_jam):
+                    parameterVBox.append(widgets.FloatSlider(value=row.k_jam, min=0.1, max=0.3, step=0.002,
                                                              description="Jam density (veh/m)",
                                                              orientation='horizontal',
                                                              style={'description_width': '1.25in'}))
@@ -631,7 +636,7 @@ class Interact:
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'vMax'] = newValue
             self.model.microtypes.recompileMFDs()  # TODO: simplify to only microtyype
         if changeType[0] == 'densityMax':
-            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'densityMax'] = newValue
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'k_jam'] = newValue
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'capacityFlow':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow'] = newValue
@@ -695,6 +700,7 @@ class Interact:
         axs[3, 0].set_ylabel('mode split')
 
     def updateCosts(self, message=None):
+        self.__downloadHTML.format(payload="")
         if self.model.choice.broken | (not self.model.successful):
             print("Starting from a bad place so I'll reset")
             self.model.initializeAllTimePeriods(True)

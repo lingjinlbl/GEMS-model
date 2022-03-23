@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import numpy as np
+import shutil
 
 miles2meters = 1609.34
 headwayFactor = 2 / 24.
@@ -60,22 +61,22 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 
 """
 
-defaults = {'1': {'a': -100.0, 'criticalDensity': 0.118, 'densityMax': 0.15,
+defaults = {'1': {'a': -80.4, 'b': 0.13, 'k_jam': 0.5,
                   'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road', 'smoothingFactor': np.nan,
-                  'waveSpeed': np.nan},
-            '2': {'a': -182.0, 'criticalDensity': 0.085, 'densityMax': 0.15,
+                  'waveSpeed': np.nan, 'vMax': 11.6},
+            '2': {'a': -148.79, 'b': 0.1, 'k_jam': 0.5,
                   'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
-            '3': {'vMax': 14.8, 'capacityFlow': 0.344,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '4': {'vMax': 14.5, 'capacityFlow': 0.305,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '5': {'vMax': 15.5, 'capacityFlow': 0.292,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
-            '6': {'vMax': 19.4, 'capacityFlow': 0.325,
-                  'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
+            '3': {'a': -302.29, 'b': 0.07, 'k_jam': 0.5,
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
+            '4': {'a': -195.76, 'b': 0.09, 'k_jam': 0.5,
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
+            '5': {'a': -147.41, 'b': 0.11, 'k_jam': 0.5,
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
+            '6': {'a': -226.65, 'b': 0.1,
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
             'bus': {'vMax': 17.0, 'capacityFlow': 0.4, 'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             'walk': {'vMax': 1.35, 'MFD': 'fixed', 'Type': 'Sidewalk'},
-            'bike': {'vMax': 5., 'densityMax': 0.15, 'MFD': 'fixed', 'Type': 'Road'},
+            'bike': {'vMax': 5., 'k_jam': 0.15, 'MFD': 'fixed', 'Type': 'Road'},
             'rail': {'vMax': 20., 'MFD': 'fixed', 'Type': 'Rail'}
             }
 
@@ -85,21 +86,44 @@ subNetworkId = 0
 
 for id, microtypeInfo in subNetworksRaw.iterrows():
     microtypeId = id[-1]
-    busInfo = busInput.loc[id]
-    railInfo = railInput.loc[id]
-    lengthInMeters = microtypeInfo.LengthNetworkLaneMiles * miles2meters
-    coveragePortion = busInfo.DirectionalRouteMiles / microtypeInfo.LengthNetworkLaneMiles / interliningFactor
-    busInput.loc[id, "CoveragePortion"] = coveragePortion
-    AutoBusBike = {'MicrotypeID': id, 'ModesAllowed': 'Auto-Bus-Bike', 'Dedicated': False, 'Length': lengthInMeters}
-    AutoBusBike.update(defaults[microtypeId])
-    subNetworksOut[subNetworkId] = pd.Series(AutoBusBike)
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
-    modeToSubNetworkOut.append(
-        pd.Series({'ModesAllowed': 'Auto-Bus-Bike', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
-    subNetworkId += 1
+    if id in busInput.index:
+        busInfo = busInput.loc[id]
+        railInfo = railInput.loc[id]
+        lengthInMeters = microtypeInfo.LengthNetworkLaneMiles * miles2meters
+        coveragePortion = busInfo.DirectionalRouteMiles / microtypeInfo.LengthNetworkLaneMiles / interliningFactor
+        busInput.loc[id, "CoveragePortion"] = coveragePortion
+        AutoBusBike = {'MicrotypeID': id, 'ModesAllowed': 'Auto-Bus-Bike', 'Dedicated': False, 'Length': lengthInMeters}
+        AutoBusBike.update(defaults[microtypeId])
+        subNetworksOut[subNetworkId] = pd.Series(AutoBusBike)
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bus'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_combo'}))
+        modeToSubNetworkOut.append(
+            pd.Series(
+                {'ModesAllowed': 'Auto-Bus-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_single'}))
+        subNetworkId += 1
+    else:
+        railInfo = railInput.loc[id]
+        lengthInMeters = microtypeInfo.LengthNetworkLaneMiles * miles2meters
+        coveragePortion = 0.0
+        AutoBike = {'MicrotypeID': id, 'ModesAllowed': 'Auto-Bike', 'Dedicated': False, 'Length': lengthInMeters}
+        AutoBike.update(defaults[microtypeId])
+        subNetworksOut[subNetworkId] = pd.Series(AutoBike)
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'auto'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'bike'}))
+        modeToSubNetworkOut.append(
+            pd.Series({'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_combo'}))
+        modeToSubNetworkOut.append(
+            pd.Series(
+                {'ModesAllowed': 'Auto-Bike-Freight', 'SubnetworkID': subNetworkId, 'Mode': 'freight_single'}))
+        subNetworkId += 1
 
     Walk = {'MicrotypeID': id, 'ModesAllowed': 'Walk', 'Dedicated': True, 'Length': lengthInMeters / 5.0}
     Walk.update(defaults['walk'])
@@ -186,4 +210,20 @@ newPath = os.path.join(ROOT_DIR, "..", "input-data-california", "TripGeneration.
 df = pd.read_csv(oldPath).rename(columns={"PopulationGroupID": "PopulationGroupTypeID"})
 df.to_csv(newPath, index=False)
 
-print('dpone')
+# %% TransitionMatrix
+oldPath = os.path.join(ROOT_DIR, "..", "input-data-california-raw", "TransitionMatrix.csv")
+newPath = os.path.join(ROOT_DIR, "..", "input-data-california", "TransitionMatrix.csv")
+shutil.copyfile(oldPath, newPath)
+
+newDir = os.path.join(ROOT_DIR, "..", "input-data-california", "fleets")
+if os.path.exists(newDir):
+    shutil.rmtree(newDir)
+os.makedirs(newDir)
+
+freight = pd.DataFrame(
+    {'freight_single': {'VehicleSize': 2.0, 'MaximumSpeedMetersPerSecond': 20.0, 'OperatingCostPerHour': 30.0},
+     'freight_combo': {'VehicleSize': 4.0, 'MaximumSpeedMetersPerSecond': 20.0,
+                       'OperatingCostPerHour': 40.0}}).transpose()
+freight.index.name = "Fleet"
+freight.to_csv(os.path.join(newDir, 'freight.csv'))
+print('done')

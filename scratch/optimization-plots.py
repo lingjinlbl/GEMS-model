@@ -7,7 +7,7 @@ from model import Model, Optimizer
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 model = Model(ROOT_DIR + "/../input-data", nSubBins=2)
 
-operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
+operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
 optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus')], fromToSubNetworkIDs=[('A', 'bus')], method="noisy")  # ,
 
 headways = np.linspace(60, 300, 10)
@@ -22,7 +22,7 @@ for i, h in enumerate(headways):
     for j, a in enumerate(allocations):
         optimizer.updateAndRunModel(np.array([a, h]))
         if model.successful:
-            operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()  # TODO: add back in lane dedication
+            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = model.collectAllCosts()  # TODO: add back in lane dedication
             collectedUserCosts[i, j] = sum([uc.sum() for uc in vectorUserCosts.values()])
             collectedOperatorCosts[i, j] = operatorCosts.total
             collectedExternalityCosts[i, j] = sum([ex.sum() for ex in externalities.values()])

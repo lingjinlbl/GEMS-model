@@ -210,6 +210,10 @@ class Demand:
         return self.__scenarioData.modeToIdx
 
     @property
+    def passengerModeToIdx(self):
+        return self.__scenarioData.passengerModeToIdx
+
+    @property
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
 
@@ -218,7 +222,7 @@ class Demand:
                                         names=('homeMicrotype', 'populationGroupType', 'tripPurpose'))
         odis = pd.MultiIndex.from_tuples([odi.toTuple() for odi in self.odiToIdx.keys()],
                                          names=('originMicrotype', 'destinationMicrotype', 'distanceBin'))
-        modes = list(self.modeToIdx.keys())
+        modes = list(self.passengerModeToIdx.keys())
         tuples = [(a, b, c, d, e, f, g) for (a, b, c), (d, e, f), g in product(dis, odis, modes)]
         mi = pd.MultiIndex.from_tuples(tuples, names=(
             'homeMicrotype', 'populationGroupType', 'tripPurpose', 'originMicrotype', 'destinationMicrotype',
@@ -290,20 +294,24 @@ class Demand:
 
             for odi, portion in od.items():
                 tripRatePerHour = ratePerHourPerCapita * pop * portion
+                if tripRatePerHour <= 0.0:
+                    continue
                 self.tripRate += tripRatePerHour
                 demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
 
                 self.demandForPMT += demandForPMT
                 self.pop += pop
-
-                currentODindex = self.odiToIdx[odi]
-                if demandIndex in self.diToIdx:
-                    currentPopIndex = self.diToIdx[demandIndex]
-                    weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
-                    self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                if odi in self.odiToIdx:
+                    currentODindex = self.odiToIdx[odi]
+                    if demandIndex in self.diToIdx:
+                        currentPopIndex = self.diToIdx[demandIndex]
+                        weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
+                        self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+                    else:
+                        if tripRatePerHour > 0:
+                            print("What do we have here? Lost {} trips".format(tripRatePerHour))
                 else:
-                    if tripRatePerHour > 0:
-                        print("What do we have here? Lost {} trips".format(tripRatePerHour))
+                    print("Lost {} trips from ODI ".format(tripRatePerHour), str(odi))
 
         otherMatrix = transitionMatrices.averageMatrix(weights)
         microtypes.transitionMatrix.updateMatrix(otherMatrix)
@@ -361,12 +369,14 @@ class Demand:
 
         for mode, modeIdx in self.modeToIdx.items():
             for mID, mIdx in self.microtypeIdToIdx.items():
-                if microtypes[mID].networks.getMode(mode).fixedVMT:
-                    vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
+                if microtypes[mID].networks.fixedVMT(mode):
+                    if mode in self.passengerModeToIdx:
+                        vehicleMilesByMicrotype[mIdx, modeIdx] = microtypes[mID].networks.getModeVMT(mode)
+                        # We're dealing with fixed VMT from freight elsewhere
         newData = np.stack([startsByOrigin, startsByDestination, passengerMilesByMicrotype, vehicleMilesByMicrotype,
                             discountStartsByOrigin], axis=-1)
 
-        microtypes.updateNumpyDemand(newData)
+        microtypes.updateNumpyPassengerDemand(newData)
         weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
 
         """

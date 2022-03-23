@@ -504,7 +504,7 @@ class OriginDestination:
 
         for transitLayer, idx in self.__scenarioData.transitLayerToIdx.items():
             modeIncluded = np.array(
-                [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.modeToIdx.keys()])
+                [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.passengerModeToIdx.keys()])
             self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
 
         for odi, idx in self.__scenarioData.odiToIdx.items():
@@ -727,23 +727,29 @@ class TransitionMatrices:
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
         default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)
         for key, val in matrices.groupby(level=[0, 1, 2]):
+            mat = val.copy()  # .loc[:, val.columns.isin(self.microtypeIdToIdx.keys())]
             odi = ODindex(*key)
             if odi in self.odiToIdx:
-                df = val.set_index(val.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
+                df = mat.set_index(mat.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
+                df = df[df.index]
                 self.__data[odi] = df  # TODO: Delete this
                 self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
                 startVec = np.zeros((1, len(microtypeIDs)))
                 startVec[0, self.microtypeIdToIdx[odi.o]] = 1
                 X4 = np.vstack([df.values, startVec])
                 X5 = np.hstack([X4, 1 - X4.sum(axis=1).reshape((-1, 1))])
-                _, vec = eigs(X5.transpose(), k=1, which='LM')
+                lam, vec = eigs(X5.transpose(), k=1, which='LM')
                 if vec.shape[1] > 1:
                     # Something weird about eigs?
                     vec = vec[:, 0]
                 tripDistribution = np.real_if_close(vec[:-1]) / np.real_if_close(vec[:-1]).sum()
-                if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
-                    print('Something went wrong in loading transition matrices')
-                self.__assignmentMatrices[self.odiToIdx[odi], :] = np.squeeze(tripDistribution)
+                if np.all(np.isreal(lam)):
+                    if np.abs(np.sum(tripDistribution) - 1.0) > 0.1:
+                        print('Something went wrong in loading transition matrices')
+                    self.__assignmentMatrices[self.odiToIdx[odi], :] = np.squeeze(tripDistribution)
+                else:
+                    print('Imaginary transition matrix')
+                    self.__assignmentMatrices[self.odiToIdx[odi], :] = X4.sum(axis=0) / X4.sum()
                 # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
                 #             np.ones((len(microtypeIDs), 1))
         print("|  Loaded ", str(matrices.size), " transition probabilities")

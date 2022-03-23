@@ -5,9 +5,9 @@ import pandas as pd
 
 from model import Model, Optimizer
 
-colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
+colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:cyan']
 
-colorsModes = ['tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
+colorsModes = ['tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan', 'xkcd:sky blue']
 
 
 def plotCosts(series: pd.Series, folder, suffix, xLabel=''):
@@ -71,7 +71,7 @@ multipliers = np.linspace(0.8, 1.2, 11)
 # model.data.updateMicrotypeNetworkLength('5', 0.55)
 # model.data.updateMicrotypeNetworkLength('6', 0.6)
 
-busAllocations = np.linspace(0., 0.6, 20)
+busAllocations = np.linspace(0., 0.6, 10)
 collectedCosts = dict()
 collectedModeSplits = dict()
 for mul in multipliers:
@@ -84,7 +84,7 @@ for mul in multipliers:
             collectedModeSplits[ba] = model.getModeSplit(microtypeID='A')
 
     varyBusAllocation = pd.DataFrame(collectedCosts).transpose()
-    varyBusAllocationModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBusAllocationModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
     f2_bus = plotModes(varyBusAllocationModes, "out-optimization/1-microtype", "-busROW-demand" + f'{mul:.2f}',
                        "Bus ROW allocation")
@@ -92,7 +92,7 @@ for mul in multipliers:
                        "Bus ROW allocation")
 
 multipliers = np.linspace(0.5, 1.2, 11)
-busHeadway = np.linspace(60, 240, 20)
+busHeadway = np.linspace(60, 240, 11)
 collectedCosts = dict()
 collectedModeSplits = dict()
 for mul in multipliers:
@@ -105,7 +105,7 @@ for mul in multipliers:
             collectedModeSplits[bh] = model.getModeSplit(microtypeID='A')
 
     varyBusHeadway = pd.DataFrame(collectedCosts).transpose()
-    varyBusHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBusHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
     f2_bus = plotModes(varyBusHeadwayModes, "out-optimization/1-microtype", "-busHeadway-demand" + f'{mul:.2f}',
                        "Bus headway")
@@ -128,7 +128,7 @@ for mul in multipliers:
             collectedModeSplits[bc] = model.getModeSplit(microtypeID='A')
 
     varyBusCost = pd.DataFrame(collectedCosts).transpose()
-    varyBusCostModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBusCostModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
     f2_buscost = plotModes(varyBusCostModes, "out-optimization/1-microtype", "-busCost-demand" + f'{mul:.2f}',
                            "Bus fare")
@@ -149,7 +149,7 @@ for mul in multipliers:
                 collectedCosts[(ba, bh)] = allCosts.sum()
                 collectedModeSplits[(ba, bh)] = model.getModeSplit(microtypeID='A')
     varyBusCostHeadway = pd.DataFrame(collectedCosts).transpose()
-    varyBusCostHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBusCostHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
     f3 = plt.figure(figsize=(5, 4))
     f3_compare = plt.contourf(busHeadway, busAllocations, varyBusCostHeadway.sum(axis=1).unstack().values, 30)
     plt.xlabel('Bus headway')
@@ -160,7 +160,7 @@ for mul in multipliers:
     # params, outcomes, mask = optimizer.plotConvergence()
     # plt.plot(params[:, 1] * 1000., params[:, 0], 'ok-')
 
-""" 
+"""
 'eps': 0.001, 'eta': 0.05
      fun: 11107.89474150491
      jac: array([-0.11045,  3.52667])
@@ -212,7 +212,7 @@ optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
 
 initialDemand = model.data.tripRate().copy()
 
-multipliers = np.linspace(0.6, 1.3, 11)
+multipliers = np.linspace(0.8, 1.2, 9)
 #
 # model.data.updateMicrotypeNetworkLength('1', 0.71)
 # model.data.updateMicrotypeNetworkLength('2', 0.71)
@@ -221,7 +221,7 @@ multipliers = np.linspace(0.6, 1.3, 11)
 # model.data.updateMicrotypeNetworkLength('5', 0.55)
 # model.data.updateMicrotypeNetworkLength('6', 0.6)
 
-busAllocations = np.linspace(0., 0.5, 20)
+busAllocations = np.linspace(0., 0.5, 12)
 collectedCosts = dict()
 collectedModeSplits = dict()
 for mul in multipliers:
@@ -234,7 +234,7 @@ for mul in multipliers:
             collectedModeSplits[ba] = model.getModeSplit(microtypeID='A')
 
     varyBusAllocation = pd.DataFrame(collectedCosts).transpose()
-    varyBusAllocationModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBusAllocationModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
     f2_bus = plotModes(varyBusAllocationModes, "out-optimization/4-microtype", "-busROW-demand" + f'{mul:.2f}',
                        "Bus ROW allocation")
@@ -255,7 +255,7 @@ for mul in multipliers:
             model.getModeSplit()
 
     varyBusHeadway = pd.DataFrame(collectedCosts).transpose()
-    varyBusHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBusHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
     f2_bus = plotModes(varyBusHeadwayModes, "out-optimization/4-microtype", "-busHeadway-demand" + f'{mul:.2f}',
                        "Bus headway")
@@ -275,7 +275,7 @@ for mul in multipliers:
             collectedModeSplits[ba] = model.getModeSplit(microtypeID='A')
 
     varyBikeAllocation = pd.DataFrame(collectedCosts).transpose()
-    varyBikeAllocationModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBikeAllocationModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
     f2_bus = plotModes(varyBikeAllocationModes, "out-optimization/4-microtype", "-bikeROW-demand" + f'{mul:.2f}',
                        "Bike ROW allocation")
@@ -295,7 +295,7 @@ for bc in busCosts:
         collectedModeSplits[bc] = model.getModeSplit(microtypeID='A')
 
 varyBusCost = pd.DataFrame(collectedCosts).transpose()
-varyBusCostModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+varyBusCostModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
 f2_buscost = plotModes(varyBusCostModes, "Bus fare")
 f1_buscost = plotCosts(varyBusCost, "Bus fare")
@@ -315,7 +315,7 @@ for mul in multipliers:
                 collectedCosts[(ba, bh)] = allCosts.sum()
                 collectedModeSplits[(ba, bh)] = model.getModeSplit(microtypeID='A')
     varyBusCostHeadway = pd.DataFrame(collectedCosts).transpose()
-    varyBusCostHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
+    varyBusCostHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
     plt.figure()
     f3_compare = plt.contourf(busHeadway, busAllocations, varyBusCostHeadway.sum(axis=1).unstack().values, 30)
     plt.xlabel('Bus headway')

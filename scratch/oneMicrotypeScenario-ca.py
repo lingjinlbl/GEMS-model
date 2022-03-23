@@ -25,6 +25,8 @@ if os.path.exists(modesDir):
     shutil.rmtree(modesDir)
 os.makedirs(modesDir)
 
+shutil.copytree(os.path.join(ROOT_DIR, "..", inFolder, "fleets"), os.path.join(ROOT_DIR, "..", outFolder, "fleets"))
+
 for mode in ["auto", "bike", "bus", "rail", "walk"]:
     oldPath = os.path.join(ROOT_DIR, "..", inFolder, "modes", mode + ".csv")
     newPath = os.path.join(ROOT_DIR, "..", outFolder, "modes", mode + ".csv")
@@ -112,6 +114,14 @@ newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :].replace("hv", "auto")
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 
+# %% FreightDemand
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "FreightDemand.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "FreightDemand.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
+newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
+newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
+
 # %% SubNetworks
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "SubNetworks.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "SubNetworks.csv")
@@ -133,8 +143,11 @@ oldPath = os.path.join(ROOT_DIR, "..", inFolder, "Externalities.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "ModeExternalities.csv")
 df = pd.read_csv(oldPath)
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :].rename(
-    columns={'PerMileExtCost': 'CostPerVehicleMile'}).replace("hv", "auto")
+    columns={'PerMileExtCost': 'CostPerVehicleMile'}).replace("hv", "auto").replace("freight", "freight_combo")
 newdf['CostPerPassengerMile'] = 0.0
+newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
+otherdf = newdf.loc[newdf['Mode'] == "freight_combo"].copy().replace("freight_combo", "freight_single")
+newdf = pd.concat([newdf, otherdf])
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 
 # %% RoadNetworkCosts

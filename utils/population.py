@@ -128,7 +128,7 @@ class Population:
         self.__numpy = fixedData['choiceParameters']
         self.__numpyCost = fixedData['choiceParametersFixed']
         self.__transitLayerUtility = fixedData['transitLayerUtility']
-        self.__modes = scenarioData.getModes()
+        self.__modes = scenarioData.getPassengerModes()
         self.utilsToDollars = 200
         self.defaultValueOfTimePerHour = 45
 
@@ -137,8 +137,8 @@ class Population:
         return self.__scenarioData.diToIdx
 
     @property
-    def modeToIdx(self):
-        return self.__scenarioData.modeToIdx
+    def passengerModeToIdx(self):
+        return self.__scenarioData.passengerModeToIdx
 
     @property
     def paramToIdx(self):
@@ -183,7 +183,7 @@ class Population:
             di = DemandIndex(mID, populationGroupTypeID, tripPurposeID)
             if di in self.diToIdx:
                 vals.append(mID)
-                out.append(self.__numpy[self.diToIdx[di], self.modeToIdx[mode], self.paramToIdx[param]])
+                out.append(self.__numpy[self.diToIdx[di], self.passengerModeToIdx[mode], self.paramToIdx[param]])
         return vals, out
 
     def setUtilityParam(self, value: float, param: str, populationGroupTypeID=None, tripPurposeID=None, mode=None):
@@ -196,7 +196,7 @@ class Population:
         else:
             tripPurposeIDs = [tripPurposeID]
         if mode is None:
-            modes = list(self.__scenarioData.modeToIdx.keys())
+            modes = list(self.__scenarioData.passengerModeToIdx.keys())
         else:
             modes = [mode]
         for mID in self.__scenarioData.microtypeIds:
@@ -204,7 +204,7 @@ class Population:
                 for tp in tripPurposeIDs:
                     for mode in modes:
                         di = DemandIndex(mID, popGroup, tp)
-                        self.__numpy[self.diToIdx[di], self.modeToIdx[mode], self.paramToIdx[param]] = value
+                        self.__numpy[self.diToIdx[di], self.passengerModeToIdx[mode], self.paramToIdx[param]] = value
 
     def importPopulation(self, populations: pd.DataFrame, populationGroups: pd.DataFrame):
         for row in populations.itertuples():
@@ -246,10 +246,11 @@ class Population:
                 di = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
                 if di in self.diToIdx:
                     for mode, values in df.iterrows():
-                        self.__numpy[self.diToIdx[di], self.modeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
+                        self.__numpy[
+                            self.diToIdx[di], self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
                     for mode, values in dfPooled.iterrows():
                         self.__numpyCost[
-                            self.diToIdx[di], self.modeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
+                            self.diToIdx[di], self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
 
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
