@@ -1,0 +1,5 @@
+﻿TripPurposeID,OriginMicrotypeID,DestinationMicrotypeID,DistanceBinID,Portion
+work,A,A,medium,0.5
+nonwork,A,A,medium,0.8
+work,A,A,long,0.5
+nonwork,A,A,long,0.2

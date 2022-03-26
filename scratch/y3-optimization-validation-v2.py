@@ -55,46 +55,47 @@ def plotModes(series: pd.Series, folder, suffix, xLabel=''):
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-model = Model(ROOT_DIR + "/../input-data-simpler", nSubBins=2)
-optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
-                      fromToSubNetworkIDs=[('A', 'Bus')],
-                      method="min")
-
-initialDemand = model.data.tripRate().copy()
-
-x0 = optimizer.x0()
-
-alphas = np.logspace(-1., 1., 25)
-costType = ["User", "Operator", "Externality", "Dedication"]
-out = dict()
-for alpha in alphas:
-    for ct in costType:
-        if ct == "User":
-            optimizer.updateAlpha(ct, alpha * 20.0)
-        else:
-            optimizer.updateAlpha(ct, alpha)
-        result = optimizer.minimize(x0)
-        out[(ct, alpha)] = pd.concat([pd.Series({"alloc": result.x[0], "headway": result.x[1], "fun": result.fun}),
-                                      optimizer.sumAllCosts().sum(), optimizer.model.getModeSpeeds().sum()])
-        if ct == "User":
-            optimizer.updateAlpha(ct, 20.0)
-        else:
-            optimizer.updateAlpha(ct, 1.0)
-        x0 = result.x
-
-df = pd.concat(out)
-cols = ["alloc", "headway", "fun"] + costType + list(optimizer.model.getModeSpeeds().columns)
-for col in cols:
-    sub = df.unstack()[col].unstack().transpose()
-    if col in sub.columns:
-        sub[col] /= alphas
-    elif col == "headway":
-        sub *= 1000.0 / 60.0
-    plot = sub.reset_index().plot(x='index', logx=True)
-    plt.savefig('out-opt-2/1mic/' + col + '.png')
-    plt.ylabel(col)
-    plt.xlabel('/alpha')
-    plt.close('all')
+# model = Model(ROOT_DIR + "/../input-data-simplest", nSubBins=2)
+# optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
+#                       fromToSubNetworkIDs=[('A', 'Bus')],
+#                       method="min")
+#
+# initialDemand = model.data.tripRate().copy()
+#
+# x0 = optimizer.x0()
+#
+# alphas = np.logspace(-0.8, 0.8, 20)
+# costType = ["User", "Operator", "Externality", "Dedication"]
+# out = dict()
+# for alpha in alphas:
+#     for ct in costType:
+#         if ct == "User":
+#             optimizer.updateAlpha(ct, alpha * 20.0)
+#         else:
+#             optimizer.updateAlpha(ct, alpha)
+#         result = optimizer.minimize(x0)
+#         out[(ct, alpha)] = pd.concat([pd.Series({"alloc": result.x[0], "headway": result.x[1], "fun": result.fun}),
+#                                       optimizer.sumAllCosts().sum(), optimizer.model.getModeSpeeds().sum()])
+#         if ct == "User":
+#             optimizer.updateAlpha(ct, 20.0)
+#         else:
+#             optimizer.updateAlpha(ct, 1.0)
+#         x0 = result.x
+#
+# df = pd.concat(out)
+# df.to_csv('out-opt-2/1-microtype-2-modes/outputData.csv')
+# cols = ["alloc", "headway", "fun"] + costType + list(optimizer.model.getModeSpeeds().columns)
+# for col in cols:
+#     sub = df.unstack()[col].unstack().transpose()
+#     if col in sub.columns:
+#         sub[col] /= alphas
+#     elif col == "headway":
+#         sub *= 1000.0 / 60.0
+#     plot = sub.reset_index().plot(x='index', logx=True)
+#     plt.savefig('out-opt-2/1-microtype-2-modes/' + col + '.png')
+#     plt.ylabel(col)
+#     plt.xlabel('/alpha')
+#     plt.close('all')
 
 model = Model(ROOT_DIR + "/../input-data", nSubBins=2)
 optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
@@ -103,7 +104,7 @@ optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
 x0 = optimizer.x0()
 initialDemand = model.data.tripRate().copy()
 
-alphas = np.logspace(-1., 1., 25)
+alphas = np.logspace(-0.8, 0.8, 20)
 costType = ["User", "Operator", "Externality", "Dedication"]
 out = dict()
 for alpha in alphas:
@@ -122,6 +123,7 @@ for alpha in alphas:
         x0 = result.x
 
 df = pd.concat(out)
+df.to_csv('optimization-outputs/4mic/outputData.csv')
 cols = ["alloc", "headway", "fun"] + costType + list(optimizer.model.getModeSpeeds().columns)
 for col in cols:
     sub = df.unstack()[col].unstack().transpose()
@@ -129,8 +131,11 @@ for col in cols:
         sub[col] /= alphas
     elif col == "headway":
         sub *= 1000.0 / 60.0
+    elif (col == "auto") | (col == "bus") | (col == "freight_single") | (col == "freight_combo"):
+        sub /= 4.0
+
     plot = sub.reset_index().plot(x='index', logx=True)
-    plt.savefig('out-opt-2/4mic/' + col + '.png')
+    plt.savefig('optimization-outputs/4mic/' + col + '.png')
     plt.ylabel(col)
     plt.xlabel('/alpha')
     plt.close('all')

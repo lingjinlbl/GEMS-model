@@ -123,7 +123,7 @@ class Model:
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
         self.__tripGeneration = TripGeneration()
-        self.__transitionMatrices = TransitionMatrices(self.scenarioData)
+        self.__transitionMatrices = TransitionMatrices(self.scenarioData, self.data.getSupply())
         self.__originDestination = OriginDestination(self.__timePeriods, self.__distanceBins, self.__population,
                                                      self.__transitionMatrices, self.__fixedData,
                                                      self.scenarioData)
@@ -174,7 +174,7 @@ class Model:
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
             self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData, self.data.getSupply(
-                self.__currentTimePeriod))
+                self.__currentTimePeriod), self.data.getDemand(self.__currentTimePeriod))
         return self.__microtypes[self.__currentTimePeriod]
 
     def getMicrotypeCollection(self, timePeriod) -> MicrotypeCollection:
@@ -426,6 +426,7 @@ class Model:
         self.__currentTimePeriod = timePeriod
         self.__originDestination.setTimePeriod(timePeriod)
         self.__tripGeneration.setTimePeriod(timePeriod)
+        self.__transitionMatrices.setTimePeriod(timePeriod)
 
     def collectAllCosts(self, event=None):
         operatorCosts = CollectedTotalOperatorCosts()
