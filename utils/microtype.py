@@ -432,7 +432,7 @@ class MicrotypeCollection:
         #
         # otherCharacteristicL = characteristicL * (otherCharacteristicL.sum() / characteristicL.sum())
 
-        otherCharacteristicL = characteristicL / expectedAverageTripDistance.sum() * averageDistanceByStart.sum() / 3.0
+        otherCharacteristicL = characteristicL / expectedAverageTripDistance.sum() * averageDistanceByStart.sum()
 
         ts = np.arange(0, durationInHours * 3600., dt)
         ns = np.zeros((len(self), np.size(ts)), dtype=float)
