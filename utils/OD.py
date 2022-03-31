@@ -510,6 +510,8 @@ class OriginDestination:
         for odi, idx in self.__scenarioData.odiToIdx.items():
             self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
             self.__modelData['toEnds'][idx, self.__scenarioData.microtypeIdToIdx[odi.d]] = 1.0
+            self.__modelData['toDistanceByOrigin'][idx, self.__scenarioData.microtypeIdToIdx[
+                odi.d]] = self.__distanceBins[odi.distBin]
             # TODO: Expand through distance to have a mode dimension, then filter and reallocate
             self.__modelData['toThroughDistance'][idx, :] = self.__transitionMatrices.assignmentMatrix(odi) * \
                                                             self.__distanceBins[odi.distBin]
@@ -651,25 +653,28 @@ class TransitionMatrix:
 
 
 class TransitionMatrices:
-    def __init__(self, scenarioData):
+    def __init__(self, scenarioData, supplyData):
         self.__names = []
         self.__scenarioData = scenarioData
         self.__diameters = np.ndarray([])
         self.__data = dict()
         self.__transitionMatrices = dict()
         self.__currentTimePeriod = 0
-        self.__numpy = np.zeros(
-            (len(scenarioData.odiToIdx), len(scenarioData.microtypeIdToIdx), len(scenarioData.microtypeIdToIdx)))
+        self.__numpy = supplyData['transitionMatrices']
         self.__assignmentMatrices = np.zeros((len(scenarioData.odiToIdx), len(scenarioData.microtypeIdToIdx)))
         self.__baseIdx = dict()
+        self.__transitionMatrix = supplyData['transitionMatrix']
+
+    def setTimePeriod(self, currentTimePeriod):
+        self.__currentTimePeriod = currentTimePeriod
 
     @property
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
 
     @property
-    def numpy(self):
-        return self.__numpy
+    def transitionMatrix(self):
+        return self.__transitionMatrix[self.__currentTimePeriod, :, :]
 
     @property
     def odiToIdx(self):
@@ -685,19 +690,19 @@ class TransitionMatrices:
     def assignmentMatrix(self, item: ODindex):
         return self.__assignmentMatrices[self.odiToIdx[item], :]
 
-    def __getitem__(self, item: ODindex):
-        if (item.o, item.d, item.distBin) in self.__transitionMatrices:
-            return self.__transitionMatrices[(item.o, item.d, item.distBin)]
-        else:
-            if (item.o, item.d, item.distBin) in self.__data:
-                out = TransitionMatrix(self.microtypeIdToIdx, self.__data[(item.o, item.d, item.distBin)],
-                                       diameters=self.__diameters)
-                self.__transitionMatrices[(item.o, item.d, item.distBin)] = out
-                return out
-            else:
-                # print(f"No transition matrix found for {(item.o, item.d, item.distBin)}")
-                out = TransitionMatrix(self.microtypeIdToIdx).fillZeros()
-                return out
+    # def __getitem__(self, item: ODindex):
+    #     if (item.o, item.d, item.distBin) in self.__transitionMatrices:
+    #         return self.__transitionMatrices[(item.o, item.d, item.distBin)]
+    #     else:
+    #         if (item.o, item.d, item.distBin) in self.__data:
+    #             out = TransitionMatrix(self.microtypeIdToIdx, self.__data[(item.o, item.d, item.distBin)],
+    #                                    diameters=self.__diameters)
+    #             self.__transitionMatrices[(item.o, item.d, item.distBin)] = out
+    #             return out
+    #         else:
+    #             # print(f"No transition matrix found for {(item.o, item.d, item.distBin)}")
+    #             out = TransitionMatrix(self.microtypeIdToIdx).fillZeros()
+    #             return out
 
     # def reIndex(self, odiToIdx, currentTimePeriod):
     #     newNumpy = self.__baseNumpy.copy()
@@ -715,14 +720,13 @@ class TransitionMatrices:
     #     return self.idx.get(item, -1)
 
     def emptyWeights(self) -> np.ndarray:
-        return np.zeros(self.numpy.shape[0])
+        return np.zeros(self.transitionMatrix.shape[0])
 
-    def averageMatrix(self, weights: np.ndarray):
+    def averageMatrix(self, weights: np.ndarray) -> np.ndarray:
         if np.sum(weights) > 0.0:
-            return TransitionMatrix(self.microtypeIdToIdx, np.average(self.numpy, axis=0, weights=weights),
-                                    diameters=self.__diameters)
+            return np.average(self.__numpy, axis=0, weights=weights)
         else:
-            return TransitionMatrix(self.microtypeIdToIdx, diameters=self.__diameters)
+            return np.zeros_like(self.transitionMatrix) + 1. / (len(self.microtypeIdToIdx) ** 2)
 
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
         default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)
@@ -732,7 +736,7 @@ class TransitionMatrices:
             if odi in self.odiToIdx:
                 df = mat.set_index(mat.index.droplevel([0, 1, 2])).add(default, fill_value=0.0)
                 df = df[df.index]
-                self.__data[odi] = df  # TODO: Delete this
+                # self.__data[odi] = df  # TODO: Delete this
                 self.__numpy[self.odiToIdx[odi], :, :] = df.to_numpy()
                 startVec = np.zeros((1, len(microtypeIDs)))
                 startVec[0, self.microtypeIdToIdx[odi.o]] = 1
@@ -750,6 +754,8 @@ class TransitionMatrices:
                 else:
                     print('Imaginary transition matrix')
                     self.__assignmentMatrices[self.odiToIdx[odi], :] = X4.sum(axis=0) / X4.sum()
+                realLengths = np.squeeze((np.eye(len(microtypeIDs)) - df.values).T @ np.ones_like(startVec.T))
+                # print(realLengths)
                 # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
                 #             np.ones((len(microtypeIDs), 1))
         print("|  Loaded ", str(matrices.size), " transition probabilities")

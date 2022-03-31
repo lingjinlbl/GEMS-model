@@ -51,6 +51,7 @@ class ScenarioData:
         self.__paramToIdx = dict()
         self.__transitLayerToIdx = dict()
         self.__subNetworkIdToIdx = dict()
+        self.__distanceBinToDistance = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
             self.data = dict()
@@ -94,6 +95,10 @@ class ScenarioData:
     @property
     def subNetworkIdToIdx(self):
         return self.__subNetworkIdToIdx
+
+    @property
+    def distanceBinToDistance(self):
+        return self.__distanceBinToDistance
 
     @property
     def microtypeIds(self):
@@ -155,7 +160,10 @@ class ScenarioData:
                                      index_col="SubnetworkID",
                                      dtype={"MicrotypeID": str}).fillna(0.0).rename(columns=renamedColumns)
         subNetworkData = subNetworkData.loc[subNetworkData.MicrotypeID.isin(self['microtypeIDs'].MicrotypeID)]
-        subNetworkData.loc[subNetworkData.k_jam == 0.0, 'k_jam'] = 0.15
+        if 'k_jam' in subNetworkData.columns:
+            subNetworkData.loc[subNetworkData.k_jam == 0.0, 'k_jam'] = 0.15
+        else:
+            subNetworkData.k_jam = 0.15
         self["subNetworkData"] = subNetworkData.loc[:, ~subNetworkData.columns.duplicated()]
         subNetworkDataFull = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                          index_col="SubnetworkID", dtype={"MicrotypeID": str})
@@ -241,6 +249,9 @@ class ScenarioData:
 
         self.__subNetworkIdToIdx = {sID: idx for idx, sID in enumerate(self["subNetworkData"].index)}
 
+        self.__distanceBinToDistance = {bd.DistanceBinID: bd.MeanDistanceInMiles for db, bd in
+                                        self["distanceBins"].iterrows()}
+
         self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
                              'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
         uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
@@ -299,6 +310,7 @@ class Data:
         self.__toStarts = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toEnds = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toThroughDistance = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toDistanceByOrigin = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toTransitLayer = np.zeros((self.params.nODIs, self.params.nTransitLayers), dtype=float)
         self.__utilities = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes), dtype=float)
@@ -321,6 +333,10 @@ class Data:
         self.__subNetworkToMicrotype = np.zeros((self.params.nMicrotypes, self.params.nSubNetworks), dtype=bool)
         self.__microtypeSpeed = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
+        self.__transitionMatrix = np.zeros(
+            (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nMicrotypes))
+        self.__transitionMatrices = np.zeros(
+            (self.params.nODIs, self.params.nMicrotypes, self.params.nMicrotypes))
         self.__accessDistance = np.zeros((self.params.nMicrotypes, self.params.nModesTotal))
         self.__microtypeMixedTrafficDistance = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
@@ -446,6 +462,8 @@ class Data:
             supply['microtypeCosts'] = self.__microtypeCosts
             supply['MFDs'] = self.__MFDs
             supply['freightProduction'] = self.__freightProduction
+            supply['transitionMatrix'] = self.__transitionMatrix
+            supply['transitionMatrices'] = self.__transitionMatrices
         else:
             startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
             supply = dict()
@@ -475,7 +493,8 @@ class Data:
             supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
             supply['microtypeCosts'] = self.__microtypeCosts
             supply['MFDs'] = self.__MFDs
-
+            supply['transitionMatrix'] = self.__transitionMatrix[timePeriodIdx, :, :]
+            supply['transitionMatrices'] = self.__transitionMatrices
         return supply
 
     def getDemand(self, timePeriodIdx=None):
@@ -488,6 +507,7 @@ class Data:
             demand['toStarts'] = self.__toStarts
             demand['toEnds'] = self.__toEnds
             demand['toThroughDistance'] = self.__toThroughDistance
+            demand['toDistanceByOrigin'] = self.__toDistanceByOrigin
             demand['utilities'] = self.__utilities
             demand['choiceCharacteristics'] = self.__choiceCharacteristics
             demand['choiceParameters'] = self.__choiceParameters
@@ -502,6 +522,7 @@ class Data:
             demand['toStarts'] = self.__toStarts
             demand['toEnds'] = self.__toEnds
             demand['toThroughDistance'] = self.__toThroughDistance
+            demand['toDistanceByOrigin'] = self.__toDistanceByOrigin
             demand['utilities'] = self.__utilities[timePeriodIdx, :, :, :]
             demand['choiceCharacteristics'] = self.__choiceCharacteristics[timePeriodIdx, :, :, :, :]
             demand['choiceParameters'] = self.__choiceParameters
@@ -519,6 +540,7 @@ class Data:
         fixedData['toEnds'] = self.__toEnds
         fixedData['microtypeCosts'] = self.__microtypeCosts
         fixedData['toThroughDistance'] = self.__toThroughDistance
+        fixedData['toDistanceByOrigin'] = self.__toDistanceByOrigin
         fixedData['choiceParameters'] = self.__choiceParameters
         fixedData['choiceParametersFixed'] = self.__choiceParametersFixed
         fixedData['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx

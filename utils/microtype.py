@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 import pandas as pd
 from numba import njit
+from scipy.optimize import nnls
 
 from .OD import TransitionMatrix, Allocation
 from .choiceCharacteristics import ChoiceCharacteristics
@@ -151,14 +152,13 @@ def __str__(self):
 
 
 class MicrotypeCollection:
-    def __init__(self, scenarioData, supplyData):
+    def __init__(self, scenarioData, supplyData, demandData):
         self.__timeStepInSeconds = scenarioData.timeStepInSeconds
         self.__microtypes = dict()
         self.__scenarioData = scenarioData
         self.modeData = scenarioData["modeData"]
         self.__firstFreightModeIdx = len(self.modeData)
         self.fleetData = scenarioData["fleetData"]
-        self.transitionMatrix = None
         # self.collectedNetworkStateData = CollectedNetworkStateData()
         self.__modeToMicrotype = dict()
         self.__networkIdToIdx = scenarioData.subNetworkIdToIdx
@@ -185,6 +185,14 @@ class MicrotypeCollection:
         self.__nInit = supplyData['subNetworkPreviousAutoAccumulation']
         self.__subNetworkToMicrotype = supplyData['subNetworkToMicrotype']
         self.__MFDs = supplyData['MFDs']
+        self.__tripRate = demandData['tripRate']
+        self.__modeSplit = demandData['modeSplit']
+        self.__toStarts = demandData['toStarts']
+        self.__toDistanceByOrigin = demandData['toDistanceByOrigin']
+        self.transitionMatrix = supplyData['transitionMatrix']
+
+    def updateTransitionMatrix(self, newTransitionMatrix: np.ndarray):
+        np.copyto(self.transitionMatrix, newTransitionMatrix)
 
     @property
     def nonAutoModes(self):
@@ -327,9 +335,6 @@ class MicrotypeCollection:
         for microtypeId, idx in self.microtypeIdToIdx.items():
             self.__diameters[idx] = microtypeData.loc[microtypeId, 'DiameterInMiles'] * 1609.34
 
-        self.transitionMatrix = TransitionMatrix(self.microtypeIdToIdx,
-                                                 diameters=self.__diameters)
-
         if len(self.__microtypes) == 0:
             self.__modeToMicrotype = dict()
 
@@ -386,22 +391,26 @@ class MicrotypeCollection:
 
     def updateDedicatedDistance(self):
         for microtypeID, microtype in self:
-            idx = self.transitionMatrix.idx(microtypeID)
+            idx = self.microtypeIdToIdx[microtypeID]
             for mode in microtype.mode_names:
                 portionDedicated = microtype.networks.getMode(mode).getPortionDedicated()
                 distanceMixed = (1. - portionDedicated)  # microtype.getModeDemandForPMT(mode) *
                 self.__numpyMicrotypeMixedTrafficDistance[idx, self.modeToIdx[mode]] = distanceMixed
 
-    def transitionMatrixMFD(self, durationInHours, collectedNetworkStateData=None, tripStartRate=None):
-        if tripStartRate is None:
-            tripStartRate = self.getModeStartRatePerSecond("auto")
+    def transitionMatrixMFD(self, durationInHours):
+        tripStartRatePerSecond = self.tripStartRateByMode[:, self.modeToIdx['auto']] / 3600
+
+        autoDistanceByODI = (self.__tripRate * self.__modeSplit[:, :, self.modeToIdx['auto']]).sum(
+            axis=0) * self.__toDistanceByOrigin.sum(axis=1)
+
+        averageDistanceByStart = np.einsum("i,ij->j", autoDistanceByODI, self.__toStarts) / tripStartRatePerSecond
 
         characteristicL = np.zeros((len(self)), dtype=float)
         L_eff = np.zeros((len(self)), dtype=float)
         # n_init = np.zeros((len(self)), dtype=float)
         speedFunctions = [None] * len(self)
         for microtypeID, microtype in self:
-            idx = self.transitionMatrix.idx(microtypeID)
+            idx = self.microtypeIdToIdx[microtypeID]
             for autoNetwork in microtype.networks:
                 if "auto" in autoNetwork:
                     characteristicL[idx] += autoNetwork.diameter * 1609.34
@@ -415,13 +424,33 @@ class MicrotypeCollection:
                                         self.nonAutoModes]).sum(axis=1)
         dt = self.__timeStepInSeconds
 
+        # // TODO: other ways of having it sum to the correct value -- perhaps have it be proportional to the original characteristic L
+        expectedAverageTripDistance = np.linalg.inv(
+            (np.eye(len(characteristicL)) - self.transitionMatrix).T) @ characteristicL
+
+        # otherCharacteristicL = np.squeeze((np.eye(6) - self.transitionMatrix).T @ averageDistanceByStart[:, None])
+        #
+        # otherCharacteristicL = characteristicL * (otherCharacteristicL.sum() / characteristicL.sum())
+
+        otherCharacteristicL = characteristicL / expectedAverageTripDistance.sum() * averageDistanceByStart.sum()
+
         ts = np.arange(0, durationInHours * 3600., dt)
         ns = np.zeros((len(self), np.size(ts)), dtype=float)
-        ns = doMatrixCalcs(ns, n_init, self.transitionMatrix.matrix.values, tripStartRate, characteristicL, L_eff,
-                           n_other, dt, speedFunctions)
+        # ns = doMatrixCalcs(ns, n_init, self.transitionMatrix, tripStartRatePerSecond, characteristicL,
+        #                    L_eff,
+        #                    n_other, dt, speedFunctions)
+        # vs = vectorV(ns, n_other, L_eff, speedFunctions)
+
+        ns = doMatrixCalcs(ns, n_init, self.transitionMatrix, tripStartRatePerSecond,
+                           otherCharacteristicL,
+                           L_eff, n_other, dt, speedFunctions)
+
         vs = vectorV(ns, n_other, L_eff, speedFunctions)
 
         # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        # production = (ns * vs).sum() * dt / 3600 * durationInHours
+        # production_other = (ns_other * vs_other).sum() * dt / 3600 * durationInHours
+        # production_requested = (averageDistanceByStart * tripStartRatePerSecond).sum() * durationInHours
 
         averageSpeeds = np.min(vs, axis=1)
 
@@ -455,9 +484,6 @@ class MicrotypeCollection:
         for mID, microtype in self:
             operatorCosts[mID] = microtype.networks.getFreightModeOperatingCosts()
         return operatorCosts
-
-    def emptyTransitionMatrix(self):
-        return TransitionMatrix(self.transitionMatrix.names)
 
     def filterAllocation(self, mode, inputAllocation: Allocation):
         validMicrotypes = self.__modeToMicrotype[mode]
@@ -500,11 +526,11 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_ot
             v_out[ind] = speedFunctions[ind](d)
         return v_out
 
-    def outflow(n):
+    def outflowPerSecond(n):
         return v(n, n_other, L_eff, speedFunctions) * n / characteristicL
 
-    def inflow(n):
-        return X @ (v(n, n_other, L_eff, speedFunctions) * n / characteristicL)
+    def inflowPerSecond(outfl):
+        return X @ outfl
 
     def spillback(n, demand, inflow, outflow, dt):
         requestedN = (demand + inflow - outflow) * dt + n
@@ -512,9 +538,9 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_ot
 
     for t in np.arange(nTimeSteps - 1):
         n_t = N[:, t]
-        infl = inflow(n_t)
-        outfl = outflow(n_t)
-        n_t = spillback(n_t, tripStartRate, infl, outfl, dt)
+        outflow = outflowPerSecond(n_t)
+        inflow = inflowPerSecond(outflow)
+        n_t = spillback(n_t, tripStartRate, inflow, outflow, dt)
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
 

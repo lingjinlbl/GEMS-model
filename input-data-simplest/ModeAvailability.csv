@@ -1,0 +1,3 @@
+OriginMicrotypeID,DestinationMicrotypeID,TransitLayer,Portion
+A,A,nobus,0.25
+A,A,bus,0.75

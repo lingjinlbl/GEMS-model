@@ -1,0 +1,3 @@
+MicrotypeID,Mode,CostPerVehicleMile,CostPerPassengerMile
+A,auto,1.5,0.0
+A,bus,0.05,0.0

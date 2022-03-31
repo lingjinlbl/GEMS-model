@@ -1,0 +1,2 @@
+Fleet,VehicleSize,MaximumSpeedMetersPerSecond,OperatingCostPerHour
+freight_combo, 2.0, 20.0, 30.0

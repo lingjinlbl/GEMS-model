@@ -285,7 +285,7 @@ class Demand:
 
         self.__shape = self.__modeSplitData.shape
         self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.7
-        self.__modeSplitData[:, :, self.modeToIdx['walk']] = 0.3
+        self.__modeSplitData[:, :, self.modeToIdx['bus']] = 0.3  # // TODO: CHANGE BACK
 
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
@@ -312,9 +312,7 @@ class Demand:
                             print("What do we have here? Lost {} trips".format(tripRatePerHour))
                 else:
                     print("Lost {} trips from ODI ".format(tripRatePerHour), str(odi))
-
-        otherMatrix = transitionMatrices.averageMatrix(weights)
-        microtypes.transitionMatrix.updateMatrix(otherMatrix)
+        microtypes.updateTransitionMatrix(transitionMatrices.averageMatrix(weights))
 
     def updateTripGeneration(self, microtypes: MicrotypeCollection, multiplier=1.0):
         self.tripRate = 0.0
@@ -342,8 +340,7 @@ class Demand:
                 weights[currentODindex] += tripRatePerHour
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
 
-        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
-        microtypes.transitionMatrix.updateMatrix(otherMatrix)
+        microtypes.updateTransitionMatrix(self.__transitionMatrices.averageMatrix(weights))
 
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=3, utilitiesArray=None, modeSplitArray=None):
         if utilitiesArray is not None:
@@ -383,8 +380,7 @@ class Demand:
         Step one: Update transition matrix (depends only on mode split)
         """
 
-        otherMatrix = self.__transitionMatrices.averageMatrix(weights)
-        microtypes.transitionMatrix.updateMatrix(otherMatrix)
+        microtypes.updateTransitionMatrix(self.__transitionMatrices.averageMatrix(weights))
 
         """
         Step two: Start from uncongested networks with no blocked distance
@@ -392,18 +388,13 @@ class Demand:
 
         for microtypeID, microtype in microtypes:
             for n in microtype.networks:
-                # n.getNetworkStateData().resetBlockedDistance()
-                # n.getNetworkStateData().resetNonAutoAccumulation()
                 n.resetSpeeds()
 
         for it in range(nIters):
-            # for microtypeID, microtype in microtypes:
-            #     microtype.updateNetworkSpeeds(1)
             """
             Step three: Update car average speeds at the microtype level, given blocked distance
             """
 
-            # print([(a, b.blockedDistance, b.nonAutoAccumulation) for a, b in microtypes.collectedNetworkStateData if (b.nonAutoAccumulation > 0)])
             microtypes.transitionMatrixMFD(self.timePeriodDuration)
             microtypes.updateDedicatedDistance()
             """
@@ -421,10 +412,6 @@ class Demand:
     def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray) -> np.ndarray:
         newUtilities = utilsWithExcludedModes(self.__population.numpy, choiceCharacteristicsArray,
                                               self.__population.transitLayerUtility)
-        # if self.__currentUtility.size > 0:
-        #     np.copyto(self.__currentUtility, newUtilities)
-        # else:
-        #     self.__currentUtility = newUtilities
         return newUtilities
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
@@ -436,7 +423,6 @@ class Demand:
                     (microtypeID is None) or (di.homeMicrotype == microtypeID)) & (
                                (distanceBin is None) or (odi.distBin == distanceBin))
             if relevant:
-                # ar = self.__modeSplitData[self.__diToIdx[di], self.__odiToIdx[odi], :]
                 for mode, split in ms:
                     new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
                     trips[mode] = new_demand
