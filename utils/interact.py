@@ -854,10 +854,11 @@ class Interact:
     def createDownloadLink(self, message=None):
         if not os.path.exists('temp'):
             os.makedirs('temp')
-        modeSplit, speed, utility = self.model.toPandas()
+        modeSplit, speed, utility, continuousSpeed = self.model.toPandas()
         modeSplit.to_csv('temp/modeSplitOutput.csv.gz')
         speed.to_csv('temp/speedOutput.csv.gz')
         utility.to_csv('temp/utilityOutput.csv.gz')
+        continuousSpeed.to_csv('temp/continuousOutput.csv.gz')
 
         # create a ZipFile object
         zipObj = ZipFile('temp/sample.zip', 'w')
@@ -865,6 +866,7 @@ class Interact:
         zipObj.write('temp/modeSplitOutput.csv.gz')
         zipObj.write('temp/speedOutput.csv.gz')
         zipObj.write('temp/utilityOutput.csv.gz')
+        zipObj.write('temp/continuousOutput.csv.gz')
         # close the Zip File
         zipObj.close()
 

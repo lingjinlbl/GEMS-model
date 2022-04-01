@@ -754,8 +754,7 @@ class TransitionMatrices:
                 else:
                     print('Imaginary transition matrix')
                     self.__assignmentMatrices[self.odiToIdx[odi], :] = X4.sum(axis=0) / X4.sum()
-                realLengths = np.squeeze((np.eye(len(microtypeIDs)) - df.values).T @ np.ones_like(startVec.T))
-                # print(realLengths)
+                # realLengths = np.squeeze((np.eye(len(microtypeIDs)) - df.values).T @ np.ones_like(startVec.T))
                 # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
                 #             np.ones((len(microtypeIDs), 1))
         print("|  Loaded ", str(matrices.size), " transition probabilities")

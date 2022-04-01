@@ -71,7 +71,7 @@ if __name__ == "__main__":
                                    dtype={'GEOID': pd.Int64Dtype()}).set_index('GEOID')
     microtypeIDs = np.sort(tractToMicrotype.MicrotypeID.unique())
     microtypes = pd.DataFrame(microtypeIDs)
-    microtypes["avg_through_length"] = stepSize / 1609.34
+    microtypes["avg_thru_length"] = stepSize / 1609.34
     microtypes.rename(columns={0: 'MicrotypeID'}).to_csv('output/AvgTripLengths-{0}m.csv'.format(stepSize), index=False)
 
     nhtsTrips = pd.read_csv('data/nhts_od_pairs_2017_with_ccst_transp_geo.csv', index_col='trip_indx',

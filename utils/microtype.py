@@ -432,7 +432,7 @@ class MicrotypeCollection:
         #
         # otherCharacteristicL = characteristicL * (otherCharacteristicL.sum() / characteristicL.sum())
 
-        otherCharacteristicL = characteristicL / expectedAverageTripDistance.sum() * averageDistanceByStart.sum()
+        # otherCharacteristicL = characteristicL / expectedAverageTripDistance.sum() * averageDistanceByStart.sum()
 
         ts = np.arange(0, durationInHours * 3600., dt)
         ns = np.zeros((len(self), np.size(ts)), dtype=float)
@@ -442,7 +442,7 @@ class MicrotypeCollection:
         # vs = vectorV(ns, n_other, L_eff, speedFunctions)
 
         ns = doMatrixCalcs(ns, n_init, self.transitionMatrix, tripStartRatePerSecond,
-                           otherCharacteristicL,
+                           characteristicL,
                            L_eff, n_other, dt, speedFunctions)
 
         vs = vectorV(ns, n_other, L_eff, speedFunctions)
@@ -514,7 +514,7 @@ def vectorV(N, n_other, L_eff, speedFunctions, minspeed=0.005):
 
 @njit(fastmath=True, parallel=False, cache=True)
 def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_other, dt, speedFunctions):
-    X = np.transpose(Xprime)
+    X = Xprime.T
     nTimeSteps = N.shape[1]
 
     N[:, 0] = n_init
