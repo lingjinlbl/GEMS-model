@@ -305,7 +305,7 @@ class Demand:
                     currentODindex = self.odiToIdx[odi]
                     if demandIndex in self.diToIdx:
                         currentPopIndex = self.diToIdx[demandIndex]
-                        weights[currentODindex] += tripRatePerHour  # demandForPMT # CHANGED
+                        weights[currentODindex] += demandForPMT  # tripRatePerHour  # demandForPMT # CHANGED
                         self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
                     else:
                         if tripRatePerHour > 0:
@@ -337,7 +337,7 @@ class Demand:
 
                 currentODindex = self.odiToIdx[odi]
                 currentPopIndex = self.diToIdx[demandIndex]
-                weights[currentODindex] += tripRatePerHour
+                weights[currentODindex] += demandForPMT  # tripRatePerHour
                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
 
         microtypes.updateTransitionMatrix(self.__transitionMatrices.averageMatrix(weights))
@@ -374,7 +374,10 @@ class Demand:
                             discountStartsByOrigin], axis=-1)
 
         microtypes.updateNumpyPassengerDemand(newData)
-        weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
+        weights = np.array(
+            [self.__scenarioData.distanceBinToDistance[odi.distBin] for odi in self.odiToIdx.keys()]) * np.sum(
+            startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
+        # weights = np.sum(startsByMode[:, :, self.modeToIdx["auto"]], axis=0)
 
         """
         Step one: Update transition matrix (depends only on mode split)
