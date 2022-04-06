@@ -131,7 +131,8 @@ class ScenarioData:
         for file in fileNames:
             modeData = pd.read_csv(os.path.join(self.__path, "modes", file),
                                    dtype={"MicrotypeID": str}).set_index("MicrotypeID")
-            modeData['AccessDistanceMultiplier'] = 0.3
+            if 'AccessDistanceMultiplier' not in modeData.columns:
+                modeData['AccessDistanceMultiplier'] = 0.3
             collected[file.split(".")[0]] = modeData
         return collected
 
