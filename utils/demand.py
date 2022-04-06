@@ -285,7 +285,12 @@ class Demand:
 
         self.__shape = self.__modeSplitData.shape
         self.__modeSplitData[:, :, self.modeToIdx['auto']] = 0.7
-        self.__modeSplitData[:, :, self.modeToIdx['bus']] = 0.3  # // TODO: CHANGE BACK
+        if 'walk' in self.modeToIdx:
+            self.__modeSplitData[:, :, self.modeToIdx['walk']] = 0.3
+        elif 'bus' in self.modeToIdx:
+            self.__modeSplitData[:, :, self.modeToIdx['bus']] = 0.3  # // TODO: CHANGE BACK
+        else:
+            raise NotImplementedError("Currently the model doesn't work without either a walk or bus mode")
 
         for demandIndex, utilityParams in population:
             od = originDestination[demandIndex]
