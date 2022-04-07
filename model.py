@@ -109,7 +109,7 @@ class Model:
     def __init__(self, path: str, nSubBins=2, interactive=False):
         self.__path = path
         self.__nSubBins = nSubBins
-        self.__timeStepInSeconds = 15.0
+        self.__timeStepInSeconds = 10.0
         self.scenarioData = ScenarioData(path, self.__timeStepInSeconds)
         self.data = Data(self.scenarioData, self.__nSubBins, self.__timeStepInSeconds)
         self.__fixedData = self.data.getInvariants()
@@ -123,7 +123,7 @@ class Model:
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
         self.__tripGeneration = TripGeneration()
-        self.__transitionMatrices = TransitionMatrices(self.scenarioData)
+        self.__transitionMatrices = TransitionMatrices(self.scenarioData, self.data.getSupply())
         self.__originDestination = OriginDestination(self.__timePeriods, self.__distanceBins, self.__population,
                                                      self.__transitionMatrices, self.__fixedData,
                                                      self.scenarioData)
@@ -174,7 +174,7 @@ class Model:
     def microtypes(self):
         if self.__currentTimePeriod not in self.__microtypes:
             self.__microtypes[self.__currentTimePeriod] = MicrotypeCollection(self.scenarioData, self.data.getSupply(
-                self.__currentTimePeriod))
+                self.__currentTimePeriod), self.data.getDemand(self.__currentTimePeriod))
         return self.__microtypes[self.__currentTimePeriod]
 
     def getMicrotypeCollection(self, timePeriod) -> MicrotypeCollection:
@@ -426,6 +426,7 @@ class Model:
         self.__currentTimePeriod = timePeriod
         self.__originDestination.setTimePeriod(timePeriod)
         self.__tripGeneration.setTimePeriod(timePeriod)
+        self.__transitionMatrices.setTimePeriod(timePeriod)
 
     def collectAllCosts(self, event=None):
         operatorCosts = CollectedTotalOperatorCosts()
@@ -498,7 +499,12 @@ class Model:
         speedData.columns.set_names(['Time Period', 'Value'], inplace=True)
         utilityData.columns.set_names(['Time Period', 'Value', 'Parameter'], inplace=True)
 
-        return modeSplitData, speedData, utilityData
+        continuousSpeed = pd.DataFrame(self.data.v.T, columns=self.microtypeIdToIdx.keys(), index=self.data.t)
+        continuousAccumulation = pd.DataFrame(self.data.n.T, columns=self.microtypeIdToIdx.keys(), index=self.data.t)
+        continuousData = pd.concat({"SpeedInMetersPerSecond": continuousSpeed, "Accumulation": continuousAccumulation},
+                                   axis=1)
+
+        return modeSplitData, speedData, utilityData, continuousData
 
     def getModeSpeeds(self, timePeriod=None):
         if timePeriod is None:
@@ -572,17 +578,20 @@ class Model:
                     [self.getModeSplit(0, microtypeID=microtype)] + [self.getModeSplit(p, microtypeID=microtype) for p
                                                                      in self.timePeriods().keys()])
                 return x, y
-        # elif type.lower() == "cartrips":
-        #     autoProdsMFD = [0.]
-        #     autoProdsDemand = [0.]
-        #     for p in self.timePeriods().keys():
-        #         sd = self.getNetworkStateData(p)
-        #         autoProdsMFD.append(sd.getAutoProduction().sum(axis=1).sum() / 1609.34)
-        #         autoProdsDemand.append(self.getModePMT(p)[self.modeToIdx['auto']])
-        #
-        #     x = np.cumsum([0] + [val for val in self.timePeriods().values()])
-        #     y = np.vstack([autoProdsMFD, autoProdsDemand]).transpose()
-        #     return x, y
+        elif type.lower() == "production":
+            t = self.data.t / 3600.
+            actualProduction = np.cumsum(
+                (self.data.n * self.data.v).sum(axis=0)) * self.__timeStepInSeconds / 1609.34  # ** 2
+            demandedProduction = self.data.getDemand()['demandData'][:, :, self.modeToIdx['auto'],
+                                 self.scenarioData.demandDataTypeToIdx['vehicleDistance']].sum(axis=1)
+            demandedProduction = np.cumsum(np.hstack([[0], demandedProduction])) / self.data.params.nSubBins * \
+                                 self.scenarioData['timePeriods']['DurationInHours'].mean()
+            t2 = np.linspace(0, self.scenarioData['timePeriods']['DurationInHours'].sum(),
+                             self.data.params.nTimePeriods + 1)
+            interpDemandedProduction = np.interp(t, t2, demandedProduction)
+            y = np.vstack([actualProduction, interpDemandedProduction])
+            # LOOKS LIKE WHEN WE DO IT THIS WAY the actual (MFD) production is 30x higher than it should be, doesn't depend on number of time bins or time step. THIS IS FOR 200m steps, try 400 next
+            return t, y
         elif type.lower() == "modespeeds":
             x = np.cumsum([0] + [val for val in self.timePeriods().values()])
             y = pd.concat([self.getModeSpeeds(0).stack()] + [self.getModeSpeeds(val).stack() for val in
@@ -917,10 +926,13 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-A", 1, False)
+    model = Model("input-data-california-B", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
                           fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
+    # model.data.updateMicrotypeNetworkLength('1', 0.5)
+    # model.data.updateMicrotypeNetworkLength('1', 0.5)
     optimizer.evaluate([0.01])
+    x, y = model.plotAllDynamicStats("production")
     optimizer.evaluate([0.02])
     #
     # allCosts = optimizer.sumAllCosts()

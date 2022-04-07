@@ -241,7 +241,8 @@ class CollectedChoiceCharacteristics:
         allCosts = self.__fixedData['microtypeCosts'][:, :, :endIdx, :]  # only grab this for passenger modes
 
         accessDistance = self.__fixedData['accessDistance'][:, :endIdx]
-        microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.passengerModeToIdx['walk'], None]) * accessDistance
+        # microtypeAccessSeconds = (1 / microtypes.numpySpeed[:, self.passengerModeToIdx['walk'], None]) * accessDistance
+        microtypeAccessSeconds = accessDistance / 1.5
 
         accessSeconds = self.__cache.setdefault(
             'accessDistance', np.einsum('im,ki->km', microtypeAccessSeconds,
