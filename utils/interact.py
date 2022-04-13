@@ -648,6 +648,11 @@ class Interact:
         if changeType[0] == 'coverage':
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
             self.model.readFiles()
+        if changeType[0] == 'modeSpeedMPH':
+            microtype, modeName = changeType[1]
+            self.model.scenarioData['modeData'][modeName.lower()].loc[
+                microtype, 'SpeedInMetersPerSecond'] = newValue * 1609 / 3600
+            self.model.microtypes[microtype].networks.getMode(modeName.lower()).updateScenarioInputs()
         if changeType[0] == 'stopSpacing':
             microtype, modeName = changeType[1]
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'StopSpacing'] = newValue
@@ -700,6 +705,63 @@ class Interact:
             else:
                 self.__optimizer.updateAlpha(costType, newValue, mID)
             self.updatePlots()
+        else:
+            NameError('Unknown change ' + str(changeType))
+
+    def getModelState(self, changeType):
+        if changeType[0] == 'dedicated':
+            microtype, modeName = changeType[1]
+            modeDF = self.returnModeNetworkLengths(microtype, modeName)
+            return modeDF.loc[modeDF.Dedicated, 'length'].sum()
+        if changeType[0] == 'headway':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway']
+        if changeType[0] == 'fare':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'PerStartCost']
+        if changeType[0] == 'fareSenior':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'PerStartCost'] * \
+                   self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'SeniorFareDiscount']
+        if changeType[0] == 'coverage':
+            return self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion']
+        if changeType[0] == 'modeSpeedMPH':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[
+                       microtype, 'SpeedInMetersPerSecond'] / 1609 * 3600
+        if changeType[0] == 'stopSpacing':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'StopSpacing']
+        if changeType[0] == 'passengerWait':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'PassengerWait']
+        if changeType[0] == 'minStopTime':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'MinStopTime']
+        if changeType[0] == 'accessDistanceMultiplier':
+            microtype, modeName = changeType[1]
+            return self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'AccessDistanceMultiplier']
+        if changeType[0] == 'population':
+            mask = (self.model.scenarioData['populations']['MicrotypeID'] == changeType[1][0]) & (
+                    self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])
+            if sum(mask) == 1:
+                return self.model.scenarioData['populations'].loc[mask, 'Population']
+            else:
+                return 0.0
+        if changeType[0] == 'vMax':
+            return self.model.scenarioData['subNetworkData'].loc[changeType[1], 'vMax']
+        if changeType[0] == 'densityMax':
+            return self.model.scenarioData['subNetworkData'].loc[changeType[1], 'k_jam']
+        if changeType[0] == 'a':
+            return self.model.scenarioData['subNetworkData'].loc[changeType[1], 'a']
+        if changeType[0] == 'b':
+            return self.model.scenarioData['subNetworkData'].loc[changeType[1], 'b']
+        if changeType[0] == 'capacityFlow':
+            return self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow']
+        if changeType[0] == 'smoothingFactor':
+            return self.model.scenarioData['subNetworkData'].loc[changeType[1], 'smoothingFactor']
+        if changeType[0] == 'waveSpeed':
+            return self.model.scenarioData['subNetworkData'].loc[changeType[1], 'waveSpeed']
         else:
             NameError('Unknown change ' + str(changeType))
 

@@ -303,7 +303,7 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        if np.linalg.norm(self.g(startingPoint)) < self.__tolerance * 10.:
+        if np.linalg.norm(self.g(startingPoint)) < self.__tolerance * 2.:
             fixedPointModeSplit = self.fromObjectiveFunction(startingPoint)
             success = True
         else:
