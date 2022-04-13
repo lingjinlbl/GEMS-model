@@ -57,7 +57,7 @@ class CalibrationValues:
         startIdx = 0
         yHat = np.zeros_like(self.values)
         if len(self.__speedData) > 0:
-            autoSpeedByMicrotypeAndTimePeriod = speedData.stack(level=0)['Speed'].unstack(level=1)['auto']
+            autoSpeedByMicrotypeAndTimePeriod = speedData.stack(level=0)['Speed'].unstack(level=1)['auto'] * 3600 / 1609
             yHat[startIdx:(startIdx + len(autoSpeedByMicrotypeAndTimePeriod))] = autoSpeedByMicrotypeAndTimePeriod.loc[
                                                                                      self.__speedData.index].values / self.__speedScaling
             startIdx += len(autoSpeedByMicrotypeAndTimePeriod)
@@ -205,7 +205,7 @@ class Calibrator:
     def calibrate(self, method=None):
         return least_squares(self.f, self.optimizationVariables.x0,
                              bounds=self.optimizationVariables.bounds,
-                             method=method, verbose=2, diff_step=0.005, xtol=1e-5)
+                             method=method, verbose=2, diff_step=0.01, xtol=1e-5)
 
 
 if __name__ == "__main__":
@@ -229,8 +229,8 @@ if __name__ == "__main__":
                                 ('modeSpeedMPH', ('D', 'Bike')),
                                 ('modeSpeedMPH', ('A', 'Rail')),
                                 ('modeSpeedMPH', ('B', 'Rail')),
-                                # ('modeSpeedMPH', ('C', 'Rail')),
-                                # ('modeSpeedMPH', ('D', 'Rail')),
+                                ('modeSpeedMPH', ('C', 'Rail')),
+                                ('modeSpeedMPH', ('D', 'Rail')),
                                 ('passengerWait', ('A', 'Bus')),
                                 ('passengerWait', ('B', 'Bus')),
                                 ('passengerWait', ('C', 'Bus')),
