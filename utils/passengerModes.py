@@ -39,7 +39,7 @@ class Mode:
         self._PMT = self.travelDemand.rateOfPmtPerHour
         self._VMT = 0.
 
-    def defineCosts(self):
+    def defineCosts(self, override=False):
         if "SeniorFareDiscount" in self.params.columns:
             seniorDIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
             self.__fareIdx = (np.where(~seniorDIs)[0][0], 0)
@@ -47,7 +47,7 @@ class Mode:
         else:
             self.__fareIdx = (0, 0)
             self.__discountFareIdx = (0, 0)
-        if np.any(self.microtypeCosts):
+        if np.any(self.microtypeCosts) & ~override:
             pass
         else:
             self.microtypeCosts[:, 0] = self.params.at[self.microtypeID, "PerStartCost"].copy()

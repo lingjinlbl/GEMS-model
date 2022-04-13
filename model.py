@@ -5,8 +5,9 @@ import ipywidgets as widgets
 import numpy as np
 import pandas as pd
 # from noisyopt import minimizeCompass, minimizeSPSA
-from scipy.optimize import root, minimize, Bounds, shgo
+from scipy.optimize import root, minimize, Bounds, shgo, least_squares
 from mock import Mock
+import os
 # from skopt import gp_minimize, forest_minimize
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices
@@ -137,6 +138,10 @@ class Model:
         self.__successful = True
         if interactive:
             self.interact.init()
+
+    @property
+    def path(self):
+        return self.__path
 
     @property
     def nSubBins(self):
@@ -926,12 +931,19 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-B", 1, False)
+    model = Model("input-data", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
+
     # model.data.updateMicrotypeNetworkLength('1', 0.5)
     # model.data.updateMicrotypeNetworkLength('1', 0.5)
+    obj = Mock()
+    obj.new = 0.5
+
+    model.interact.modifyModel(('accessDistanceMultiplier', ('A', 'Bus')), obj)
     optimizer.evaluate([0.01])
+    modeSplitData, speedData, utilityData, continuousData = model.toPandas()
+    err = cv.getError(modeSplitData, speedData, utilityData)
     x, y = model.plotAllDynamicStats("production")
     optimizer.evaluate([0.02])
     #

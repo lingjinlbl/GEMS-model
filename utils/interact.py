@@ -507,6 +507,25 @@ class Interact:
             coverageStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[coverageStack[-1].model_id] = ('coverage', mID)
 
+        minStopTimeStack = []
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            busServiceData = self.__microtypeToBusService[mID]
+            minStopTimeStack.append(widgets.FloatSlider(value=busServiceData.MinStopTime, min=0.0, max=30.0, step=0.1,
+                                                        description="Microtype " + mID))
+            minStopTimeStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[minStopTimeStack[-1].model_id] = ('minStopTime', (mID, 'Bus'))
+
+        accessDistanceStack = []
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            busServiceData = self.__microtypeToBusService[mID]
+            accessDistanceStack.append(
+                widgets.FloatSlider(value=busServiceData.AccessDistanceMultiplier, min=0.0, max=2.0, step=0.1,
+                                    description="Microtype " + mID))
+            accessDistanceStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[accessDistanceStack[-1].model_id] = ('accessDistanceMultiplier', (mID, 'Bus'))
+
         titleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
         userCostStack = [widgets.HTML(value="<center><i>User Costs</i></center>")]
         systemCostStack = [widgets.HTML(value="<center><i>System Costs</i></center>")]
@@ -541,9 +560,12 @@ class Interact:
                 widgets.HBox(
                     [widgets.VBox(costTitleStack), widgets.VBox(costBusStack),
                      widgets.VBox(costBusSeniorStack)]),
-                widgets.VBox(headwayStack), widgets.VBox(coverageStack)])
+                widgets.VBox(headwayStack), widgets.VBox(coverageStack), widgets.VBox(minStopTimeStack),
+                widgets.VBox(accessDistanceStack)])
 
-        for ind, title in enumerate(('Lane dedication', 'Cost', 'Bus headway (s)', 'Bus service area')):
+        for ind, title in enumerate(
+                ('Lane dedication', 'Cost', 'Bus headway (s)', 'Bus service area', 'Min bus stop time',
+                 'Bus access distance multiplier')):
             scenarioAccordion.set_title(ind, title)
 
         accordionChildren = [costAccordion, scenarioAccordion, dataAccordion]
@@ -626,6 +648,20 @@ class Interact:
         if changeType[0] == 'coverage':
             self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
             self.model.readFiles()
+        if changeType[0] == 'stopSpacing':
+            microtype, modeName = changeType[1]
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'StopSpacing'] = newValue
+        if changeType[0] == 'passengerWait':
+            microtype, modeName = changeType[1]
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'PassengerWait'] = newValue
+        if changeType[0] == 'minStopTime':
+            microtype, modeName = changeType[1]
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'MinStopTime'] = newValue
+        if changeType[0] == 'accessDistanceMultiplier':
+            microtype, modeName = changeType[1]
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'AccessDistanceMultiplier'] = newValue
+            self.model.microtypes.updateNetworkData()
+            self.model.microtypes[microtype].networks.getMode(modeName.lower()).defineCosts(override=True)
         if changeType[0] == 'population':
             mask = (self.model.scenarioData['populations']['MicrotypeID'] == changeType[1][0]) & (
                     self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])
@@ -637,6 +673,12 @@ class Interact:
             self.model.microtypes.recompileMFDs()  # TODO: simplify to only microtyype
         if changeType[0] == 'densityMax':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'k_jam'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'a':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'a'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'b':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'b'] = newValue
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'capacityFlow':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow'] = newValue
@@ -658,6 +700,8 @@ class Interact:
             else:
                 self.__optimizer.updateAlpha(costType, newValue, mID)
             self.updatePlots()
+        else:
+            NameError('Unknown change ' + str(changeType))
 
     def returnModeNetworkLengths(self, mID, modeName):
         return self.model.scenarioData['subNetworkData'].loc[

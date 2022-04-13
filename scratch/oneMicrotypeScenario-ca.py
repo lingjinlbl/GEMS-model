@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = 'F'
+geotype = 'A'
 
 inFolder = "input-data-california"
 outFolder = "input-data-california-" + geotype
@@ -24,6 +24,11 @@ modesDir = os.path.join(ROOT_DIR, "..", outFolder, "modes")
 if os.path.exists(modesDir):
     shutil.rmtree(modesDir)
 os.makedirs(modesDir)
+
+calibrationDir = os.path.join(ROOT_DIR, "..", outFolder, "calibration")
+if os.path.exists(calibrationDir):
+    shutil.rmtree(calibrationDir)
+os.makedirs(calibrationDir)
 
 shutil.copytree(os.path.join(ROOT_DIR, "..", inFolder, "fleets"), os.path.join(ROOT_DIR, "..", outFolder, "fleets"))
 
@@ -163,5 +168,23 @@ newdf.loc[:, "DestinationMicrotypeID"] = newdf.loc[:, "DestinationMicrotypeID"].
 newdf.loc[:, "From"] = newdf.loc[:, "From"].str.split('_').str[1].values
 newdf.columns = newdf.columns.str.split('_').str[-1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
+
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "calibration", "avg_speed_from_HERE.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "calibration", "avg_speed_from_HERE.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df['geotype'] == geotype, :].drop(columns=['geotype'])
+newdf.to_csv(newPath, index=False)
+
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "calibration", "NHTS_trip_travel_time.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "calibration", "NHTS_trip_travel_time.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df['geotype'] == geotype, :].drop(columns=['geotype'])
+newdf.to_csv(newPath, index=False)
+
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "calibration", "NHTS_mode_split.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "calibration", "NHTS_mode_split.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df['geotype'] == geotype, :].drop(columns=['geotype'])
+newdf.to_csv(newPath, index=False)
 
 print("AA")
