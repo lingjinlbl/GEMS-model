@@ -279,5 +279,5 @@ if __name__ == "__main__":
     result = calibrator.calibrate('trf')
     final = calibrationVariables.toPandas(result.x).unstack()
     print(final)
-    calibrator.optimizationVariables.toPandas(result.x).to_csv('../calibration-outputs.csv')
+    calibrator.optimizationVariables.toPandas(result.x).to_csv('../calibration-outputs/calibrated-values.csv')
     print('done')
