@@ -26,4 +26,6 @@ origin microtype,mode,fraction
 5,walk,0.103473905
 6,auto,0.948732596
 6,bike,0.005418553
+6,bus,0.0
+6,rail,0.0
 6,walk,0.024536553

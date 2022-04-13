@@ -119,7 +119,7 @@ class Microtype:
                 waitTime = self.networks.getMode('bus').headwayInSec / 3600. / 4.  # TODO: Something better
                 cc[self.paramToIdx['wait_time']] += waitTime
                 accessTime = self.networks.getMode(
-                    mode).getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
+                    mode).getAccessDistance() / self.networks.getMode('walk').speedInMetersPerSecond / 3600.0
                 cc[self.paramToIdx['access_time']] += accessTime
                 if np.isnan(waitTime) | np.isnan(accessTime):
                     print('WHY IS THIS NAN')
