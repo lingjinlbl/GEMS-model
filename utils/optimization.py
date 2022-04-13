@@ -16,15 +16,15 @@ class CalibrationValues:
         self.__idxToValue = dict()
         self.values = np.zeros(
             len(speed) + len(modeSplit) + len(travelTime) * len(columnsFromTravelTime))
-        self.__speedScaling = 40.0
+        self.__speedScaling = 20.0
 
     def loadData(self, path):
         speed = pd.read_csv(os.path.join(path, "calibration", "avg_speed_from_HERE.csv"),
-                            index_col=['microtype', 'hour'])
+                            dtype={"microtype": str}).set_index(['microtype', 'hour'])
         modeSplit = pd.read_csv(os.path.join(path, "calibration", "NHTS_mode_split.csv"),
-                                index_col=['origin microtype', 'mode'])
+                                dtype={"origin microtype": str}).set_index(['origin microtype', 'mode'])
         travelTime = pd.read_csv(os.path.join(path, "calibration", "NHTS_trip_travel_time.csv"),
-                                 index_col=['origin microtype', 'mode'])
+                                 dtype={"origin microtype": str}).set_index(['origin microtype', 'mode'])
         self.__speedData = speed
         self.__modeSplitData = modeSplit
         self.__travelTimeData = travelTime
@@ -58,8 +58,9 @@ class CalibrationValues:
         yHat = np.zeros_like(self.values)
         if len(self.__speedData) > 0:
             autoSpeedByMicrotypeAndTimePeriod = speedData.stack(level=0)['Speed'].unstack(level=1)['auto'] * 3600 / 1609
+            newIndex = self.__speedData.index
             yHat[startIdx:(startIdx + len(autoSpeedByMicrotypeAndTimePeriod))] = autoSpeedByMicrotypeAndTimePeriod.loc[
-                                                                                     self.__speedData.index].values / self.__speedScaling
+                                                                                     newIndex].values / self.__speedScaling
             startIdx += len(autoSpeedByMicrotypeAndTimePeriod)
         if len(self.__modeSplitData) > 0:
             tripsByModeAndOrigin = modeSplitData.stack(level=0)['Trips'].groupby(level=['originMicrotype', 'mode']).agg(
@@ -209,32 +210,69 @@ class Calibrator:
 
 
 if __name__ == "__main__":
-    model = Model("../input-data", 1, False)
+    model = Model("../input-data-california-A", 1, False)
 
-    calibrationVariableNames = [('accessDistanceMultiplier', ('A', 'Bus')),
-                                ('accessDistanceMultiplier', ('B', 'Bus')),
-                                ('accessDistanceMultiplier', ('C', 'Bus')),
-                                ('accessDistanceMultiplier', ('D', 'Bus')),
-                                ('minStopTime', ('A', 'Bus')),
-                                ('minStopTime', ('B', 'Bus')),
-                                ('minStopTime', ('C', 'Bus')),
-                                ('minStopTime', ('D', 'Bus')),
-                                ('modeSpeedMPH', ('A', 'Walk')),
-                                ('modeSpeedMPH', ('B', 'Walk')),
-                                ('modeSpeedMPH', ('C', 'Walk')),
-                                ('modeSpeedMPH', ('D', 'Walk')),
-                                ('modeSpeedMPH', ('A', 'Bike')),
-                                ('modeSpeedMPH', ('B', 'Bike')),
-                                ('modeSpeedMPH', ('C', 'Bike')),
-                                ('modeSpeedMPH', ('D', 'Bike')),
-                                ('modeSpeedMPH', ('A', 'Rail')),
-                                ('modeSpeedMPH', ('B', 'Rail')),
-                                ('modeSpeedMPH', ('C', 'Rail')),
-                                ('modeSpeedMPH', ('D', 'Rail')),
-                                ('passengerWait', ('A', 'Bus')),
-                                ('passengerWait', ('B', 'Bus')),
-                                ('passengerWait', ('C', 'Bus')),
-                                ('passengerWait', ('D', 'Bus'))]
+    # calibrationVariableNames = [('accessDistanceMultiplier', ('A', 'Bus')),
+    #                             ('accessDistanceMultiplier', ('B', 'Bus')),
+    #                             ('accessDistanceMultiplier', ('C', 'Bus')),
+    #                             ('accessDistanceMultiplier', ('D', 'Bus')),
+    #                             ('minStopTime', ('A', 'Bus')),
+    #                             ('minStopTime', ('B', 'Bus')),
+    #                             ('minStopTime', ('C', 'Bus')),
+    #                             ('minStopTime', ('D', 'Bus')),
+    #                             ('modeSpeedMPH', ('A', 'Walk')),
+    #                             ('modeSpeedMPH', ('B', 'Walk')),
+    #                             ('modeSpeedMPH', ('C', 'Walk')),
+    #                             ('modeSpeedMPH', ('D', 'Walk')),
+    #                             ('modeSpeedMPH', ('A', 'Bike')),
+    #                             ('modeSpeedMPH', ('B', 'Bike')),
+    #                             ('modeSpeedMPH', ('C', 'Bike')),
+    #                             ('modeSpeedMPH', ('D', 'Bike')),
+    #                             ('modeSpeedMPH', ('A', 'Rail')),
+    #                             ('modeSpeedMPH', ('B', 'Rail')),
+    #                             ('modeSpeedMPH', ('C', 'Rail')),
+    #                             ('modeSpeedMPH', ('D', 'Rail')),
+    #                             ('passengerWait', ('A', 'Bus')),
+    #                             ('passengerWait', ('B', 'Bus')),
+    #                             ('passengerWait', ('C', 'Bus')),
+    #                             ('passengerWait', ('D', 'Bus'))]
+
+    calibrationVariableNames = [('accessDistanceMultiplier', ('1', 'Bus')),
+                                ('accessDistanceMultiplier', ('2', 'Bus')),
+                                ('accessDistanceMultiplier', ('3', 'Bus')),
+                                ('accessDistanceMultiplier', ('4', 'Bus')),
+                                ('accessDistanceMultiplier', ('5', 'Bus')),
+                                ('accessDistanceMultiplier', ('6', 'Bus')),
+                                ('minStopTime', ('1', 'Bus')),
+                                ('minStopTime', ('2', 'Bus')),
+                                ('minStopTime', ('3', 'Bus')),
+                                ('minStopTime', ('4', 'Bus')),
+                                ('minStopTime', ('5', 'Bus')),
+                                ('minStopTime', ('6', 'Bus')),
+                                ('modeSpeedMPH', ('1', 'Walk')),
+                                ('modeSpeedMPH', ('2', 'Walk')),
+                                ('modeSpeedMPH', ('3', 'Walk')),
+                                ('modeSpeedMPH', ('4', 'Walk')),
+                                ('modeSpeedMPH', ('5', 'Walk')),
+                                ('modeSpeedMPH', ('6', 'Walk')),
+                                ('modeSpeedMPH', ('1', 'Bike')),
+                                ('modeSpeedMPH', ('2', 'Bike')),
+                                ('modeSpeedMPH', ('3', 'Bike')),
+                                ('modeSpeedMPH', ('4', 'Bike')),
+                                ('modeSpeedMPH', ('5', 'Bike')),
+                                ('modeSpeedMPH', ('6', 'Bike')),
+                                ('modeSpeedMPH', ('1', 'Rail')),
+                                ('modeSpeedMPH', ('2', 'Rail')),
+                                ('modeSpeedMPH', ('3', 'Rail')),
+                                ('modeSpeedMPH', ('4', 'Rail')),
+                                ('modeSpeedMPH', ('5', 'Rail')),
+                                ('modeSpeedMPH', ('6', 'Rail')),
+                                ('passengerWait', ('1', 'Bus')),
+                                ('passengerWait', ('2', 'Bus')),
+                                ('passengerWait', ('3', 'Bus')),
+                                ('passengerWait', ('4', 'Bus')),
+                                ('passengerWait', ('5', 'Bus')),
+                                ('passengerWait', ('6', 'Bus'))]
 
     calibrationVariables = OptimizationVariables(calibrationVariableNames)
     calibrator = Calibrator(model, calibrationVariables)
