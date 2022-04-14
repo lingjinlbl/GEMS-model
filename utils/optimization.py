@@ -104,7 +104,7 @@ class OptimizationVariables:
 
 class CalibrationValues:
     def __init__(self, speed=pd.DataFrame(), modeSplit=pd.DataFrame(), travelTime=pd.DataFrame(),
-                 columnsFromTravelTime=('avg_speed (mph)',), optimizationVariables=None, regularize=False):
+                 columnsFromTravelTime=('avg_speed (mph)',), optimizationVariables=None, regularize=0):
         self.__speedData = speed
         self.__modeSplitData = modeSplit
         self.__travelTimeData = travelTime
@@ -126,7 +126,7 @@ class CalibrationValues:
         self.__speedData = speed
         self.__modeSplitData = modeSplit
         self.__travelTimeData = travelTime
-        if self.__regularize & (self.__optimizationVariables is not None):
+        if (self.__regularize != 0) & (self.__optimizationVariables is not None):
             self.__numberOfVariables = len(self.__optimizationVariables.defaults)
         self.values = np.zeros(
             len(speed) + len(modeSplit) + len(travelTime) * len(
@@ -154,6 +154,11 @@ class CalibrationValues:
                     self.__idxToValue[idx] = key
                     self.values[idx] = val / self.__speedScaling
                     idx += 1
+        if self.__regularize != 0:
+            for var in self.__optimizationVariables.idxToVariable.values():
+                param, (microtype, mode) = var
+                self.__idxToValue[idx] = (microtype, mode, param, -1)
+                idx += 1
 
     def getError(self, modeSplitData: pd.DataFrame, speedData: pd.DataFrame, utilityData: pd.DataFrame,
                  x: np.ndarray) -> np.ndarray:
@@ -192,7 +197,7 @@ class CalibrationValues:
                 yHat[startIdx:(startIdx + len(out))] = out.values
                 startIdx += len(out)
         if self.__numberOfVariables > 0:
-            yHat[startIdx:] = x
+            yHat[startIdx:] = x * self.__regularize
         return yHat - self.values
 
     def errorToPandas(self, error: np.ndarray):
@@ -200,10 +205,11 @@ class CalibrationValues:
 
 
 class Calibrator:
-    def __init__(self, model: Model, optimizationVariables: OptimizationVariables):
+    def __init__(self, model: Model, optimizationVariables: OptimizationVariables, regularization=0.0):
         self.model = model
         self.optimizationVariables = optimizationVariables
-        self.calibrationVariables = CalibrationValues(optimizationVariables=optimizationVariables, regularize=True)
+        self.calibrationVariables = CalibrationValues(optimizationVariables=optimizationVariables,
+                                                      regularize=regularization)
         self.calibrationVariables.loadData(path=model.path)
 
     def f(self, x: np.ndarray) -> np.ndarray:
@@ -292,7 +298,7 @@ if __name__ == "__main__":
                                 ('passengerWait', ('6', 'Bus'))]
 
     calibrationVariables = OptimizationVariables(calibrationVariableNames)
-    calibrator = Calibrator(model, calibrationVariables)
+    calibrator = Calibrator(model, calibrationVariables, regularization=0.2)
     result = calibrator.calibrate('trf')
     final = calibrationVariables.toPandas(result.x).unstack()
     print(final)

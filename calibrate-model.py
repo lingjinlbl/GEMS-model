@@ -49,7 +49,7 @@ calibrationVariableNames = [('accessDistanceMultiplier', ('1', 'Bus')),
                             ('passengerWait', ('6', 'Bus'))]
 
 calibrationVariables = OptimizationVariables(calibrationVariableNames)
-calibrator = Calibrator(model, calibrationVariables)
+calibrator = Calibrator(model, calibrationVariables, regularization=0.2)
 result = calibrator.calibrate('trf')
 final = calibrationVariables.toPandas(result.x).unstack()
 print(final)
