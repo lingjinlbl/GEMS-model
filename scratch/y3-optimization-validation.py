@@ -323,7 +323,7 @@ for mul in multipliers:
     cbar = plt.colorbar()
     cbar.set_label("Total costs")
     plt.savefig("out-optimization/4-microtype/headway-row-cost-demand" + f'{mul:.2f}' + ".png")
-plt.scatter([94.17], [0.00618])
+# plt.scatter([94.17], [0.00618])
 
 multipliers = np.linspace(0.8, 1.05, 10)
 bikeAllocations = np.linspace(0, 0.10, 12)
@@ -347,7 +347,7 @@ for mul in multipliers:
     cbar = plt.colorbar()
     cbar.set_label("Total costs")
     plt.savefig("out-optimization/4-microtype/bikerow-busrow-cost-demand" + f'{mul:.2f}' + ".png")
-plt.scatter([0.0283], [0.00618])
+# plt.scatter([0.0283], [0.00618])
 
 busHeadway = np.linspace(60, 300, 20)
 bikeAllocations = np.linspace(0, 0.1, 20)
@@ -367,7 +367,7 @@ plt.xlabel('Bike ROW allocation')
 plt.ylabel('Bus headway')
 cbar = plt.colorbar()
 cbar.set_label("Total costs")
-plt.scatter([0.0283], [94.17])
+# plt.scatter([0.0283], [94.17])
 
 """
      fun: 1415800.9342278235
@@ -403,7 +403,7 @@ reduce step size to 0.005:
 
 print('done')
 
-model = Model(ROOT_DIR + "/../input-data-losangeles-national-params", nSubBins=1)
+model = Model(ROOT_DIR + "/../input-data-california-A", nSubBins=1)
 optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus')],
                       fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike')],
                       method="min")
@@ -445,8 +445,8 @@ for bh in busHeadway:
 varyBusHeadway = pd.DataFrame(collectedCosts).transpose()
 varyBusHeadwayModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
 
-f2_headway = plotModes(varyBusHeadwayModes, "Bus headway")
-f1_headway = plotCosts(varyBusHeadway, "Bus headway")
+f2_headway = plotModes(varyBusHeadwayModes, "out-optimization/CA", "-busHeadway", "Bus headway")
+f1_headway = plotCosts(varyBusHeadway, "out-optimization/CA", "-busHeadway", "Bus headway")
 
 bikeAllocations = np.linspace(0, 0.12, 20)
 collectedCosts = dict()
@@ -461,8 +461,8 @@ for ba in bikeAllocations:
 varyBikeAllocation = pd.DataFrame(collectedCosts).transpose()
 varyBikeAllocationModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
 
-f2_bike = plotModes(varyBikeAllocationModes, "Bike ROW allocation")
-f1_bike = plotCosts(varyBikeAllocation, "Bike ROW allocation")
+f2_bike = plotModes(varyBikeAllocationModes, "out-optimization/CA", "-bikeROW", "Bike ROW allocation")
+f1_bike = plotCosts(varyBikeAllocation, "out-optimization/CA", "-bikeROW", "Bike ROW allocation")
 
 busCosts = np.linspace(0, 5., 20)
 collectedCosts = dict()
@@ -479,8 +479,8 @@ for bc in busCosts:
 varyBusCost = pd.DataFrame(collectedCosts).transpose()
 varyBusCostModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
 
-f2_buscost = plotModes(varyBusCostModes, "Bus fare")
-f1_buscost = plotCosts(varyBusCost, "Bus fare")
+f2_buscost = plotModes(varyBusCostModes, "out-optimization/CA", "-busFare", "Bus fare")
+f1_buscost = plotCosts(varyBusCost, "out-optimization/CA", "-busFare", "Bus fare")
 
 collectedCosts = dict()
 collectedModeSplits = dict()
@@ -498,6 +498,7 @@ plt.xlabel('Bus headway')
 plt.ylabel('Bus ROW allocation')
 cbar = plt.colorbar()
 cbar.set_label("Total costs")
+plt.savefig("out-optimization/CA/bus-headway-vs-allocation.png")
 
 collectedCosts = dict()
 collectedModeSplits = dict()
@@ -515,3 +516,4 @@ plt.xlabel('Bike ROW allocation')
 plt.ylabel('Bus ROW allocation')
 cbar = plt.colorbar()
 cbar.set_label("Total costs")
+plt.savefig("out-optimization/CA/bike-vs-bus.png")
