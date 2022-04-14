@@ -55,7 +55,7 @@ def plotModes(series: pd.Series, folder, suffix, xLabel=''):
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-model = Model(ROOT_DIR + "/../input-data-simpler", nSubBins=2)
+model = Model(ROOT_DIR + "/input-data-simpler", nSubBins=2)
 optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
                       fromToSubNetworkIDs=[('A', 'Bus')],
                       method="min")
@@ -205,7 +205,7 @@ for mul in multipliers:
 
 print('done')
 
-model = Model(ROOT_DIR + "/../input-data", nSubBins=2)
+model = Model(ROOT_DIR + "/input-data", nSubBins=2)
 optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
                       fromToSubNetworkIDs=[('A', 'Bus'), ('A', 'Bike')],
                       method="min")
@@ -403,7 +403,7 @@ reduce step size to 0.005:
 
 print('done')
 
-model = Model(ROOT_DIR + "/../input-data-california-A", nSubBins=1)
+model = Model(ROOT_DIR + "/input-data-california-A", nSubBins=1)
 optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus')],
                       fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike')],
                       method="min")
