@@ -297,8 +297,8 @@ for bc in busCosts:
 varyBusCost = pd.DataFrame(collectedCosts).transpose()
 varyBusCostModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
 
-f2_buscost = plotModes(varyBusCostModes, "Bus fare")
-f1_buscost = plotCosts(varyBusCost, "Bus fare")
+f2_buscost = plotModes(varyBusCostModes, "out-optimization/4-microtype", "-busFare", "Bus fare")
+f1_buscost = plotCosts(varyBusCost, "out-optimization/4-microtype", "-busFare", "Bus fare")
 
 multipliers = np.linspace(0.9, 1.05, 5)
 busAllocations = np.linspace(0., 0.5, 12)
@@ -428,8 +428,8 @@ for ba in busAllocations:
 varyBusAllocation = pd.DataFrame(collectedCosts).transpose()
 varyBusAllocationModes = pd.DataFrame(collectedModeSplits, index=model.modeToIdx.keys()).transpose()
 
-f2_bus = plotModes(varyBusAllocationModes, "Bus ROW allocation")
-f1_bus = plotCosts(varyBusAllocation, "Bus ROW allocation")
+f2_bus = plotModes(varyBusAllocationModes, "out-optimization/4-microtype", "-busRow", "Bus ROW allocation")
+f1_bus = plotCosts(varyBusAllocation, "out-optimization/4-microtype", "-busRow", "Bus ROW allocation")
 
 busHeadway = np.linspace(60, 900, 12)
 collectedCosts = dict()
