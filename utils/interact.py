@@ -309,7 +309,7 @@ class Interact:
             )
             slider = widgets.FloatSlider(value=1.0, min=0.2, max=2.0, step=0.01, orientation='horizontal')
             slider.observe(self.response, names="value")
-            self.__widgetIDtoField[slider.model_id] = ('networkLength', mID)
+            self.__widgetIDtoField[slider.model_id] = ('networkLength', (mID, ""))
             networkLengthStack.append(widgets.HBox([microtypeText, slider]))
 
         populationStack = []
@@ -695,7 +695,7 @@ class Interact:
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'waveSpeed'] = newValue
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'networkLength':
-            mID = changeType[1]
+            mID, _ = changeType[1]
             self.model.data.updateMicrotypeNetworkLength(mID, newValue)
         if changeType[0] == 'cost':
             mID, costType = changeType[1]
