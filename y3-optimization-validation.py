@@ -241,7 +241,7 @@ multipliers = np.linspace(0.6, 1.2, 13)
 #     f1_bus = plotCosts(varyBusAllocation, "out-optimization/4-microtype", "-busROW-demand" + f'{mul:.2f}',
 #                        "Bus ROW allocation")
 #
-# busHeadway = np.linspace(60, 300, 30)
+busHeadway = np.linspace(60, 300, 30)
 # collectedCosts = dict()
 # collectedModeSplits = dict()
 # for mul in multipliers:
@@ -262,7 +262,7 @@ multipliers = np.linspace(0.6, 1.2, 13)
 #     f1_bus = plotCosts(varyBusHeadway, "out-optimization/4-microtype", "-busHeadway-demand" + f'{mul:.2f}',
 #                        "Bus headway")
 #
-# bikeAllocations = np.linspace(0, 0.12, 30)
+bikeAllocations = np.linspace(0, 0.12, 30)
 # collectedCosts = dict()
 # collectedModeSplits = dict()
 # for mul in multipliers:
@@ -282,7 +282,7 @@ multipliers = np.linspace(0.6, 1.2, 13)
 #     f1_bus = plotCosts(varyBikeAllocation, "out-optimization/4-microtype", "-bikeROW-demand" + f'{mul:.2f}',
 #                        "Bike ROW allocation")
 #
-# busCosts = np.linspace(0, 5., 30)
+busCosts = np.linspace(0, 5., 30)
 # collectedCosts = dict()
 # collectedModeSplits = dict()
 # for bc in busCosts:
@@ -301,8 +301,8 @@ multipliers = np.linspace(0.6, 1.2, 13)
 # f1_buscost = plotCosts(varyBusCost, "out-optimization/4-microtype", "-busFare", "Bus fare")
 #
 # multipliers = np.linspace(0.8, 1.05, 7)
-# busAllocations = np.linspace(0., 0.5, 20)
-# busHeadway = np.linspace(60, 300, 20)
+busAllocations = np.linspace(0., 0.5, 20)
+busHeadway = np.linspace(60, 300, 20)
 # collectedCosts = dict()
 # collectedModeSplits = dict()
 # for mul in multipliers:
