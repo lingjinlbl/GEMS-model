@@ -99,7 +99,8 @@ class OptimizationVariables:
 
     def toPandas(self, x):
         scaledX = x * self.scaling + self.defaults
-        return pd.Series(scaledX, index=pd.MultiIndex.from_tuples(self.__variables))
+        variables = [(param, microtype, mode) for param, (microtype, mode) in self.__variables]
+        return pd.Series(scaledX, index=pd.MultiIndex.from_tuples(variables))
 
 
 class CalibrationValues:
@@ -113,7 +114,7 @@ class CalibrationValues:
         self.__optimizationVariables = optimizationVariables
         self.__numberOfVariables = 0
         self.values = np.ndarray(0)
-        self.__speedScaling = 20.0
+        self.__speedScaling = 4.0
         self.__regularize = regularize
 
     def loadData(self, path):
@@ -139,7 +140,7 @@ class CalibrationValues:
             for (microtype, hour), row in self.__speedData.iterrows():
                 key = (microtype, "auto", "hourlySpeed", hour)
                 self.__idxToValue[idx] = key
-                self.values[idx] = row["speed (mph)"] / self.__speedScaling
+                self.values[idx] = row["speed (mph)"] / self.__speedScaling / 24.
                 idx += 1
         if len(self.__modeSplitData) > 0:
             for (microtype, mode), row in self.__modeSplitData.iterrows():
@@ -168,7 +169,7 @@ class CalibrationValues:
             autoSpeedByMicrotypeAndTimePeriod = speedData.stack(level=0)['Speed'].unstack(level=1)['auto'] * 3600 / 1609
             newIndex = self.__speedData.index
             yHat[startIdx:(startIdx + len(autoSpeedByMicrotypeAndTimePeriod))] = autoSpeedByMicrotypeAndTimePeriod.loc[
-                                                                                     newIndex].values / self.__speedScaling
+                                                                                     newIndex].values / self.__speedScaling / 24.
             startIdx += len(autoSpeedByMicrotypeAndTimePeriod)
         if len(self.__modeSplitData) > 0:
             tripsByModeAndOrigin = modeSplitData.stack(level=0)['Trips'].groupby(level=['originMicrotype', 'mode']).agg(
@@ -220,7 +221,7 @@ class Calibrator:
         error[np.isnan(error)] = 5
         return error
 
-    def calibrate(self, method=None):
+    def calibrate(self, method='trf'):
         return least_squares(self.f, self.optimizationVariables.x0,
                              bounds=self.optimizationVariables.bounds,
                              method=method, verbose=2, diff_step=0.01, xtol=1e-5)
@@ -266,12 +267,12 @@ if __name__ == "__main__":
                                 ('minStopTime', ('4', 'Bus')),
                                 ('minStopTime', ('5', 'Bus')),
                                 ('minStopTime', ('6', 'Bus')),
-                                ('networkLength', ('1', '')),
-                                ('networkLength', ('2', '')),
-                                ('networkLength', ('3', '')),
-                                ('networkLength', ('4', '')),
-                                ('networkLength', ('5', '')),
-                                ('networkLength', ('6', '')),
+                                # ('networkLength', ('1', '')),
+                                # ('networkLength', ('2', '')),
+                                # ('networkLength', ('3', '')),
+                                # ('networkLength', ('4', '')),
+                                # ('networkLength', ('5', '')),
+                                # ('networkLength', ('6', '')),
                                 ('modeSpeedMPH', ('1', 'Walk')),
                                 ('modeSpeedMPH', ('2', 'Walk')),
                                 ('modeSpeedMPH', ('3', 'Walk')),
@@ -299,7 +300,7 @@ if __name__ == "__main__":
 
     calibrationVariables = OptimizationVariables(calibrationVariableNames)
     calibrator = Calibrator(model, calibrationVariables, regularization=0.2)
-    result = calibrator.calibrate('trf')
+    result = calibrator.calibrate()
     final = calibrationVariables.toPandas(result.x).unstack()
     print(final)
     calibrator.optimizationVariables.toPandas(result.x).to_csv('../calibration-outputs/calibrated-values.csv')
