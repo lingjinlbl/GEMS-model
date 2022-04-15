@@ -212,7 +212,7 @@ optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'Bus')],
 
 initialDemand = model.data.tripRate().copy()
 
-multipliers = np.linspace(0.8, 1.2, 9)
+multipliers = np.linspace(0.6, 1.2, 13)
 #
 # model.data.updateMicrotypeNetworkLength('1', 0.71)
 # model.data.updateMicrotypeNetworkLength('2', 0.71)
@@ -300,7 +300,7 @@ varyBusCostModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeTo
 f2_buscost = plotModes(varyBusCostModes, "out-optimization/4-microtype", "-busFare", "Bus fare")
 f1_buscost = plotCosts(varyBusCost, "out-optimization/4-microtype", "-busFare", "Bus fare")
 
-multipliers = np.linspace(0.9, 1.05, 5)
+multipliers = np.linspace(0.8, 1.05, 7)
 busAllocations = np.linspace(0., 0.5, 20)
 busHeadway = np.linspace(60, 300, 20)
 collectedCosts = dict()

@@ -1,8 +1,8 @@
 ﻿SubnetworkID,MicrotypeID,ModesAllowed,Length,vMax,k_jam,capacityFlow,smoothingFactor,waveSpeed,criticalDensity,a,MFD,Type,Dedicated,avgLinkLength
-1,A,Auto-Bus-Bike,62000,17,0.5,,,,0.12,-100.0,modified-quadratic,Road,FALSE,50
-2,B,Auto-Bus-Bike,65000,16,0.5,,,,0.12,-100.0,modified-quadratic,Road,FALSE,50
-3,C,Auto-Bus-Bike,33000,25,0.14,1.58,,,0.137,-160.0,rural,Road,FALSE,50
-4,D,Auto-Bus-Bike,28000,30,0.14,1.52,,,0.137,-160.0,rural,Road,FALSE,50
+1,A,Auto-Bus-Bike,65000,17,0.5,,,,0.12,-100.0,modified-quadratic,Road,FALSE,50
+2,B,Auto-Bus-Bike,67000,16,0.5,,,,0.12,-100.0,modified-quadratic,Road,FALSE,50
+3,C,Auto-Bus-Bike,35000,25,0.14,1.58,,,0.137,-160.0,rural,Road,FALSE,50
+4,D,Auto-Bus-Bike,30000,30,0.14,1.52,,,0.137,-160.0,rural,Road,FALSE,50
 5,A,Walk,10000,1.35,0.14,,,,,,fixed,Sidewalk,TRUE,
 6,B,Walk,10000,1.35,0.14,,,,,,fixed,Sidewalk,TRUE,
 7,C,Walk,10000,1.35,0.14,,,,,,fixed,Sidewalk,TRUE,
