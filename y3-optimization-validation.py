@@ -231,7 +231,7 @@ for mul in multipliers:
         allCosts = optimizer.sumAllCosts()
         if optimizer.model.successful:
             collectedCosts[ba] = allCosts.sum()
-            collectedModeSplits[ba] = model.getModeSplit(microtypeID='A')
+            collectedModeSplits[ba] = model.getModeSplit(microtypeID='1')
 
     varyBusAllocation = pd.DataFrame(collectedCosts).transpose()
     varyBusAllocationModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
@@ -251,7 +251,7 @@ for mul in multipliers:
         allCosts = optimizer.sumAllCosts()
         if optimizer.model.successful:
             collectedCosts[bh] = allCosts.sum()
-            collectedModeSplits[bh] = model.getModeSplit(microtypeID='A')
+            collectedModeSplits[bh] = model.getModeSplit(microtypeID='1')
             model.getModeSplit()
 
     varyBusHeadway = pd.DataFrame(collectedCosts).transpose()
@@ -272,7 +272,7 @@ for mul in multipliers:
         allCosts = optimizer.sumAllCosts()
         if optimizer.model.successful:
             collectedCosts[ba] = allCosts.sum()
-            collectedModeSplits[ba] = model.getModeSplit(microtypeID='A')
+            collectedModeSplits[ba] = model.getModeSplit(microtypeID='1')
 
     varyBikeAllocation = pd.DataFrame(collectedCosts).transpose()
     varyBikeAllocationModes = pd.DataFrame(collectedModeSplits, index=model.passengerModeToIdx.keys()).transpose()
