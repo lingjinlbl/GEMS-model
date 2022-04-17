@@ -505,6 +505,7 @@ busHeadway = np.linspace(60, 300, 20)
 
 busHeadway = np.linspace(240, 900, 20)
 busAllocations = np.linspace(0., 0.3, 20)
+bikeAllocations = np.linspace(0, 0.05, 20)
 
 collectedCosts = dict()
 collectedModeSplits = dict()
