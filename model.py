@@ -926,67 +926,10 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-B", 1, False)
+    model = Model("input-data-california-A_B", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
-    # model.data.updateMicrotypeNetworkLength('1', 0.5)
-    # model.data.updateMicrotypeNetworkLength('1', 0.5)
+                          fromToSubNetworkIDs=[('A_1', 'Bus')], method="opt")
     optimizer.evaluate([0.01])
     x, y = model.plotAllDynamicStats("production")
-    optimizer.evaluate([0.02])
-    #
-    # allCosts = optimizer.sumAllCosts()
-    # #
-    # # print(model.getModeSpeeds())
-    # model.collectAllCharacteristics()=
-    # print(model.getModeSpeeds())
-    # obj = Mock()
-    # obj.new = 0.5
-    #
-    # model.interact.modifyModel(('networkLength', '2'), obj)
-    # optimizer.updateAndRunModel()
-    # allCosts = optimizer.sumAllCosts()
-    # out = model.toPandas()
-    # model.collectAllCharacteristics()
-    # print(model.getModeSpeeds())
-    # display(model.interact.grid)
-    # operatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
-    # a, b = model.collectAllCharacteristics()
-    # a, b = model.collectAllCharacteristics()
-    # optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus'), ('B', 'bus')],
-    #                       fromToSubNetworkIDs=[('A', 'Bus'), ('A', 'Bike'), ('B', 'Bus'), ('B', 'Bike')],
-    #                       method="min")
-
-    # optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'Bus')],
-    #                       fromToSubNetworkIDs=[('1', 'Bus'), ('1', 'Bike')],
-    #                       method="min")
-    #
-    # optimizer.evaluate(optimizer.x0())
-    # optimizer.evaluate([0.05, 0.05, 0.05])
-    # model.data.updateMicrotypeNetworkLength('1', 0.75)
-    # model.data.updateMicrotypeNetworkLength('2', 0.75)
-    # optimizer.updateAlpha("Operator", 5.0)
-    # optimizer.updateAlpha("Externality", 5.0)
-    # optimizer.minimize()
-    print('-----0.0------')
-
-    # optimizer.evaluate([0.0])
-
-    # model.collectAllCharacteristics()
-    # x, y = model.plotAllDynamicStats('n')
-    # # model.interact.updatePlots()
-    # print('-----0.15------')
-    # optimizer.evaluate([0.15])
-    # print('-----0.0------')
-    # optimizer.evaluate([0.0])
-    # print('-----0.0------')
-    # optimizer.evaluate([0.0])
-    # # print('-----0.0------')
-    # # optimizer.evaluate([0.0])
-    # print('done')
-
-    # # model.collectAllCharacteristics()
-    # # userCostDf = model.userCostDataFrame(vectorUserCosts)
-    # outcome = optimizer.minimize()
-    # params, outcomes, mask = optimizer.plotConvergence()
-    # print(outcome)
+    outcome = optimizer.minimize()
+    print(outcome)
