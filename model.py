@@ -943,7 +943,6 @@ if __name__ == "__main__":
     model.interact.modifyModel(('accessDistanceMultiplier', ('A', 'Bus')), obj)
     optimizer.evaluate([0.01])
     modeSplitData, speedData, utilityData, continuousData = model.toPandas()
-    err = cv.getError(modeSplitData, speedData, utilityData)
     x, y = model.plotAllDynamicStats("production")
     optimizer.evaluate([0.02])
     #
