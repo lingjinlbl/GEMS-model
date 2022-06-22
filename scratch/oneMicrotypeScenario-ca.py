@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = 'F'
+geotype = 'A'
 
 inFolder = "input-data-california"
 outFolder = "input-data-california-" + geotype
@@ -76,6 +76,14 @@ newPath = os.path.join(ROOT_DIR, "..", outFolder, "LaneDedicationCost.csv")
 df = pd.read_csv(oldPath)
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :].replace("hv", "auto")
 newdf['CostPerMeter'] = newdf['LaneDedicationPerLaneMile'] / 1609.34 / (20 * 365)
+newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
+newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
+
+# %% Activity Density
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "ActivityDensity.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "ActivityDensity.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 

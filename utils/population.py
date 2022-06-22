@@ -251,6 +251,7 @@ class Population:
                     for mode, values in dfPooled.iterrows():
                         self.__numpyCost[
                             self.diToIdx[di], self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
+                    # TODO: Index di to trip purpose
 
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)

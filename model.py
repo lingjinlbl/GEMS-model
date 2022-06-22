@@ -11,7 +11,7 @@ from mock import Mock
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand, Externalities, modeSplitFromUtilsWithExcludedModes
+from utils.demand import Demand, Externalities, modeSplitFromUtilsWithExcludedModes, Accessibility
 from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
@@ -128,6 +128,7 @@ class Model:
                                                      self.__transitionMatrices, self.__fixedData,
                                                      self.scenarioData)
         self.__externalities = Externalities(self.scenarioData)
+        self.__accessibility = Accessibility(self.scenarioData, self.data)
         self.__printLoc = stdout
         self.__interactive = interactive
         self.__tolerance = 2e-11
@@ -231,6 +232,7 @@ class Model:
 
     def initializeAllTimePeriods(self, override=False):
         self.__externalities.init()
+        self.__accessibility.init()
         self.__successful = True
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod, override)
@@ -926,9 +928,9 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-A_B", 1, False)
+    model = Model("input-data", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A_1', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
     optimizer.evaluate([0.01])
     x, y = model.plotAllDynamicStats("production")
     outcome = optimizer.minimize()

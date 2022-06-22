@@ -1,0 +1,12 @@
+MicrotypeID,ActivityID,DensityKmSq,TripPurposeID
+A,schools,1.38361,work
+A,snap,5.37524,work
+B,urgentcare,0.04688,work
+B,parks,0.60207,nonwork
+C,pharm,1.60538,work
+C,creditunion,0.38859,nonwork
+D,banks,1.36878,work
+A,hosp,0.08439,nonwork
+A,urgentcare,0.0213,work
+A,creditunion,0.11742,work
+B,schools,0.43826,nonwork

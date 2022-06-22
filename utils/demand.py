@@ -38,6 +38,31 @@ class Externalities:
         return totalExternalities
 
 
+class Accessibility:
+    def __init__(self, scenarioData, data):
+        self.__scenarioData = scenarioData
+        self.__data = data
+        fixedData = data.getInvariants()
+        self.__activityDensity = fixedData["activityDensity"]
+        self.__toEnds = fixedData["toEnds"]
+
+    @property
+    def tripPurposeToIdx(self):
+        return self.__scenarioData.tripPurposeToIdx
+
+    @property
+    def microtypeIdToIdx(self):
+        return self.__scenarioData.microtypeIdToIdx
+
+    def init(self):
+        np.copyto(self.__activityDensity, pd.pivot_table(self.__scenarioData["activityDensity"], values="DensityKmSq",
+                                                         columns="TripPurposeID", index="MicrotypeID",
+                                                         aggfunc="sum").reindex(
+            index=pd.Index(self.microtypeIdToIdx.keys()),
+            columns=pd.Index(self.tripPurposeToIdx.keys()),
+            fill_value=0.0).fillna(0.0))
+
+
 class TotalUserCosts:
     def __init__(self, total=0., totalEqualVOT=0., totalIVT=0., totalOVT=0., demandForTripsPerHour=0.,
                  demandForPMTPerHour=0.):

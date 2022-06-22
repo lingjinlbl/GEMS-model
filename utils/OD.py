@@ -508,8 +508,8 @@ class OriginDestination:
             self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
 
         for odi, idx in self.__scenarioData.odiToIdx.items():
-            self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = 1.0
-            self.__modelData['toEnds'][idx, self.__scenarioData.microtypeIdToIdx[odi.d]] = 1.0
+            self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = True
+            self.__modelData['toEnds'][idx, self.__scenarioData.microtypeIdToIdx[odi.d]] = True
             self.__modelData['toDistanceByOrigin'][idx, self.__scenarioData.microtypeIdToIdx[
                 odi.d]] = self.__distanceBins[odi.distBin]
             # TODO: Expand through distance to have a mode dimension, then filter and reallocate

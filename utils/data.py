@@ -46,6 +46,7 @@ class ScenarioData:
         self.__modeToIdx = dict()
         self.__passengerModeToIdx = dict()
         self.__freightModeToIdx = dict()
+        self.__tripPurposeToIdx = dict()
         self.__demandDataTypeToIdx = dict()
         self.__microtypeIdToIdx = dict()
         self.__paramToIdx = dict()
@@ -111,6 +112,10 @@ class ScenarioData:
     @property
     def firstFreightIdx(self):
         return len(self.passengerModeToIdx)
+
+    @property
+    def tripPurposeToIdx(self):
+        return self.__tripPurposeToIdx
 
     def __setitem__(self, key: str, value):
         self.data[key] = value
@@ -199,6 +204,9 @@ class ScenarioData:
                                                dtype={"OriginMicrotypeID": str, "DestinationMicrotypeID": str})
         self["freightDemand"] = pd.read_csv(os.path.join(self.__path, "FreightDemand.csv"),
                                             dtype={"MicrotypeID": str}).set_index(["MicrotypeID", "Mode"])
+        self["activityDensity"] = pd.read_csv(os.path.join(self.__path, "ActivityDensity.csv"),
+                                              dtype={"MicrotypeID": str})
+        self["tripPurposes"] = pd.read_csv(os.path.join(self.__path, "TripPurposes.csv")).set_index("TripPurposeID")
         self.defineIndices()
 
     def appendTripPurposeToPopulationGroups(self, populationGroups, tripPurposes):
@@ -223,6 +231,8 @@ class ScenarioData:
                                    enumerate(self["freightDemand"].index.levels[1].to_list())}
         self.__modeToIdx = {**self.__passengerModeToIdx, **freightModeToGeneralIdx}
         # Starting in Python 3.9 we can re place with | operator
+
+        self.__tripPurposeToIdx = {purpose: idx for idx, purpose in enumerate(self["tripPurposes"].index)}
 
         odJoinedToDistance = self['originDestinations'].merge(self['distanceDistribution'],
                                                               on=["OriginMicrotypeID", "DestinationMicrotypeID"],
@@ -290,6 +300,7 @@ class ShapeParams:
         self.nParams = len(scenarioData.paramToIdx)
         self.nDemandDataTypes = len(scenarioData.demandDataTypeToIdx)
         self.nTransitLayers = len(scenarioData.transitLayerToIdx)
+        self.nTripPurposes = len(scenarioData.tripPurposeToIdx)
 
 
 class Data:
@@ -308,8 +319,8 @@ class Data:
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes), dtype=float)
         self.__tripRate = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs), dtype=float)
-        self.__toStarts = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
-        self.__toEnds = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
+        self.__toStarts = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=bool)
+        self.__toEnds = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=bool)
         self.__toThroughDistance = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toDistanceByOrigin = np.zeros((self.params.nODIs, self.params.nMicrotypes), dtype=float)
         self.__toTransitLayer = np.zeros((self.params.nODIs, self.params.nTransitLayers), dtype=float)
@@ -319,6 +330,7 @@ class Data:
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes,
              self.params.nParams),
             dtype=float)
+        self.__toTripPurpose = np.zeros((self.params.nDIs, self.params.nTripPurposes), dtype=bool)
         self.__microtypeCosts = np.zeros(
             (self.params.nMicrotypes, self.params.nDIs, self.params.nModesTotal, 3), dtype=float)
         self.__transitLayerUtility = np.zeros((self.params.nPassengerModes, self.params.nTransitLayers), dtype=float)
@@ -326,6 +338,7 @@ class Data:
                                            dtype=float)
         self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nPassengerModes, self.params.nParams),
                                                 dtype=float)
+        self.__activityDensity = np.zeros((self.params.nMicrotypes, self.params.nTripPurposes), dtype=float)
 
         #############
         # Supply side
@@ -550,6 +563,7 @@ class Data:
         fixedData['transitLayerUtility'] = self.__transitLayerUtility
         fixedData['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
         fixedData['accessDistance'] = self.__accessDistance
+        fixedData['activityDensity'] = self.__activityDensity
         return fixedData
 
     def updateNetworkLength(self, networkId, newLength):
