@@ -247,7 +247,7 @@ class Model:
         return choiceCharacteristicsArray
 
     def demandSide(self, choiceCharacteristicsArray):
-        utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray)
+        utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray, True)
         modeSplitArray = modeSplitFromUtilsWithExcludedModes(utilitiesArray, self.__fixedData['toTransitLayer'])
         return modeSplitArray
 
@@ -317,7 +317,9 @@ class Model:
         Finalize
         """
         self.demand.updateMFD(self.microtypes, modeSplitArray=fixedPointModeSplit)
-        self.choice.updateChoiceCharacteristics(self.microtypes)
+        choiceCharacteristicsArray = self.choice.updateChoiceCharacteristics(self.microtypes)
+        utilities = self.demand.calculateUtilities(choiceCharacteristicsArray, False)
+        self.demand.utilities = utilities
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
@@ -448,6 +450,9 @@ class Model:
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, preserve=True)
             self.demand.updateTripGeneration(self.microtypes)
+
+    def updateAccessibility(self):
+        return self.__accessibility.calculate()
 
     def collectAllCharacteristics(self):
         vectorUserCosts = 0.0
@@ -761,7 +766,9 @@ class Optimizer:
                 print("Starting from a bad place so I'll reset")
                 self.model.initializeAllTimePeriods(True)
             self.model.modifyNetworks(networkModification, transitModification)
+
         self.model.collectAllCharacteristics()
+        accessibility = self.model.updateAccessibility()
 
     def scaling(self):
         return np.array([1.0] * self.nSubNetworks() + [0.001] * self.nModes())
@@ -928,9 +935,9 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, False)
+    model = Model("input-data-california-A", 1, False)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
     optimizer.evaluate([0.01])
     x, y = model.plotAllDynamicStats("production")
     outcome = optimizer.minimize()

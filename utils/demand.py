@@ -45,6 +45,12 @@ class Accessibility:
         fixedData = data.getInvariants()
         self.__activityDensity = fixedData["activityDensity"]
         self.__toEnds = fixedData["toEnds"]
+        self.__toTripPurpose = fixedData["toTripPurpose"]
+        self.__toHomeMicrotype = fixedData["toHomeMicrotype"]
+        self.__toODI = fixedData["toODI"]
+        demand = data.getDemand()
+        self.__tripRate = demand["tripRate"]
+        self.__utilities = demand["utilities"]
 
     @property
     def tripPurposeToIdx(self):
@@ -61,6 +67,28 @@ class Accessibility:
             index=pd.Index(self.microtypeIdToIdx.keys()),
             columns=pd.Index(self.tripPurposeToIdx.keys()),
             fill_value=0.0).fillna(0.0))
+
+    def calculate(self):
+        activityDensity = self.__activityDensity
+        toODI = self.__toODI
+        toEnds = self.__toEnds
+        inverseUtility = np.exp(self.__utilities)
+        tripRate = self.__tripRate
+        """
+        t -> time: 3
+        i -> demand index (homeMicrotypeID, populationGroupTypeID, tripPurposeID): 16
+        o -> odi: 32
+        m -> mode: 5
+        d -> destination: 4
+        p -> tripPurpose: 2
+        h -> home microtype
+        ----- 
+        
+        """
+        return np.einsum("tiom,tio,od,ihp,dp->thpm", inverseUtility,
+                         tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toODI,
+                         activityDensity,
+                         optimize=['einsum_path', (2, 4), (1, 3), (0, 2), (0, 1)])
 
 
 class TotalUserCosts:
@@ -241,6 +269,14 @@ class Demand:
     @property
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
+
+    @property
+    def utilities(self):
+        return self.__currentUtility
+
+    @utilities.setter
+    def utilities(self, newUtilities):
+        np.copyto(self.__currentUtility, newUtilities)
 
     def modeSplitDataFrame(self):
         dis = pd.MultiIndex.from_tuples([di.toTuple() for di in self.diToIdx.keys()],
@@ -442,10 +478,12 @@ class Demand:
     def currentUtilities(self):
         return self.__currentUtility
 
-    def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray) -> np.ndarray:
-        newUtilities = utilsWithExcludedModes(self.__population.numpy, choiceCharacteristicsArray,
-                                              self.__population.transitLayerUtility)
-        return newUtilities
+    def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray, excludeModes=True) -> np.ndarray:
+        if excludeModes:
+            return utilsWithExcludedModes(self.__population.numpy, choiceCharacteristicsArray,
+                                          self.__population.transitLayerUtility)
+        else:
+            return utils(self.__population.numpy, choiceCharacteristicsArray)
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
         demandForTrips = 0

@@ -331,6 +331,8 @@ class Data:
              self.params.nParams),
             dtype=float)
         self.__toTripPurpose = np.zeros((self.params.nDIs, self.params.nTripPurposes), dtype=bool)
+        self.__toHomeMicrotype = np.zeros((self.params.nDIs, self.params.nMicrotypes), dtype=bool)
+        self.__toODI = np.zeros((self.params.nDIs, self.params.nMicrotypes, self.params.nTripPurposes), dtype=bool)
         self.__microtypeCosts = np.zeros(
             (self.params.nMicrotypes, self.params.nDIs, self.params.nModesTotal, 3), dtype=float)
         self.__transitLayerUtility = np.zeros((self.params.nPassengerModes, self.params.nTransitLayers), dtype=float)
@@ -441,6 +443,10 @@ class Data:
     @property
     def n(self):
         return self.__subNetworkInstantaneousAutoAccumulation[self.__transitionMatrixNetworkIdx, :]
+
+    @property
+    def utilities(self):
+        return self.__utilities
 
     def getStartAndEndInd(self, timePeriodIdx):
         currentTimePeriodIndex = int(timePeriodIdx / self.params.nSubBins)
@@ -555,6 +561,9 @@ class Data:
         fixedData['microtypeCosts'] = self.__microtypeCosts
         fixedData['toThroughDistance'] = self.__toThroughDistance
         fixedData['toDistanceByOrigin'] = self.__toDistanceByOrigin
+        fixedData['toTripPurpose'] = self.__toTripPurpose
+        fixedData['toHomeMicrotype'] = self.__toHomeMicrotype
+        fixedData['toODI'] = self.__toODI
         fixedData['choiceParameters'] = self.__choiceParameters
         fixedData['choiceParametersFixed'] = self.__choiceParametersFixed
         fixedData['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
