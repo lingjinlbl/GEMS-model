@@ -60,6 +60,18 @@ class Accessibility:
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
 
+    @property
+    def passengerModeToIdx(self):
+        return self.__scenarioData.passengerModeToIdx
+
+    @property
+    def populationGroupToIdx(self):
+        return self.__scenarioData.populationGroupToIdx
+
+    @property
+    def timePeriods(self):
+        return self.__scenarioData["timePeriods"]["TimePeriodID"]
+
     def init(self):
         np.copyto(self.__activityDensity, pd.pivot_table(self.__scenarioData["activityDensity"], values="DensityKmSq",
                                                          columns="TripPurposeID", index="MicrotypeID",
@@ -82,13 +94,21 @@ class Accessibility:
         d -> destination: 4
         p -> tripPurpose: 2
         h -> home microtype
+        g -> population group
         ----- 
         
         """
-        return np.einsum("tiom,tio,od,ihp,dp->thpm", inverseUtility,
-                         tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toODI,
-                         activityDensity,
-                         optimize=['einsum_path', (2, 4), (1, 3), (0, 2), (0, 1)])
+        midx = pd.MultiIndex.from_product(
+            [self.microtypeIdToIdx.keys(), self.tripPurposeToIdx.keys(), self.populationGroupToIdx.keys(),
+             self.passengerModeToIdx.keys()],
+            names=["Microtype ID", "Trip Purpose", "Population Group", "Mode"])
+        accessibilityArray = np.einsum("tiom,tio,od,ihpg,dp->thpgm", inverseUtility,
+                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toODI,
+                                       activityDensity,
+                                       optimize=['einsum_path', (0, 1), (0, 2), (1, 2), (0, 1)])
+        out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx,
+                           columns=self.timePeriods)
+        return out
 
 
 class TotalUserCosts:

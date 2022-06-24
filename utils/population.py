@@ -152,6 +152,10 @@ class Population:
         return self.__scenarioData.paramToIdx
 
     @property
+    def populationGroupToIdx(self):
+        return self.__scenarioData.populationGroupToIdx
+
+    @property
     def numpy(self) -> np.ndarray:
         return self.__numpy
 
@@ -270,7 +274,7 @@ class Population:
                     self.__toTripPurpose[idx, self.tripPurposeToIdx[tripPurpose]] = True
                     self.__toHomeMicrotype[idx, self.__scenarioData.microtypeIdToIdx[homeMicrotypeID]] = True
                     self.__toODI[idx, self.__scenarioData.microtypeIdToIdx[homeMicrotypeID], self.tripPurposeToIdx[
-                        tripPurpose]] = True
+                        tripPurpose], self.populationGroupToIdx[groupId]] = True
 
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)

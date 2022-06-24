@@ -53,6 +53,7 @@ class ScenarioData:
         self.__transitLayerToIdx = dict()
         self.__subNetworkIdToIdx = dict()
         self.__distanceBinToDistance = dict()
+        self.__populationGroupToIdx = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
             self.data = dict()
@@ -116,6 +117,10 @@ class ScenarioData:
     @property
     def tripPurposeToIdx(self):
         return self.__tripPurposeToIdx
+
+    @property
+    def populationGroupToIdx(self):
+        return self.__populationGroupToIdx
 
     def __setitem__(self, key: str, value):
         self.data[key] = value
@@ -267,6 +272,8 @@ class ScenarioData:
                              'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
         uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
         self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
+        self.__populationGroupToIdx = {grp: idx for idx, grp in
+                                       enumerate(self['populationGroups']['PopulationGroupTypeID'].unique())}
 
     def copy(self):
         """
@@ -301,6 +308,7 @@ class ShapeParams:
         self.nDemandDataTypes = len(scenarioData.demandDataTypeToIdx)
         self.nTransitLayers = len(scenarioData.transitLayerToIdx)
         self.nTripPurposes = len(scenarioData.tripPurposeToIdx)
+        self.nPopulationGroups = len(scenarioData.populationGroupToIdx)
 
 
 class Data:
@@ -332,7 +340,9 @@ class Data:
             dtype=float)
         self.__toTripPurpose = np.zeros((self.params.nDIs, self.params.nTripPurposes), dtype=bool)
         self.__toHomeMicrotype = np.zeros((self.params.nDIs, self.params.nMicrotypes), dtype=bool)
-        self.__toODI = np.zeros((self.params.nDIs, self.params.nMicrotypes, self.params.nTripPurposes), dtype=bool)
+        self.__toODI = np.zeros(
+            (self.params.nDIs, self.params.nMicrotypes, self.params.nTripPurposes, self.params.nPopulationGroups),
+            dtype=bool)
         self.__microtypeCosts = np.zeros(
             (self.params.nMicrotypes, self.params.nDIs, self.params.nModesTotal, 3), dtype=float)
         self.__transitLayerUtility = np.zeros((self.params.nPassengerModes, self.params.nTransitLayers), dtype=float)
