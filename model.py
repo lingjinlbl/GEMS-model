@@ -444,7 +444,8 @@ class Model:
             operatorCosts += self.getOperatorCosts() * durationInHours
             freightOperatorCosts += self.getFreightOperatorCosts() * durationInHours
             externalities[timePeriod] = self.__externalities.calcuate(self.microtypes) * durationInHours
-        return operatorCosts, freightOperatorCosts, vectorUserCosts, externalities
+        accessibility = self.updateAccessibility()
+        return operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility
 
     def updatePopulation(self):
         for timePeriod, durationInHours in self.__timePeriods:
@@ -605,7 +606,7 @@ class Model:
                                                              self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
-            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = self.collectAllCosts()
+            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = self.collectAllCosts()
             x = list(self.microtypeIdToIdx.keys())
             userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
                 level='homeMicrotype').sum(axis=0)
@@ -768,13 +769,12 @@ class Optimizer:
             self.model.modifyNetworks(networkModification, transitModification)
 
         self.model.collectAllCharacteristics()
-        accessibility = self.model.updateAccessibility()
 
     def scaling(self):
         return np.array([1.0] * self.nSubNetworks() + [0.001] * self.nModes())
 
     def sumAllCosts(self):
-        operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
+        operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = self.model.collectAllCosts()
         # if self.model.choice.broken | (not self.model.successful):
         #     return np.nan
         operatorCostsByMicrotype = operatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
@@ -798,6 +798,7 @@ class Optimizer:
                 costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
                     (val.MicrotypeID, val.ModesAllowed.lower()), 0.0)
                 dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
+
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
