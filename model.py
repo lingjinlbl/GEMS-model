@@ -444,7 +444,7 @@ class Model:
             operatorCosts += self.getOperatorCosts() * durationInHours
             freightOperatorCosts += self.getFreightOperatorCosts() * durationInHours
             externalities[timePeriod] = self.__externalities.calcuate(self.microtypes) * durationInHours
-        accessibility = self.updateAccessibility()
+        accessibility = self.calculateAccessibility()
         return operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility
 
     def updatePopulation(self):
@@ -452,8 +452,8 @@ class Model:
             self.setTimePeriod(timePeriod, preserve=True)
             self.demand.updateTripGeneration(self.microtypes)
 
-    def updateAccessibility(self):
-        return self.__accessibility.calculate()
+    def calculateAccessibility(self):
+        return self.__accessibility.calculateByDI()
 
     def collectAllCharacteristics(self):
         vectorUserCosts = 0.0
@@ -698,11 +698,20 @@ class Optimizer:
         self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)) * 20.,
                          "Operator": np.ones(len(model.microtypeIdToIdx)),
                          "Externality": np.ones(len(model.microtypeIdToIdx)),
-                         "Dedication": np.ones(len(model.microtypeIdToIdx))}
+                         "Dedication": np.ones(len(model.microtypeIdToIdx)),
+                         "Accessibility": np.ones(len(model.microtypeIdToIdx))}
+        self.__accessibilityMultipliers = pd.Series(0, index=pd.MultiIndex.from_tuples(
+            [(odi.homeMicrotype, odi.populationGroupType, odi.tripPurpose) for odi in model.diToIdx.keys()],
+            names=["Microtype ID", "Population Group", "Trip Purpose"]))
         self.__trialParams = []
         self.__objectiveFunctionValues = []
         self.__isImprovement = []
+        self.__initializeAccessibilityMultipliers()
         self.model = model
+
+    def __initializeAccessibilityMultipliers(self):
+        relevantTripTypes = set(self.__accessibilityMultipliers.unstack().columns).difference({'home', 'work'})
+        self.__accessibilityMultipliers.loc[pd.IndexSlice[:, :, list(relevantTripTypes)]] = 1.0
 
     def updateAlpha(self, costType, newValue, mID=None):
         if mID is None:
@@ -799,6 +808,9 @@ class Optimizer:
                     (val.MicrotypeID, val.ModesAllowed.lower()), 0.0)
                 dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
 
+        accessibilityByMicrotype = (accessibility.sum(axis=1).loc[
+                                        self.__accessibilityMultipliers.index] * self.__accessibilityMultipliers).unstack(
+            0).T.sum(axis=1)
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
@@ -807,6 +819,7 @@ class Optimizer:
         output['Revenue'] = - operatorRevenuesByMicrotype * self.__alphas['Operator']
         output['Externality'] = externalityCostsByMicrotype * self.__alphas['Externality']
         output['Dedication'] = dedicationCostsByMicrotype * self.__alphas['Dedication']
+        output['Accessibility'] = accessibilityByMicrotype * self.__alphas['Accessibility']
         allCosts = pd.concat(output, axis=1)
         allCosts.index.set_names(['Microtype'], inplace=True)
         return allCosts

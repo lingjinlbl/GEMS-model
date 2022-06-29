@@ -51,6 +51,7 @@ class Accessibility:
         demand = data.getDemand()
         self.__tripRate = demand["tripRate"]
         self.__utilities = demand["utilities"]
+        self.__modeSplit = demand["modeSplit"]
 
     @property
     def tripPurposeToIdx(self):
@@ -106,6 +107,35 @@ class Accessibility:
                                        tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toODI,
                                        activityDensity,
                                        optimize=['einsum_path', (0, 1), (0, 2), (1, 2), (0, 1)])
+        out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx,
+                           columns=self.timePeriods)
+        return out
+
+    def calculateByDI(self):
+        activityDensity = self.__activityDensity
+        toODI = self.__toODI
+        toEnds = self.__toEnds
+        inverseUtility = np.exp(self.__utilities)
+        modeSplit = self.__modeSplit
+        tripRate = self.__tripRate
+        """
+        t -> time: 3
+        i -> demand index (homeMicrotypeID, populationGroupTypeID, tripPurposeID): 16
+        o -> odi: 32
+        m -> mode: 5
+        d -> destination: 4
+        p -> tripPurpose: 2
+        h -> home microtype
+        g -> population group
+        ----- "Microtype ID", "Population Group", "Trip Purpose"
+
+        """
+        midx = pd.MultiIndex.from_product(
+            [self.microtypeIdToIdx.keys(), self.populationGroupToIdx.keys(), self.tripPurposeToIdx.keys()],
+            names=["Microtype ID", "Population Group", "Trip Purpose"])
+        accessibilityArray = np.einsum("tiom,tio,tiom,od,ihpg,dp->thpg", inverseUtility,
+                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), modeSplit, toEnds, toODI,
+                                       activityDensity)
         out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx,
                            columns=self.timePeriods)
         return out
