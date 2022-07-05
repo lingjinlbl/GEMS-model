@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = 'A'
+geotype = 'F'
 
 inFolder = "input-data-california"
 outFolder = "input-data-california-" + geotype

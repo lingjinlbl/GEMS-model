@@ -452,8 +452,12 @@ class Model:
             self.setTimePeriod(timePeriod, preserve=True)
             self.demand.updateTripGeneration(self.microtypes)
 
-    def calculateAccessibility(self):
-        return self.__accessibility.calculateByDI()
+    def calculateAccessibility(self, normalize=False):
+        acc = self.__accessibility.calculateByDI()
+        if normalize:
+            for (row, val) in self.scenarioData['populations'].iterrows():
+                acc.loc[val.MicrotypeID, val.PopulationGroupTypeID, :] /= val.Population
+        return acc
 
     def collectAllCharacteristics(self):
         vectorUserCosts = 0.0
@@ -807,10 +811,9 @@ class Optimizer:
                 costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
                     (val.MicrotypeID, val.ModesAllowed.lower()), 0.0)
                 dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
+        am = self.__accessibilityMultipliers.unstack()
 
-        accessibilityByMicrotype = (accessibility.sum(axis=1).loc[
-                                        self.__accessibilityMultipliers.index] * self.__accessibilityMultipliers).unstack(
-            0).T.sum(axis=1)
+        accessibilityByMicrotype = (accessibility.loc[am.index, am.columns] * am).unstack().sum(axis=1)
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
@@ -926,7 +929,7 @@ def startBar():
         options=['One microtype toy model', '4 microtype toy model', 'Los Angeles (National params)',
                  'California A', 'California B', 'California C', 'California D', 'California E', 'California F',
                  'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
-        value='Los Angeles (National params)',
+        value='4 microtype toy model',
         description='Input data:',
         disabled=False,
     )
@@ -949,9 +952,9 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-A", 1, False)
+    model = Model("input-data", 1, True)
     optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('1', 'Bus')], method="opt")
+                          fromToSubNetworkIDs=[('A', 'Bus')], method="opt")
     optimizer.evaluate([0.01])
     x, y = model.plotAllDynamicStats("production")
     outcome = optimizer.minimize()

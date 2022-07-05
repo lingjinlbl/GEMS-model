@@ -107,8 +107,7 @@ class Accessibility:
                                        tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toODI,
                                        activityDensity,
                                        optimize=['einsum_path', (0, 1), (0, 2), (1, 2), (0, 1)])
-        out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx,
-                           columns=self.timePeriods)
+        out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx)
         return out
 
     def calculateByDI(self):
@@ -133,12 +132,16 @@ class Accessibility:
         midx = pd.MultiIndex.from_product(
             [self.microtypeIdToIdx.keys(), self.populationGroupToIdx.keys(), self.tripPurposeToIdx.keys()],
             names=["Microtype ID", "Population Group", "Trip Purpose"])
-        accessibilityArray = np.einsum("tiom,tio,tiom,od,ihpg,dp->thpg", inverseUtility,
-                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), modeSplit, toEnds, toODI,
+        accessibilityArray = np.einsum("tiom,tio,tiom,ihpg,od,dp->hpg", inverseUtility,
+                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), modeSplit, toODI, toEnds,
                                        activityDensity)
-        out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx,
-                           columns=self.timePeriods)
-        return out
+        out = dict()
+        for hm, midx in self.microtypeIdToIdx.items():
+            da = dict()
+            for tp, pidx in self.tripPurposeToIdx.items():
+                da[tp] = pd.Series(accessibilityArray[midx, pidx, :], index=self.populationGroupToIdx.keys())
+            out[hm] = pd.DataFrame(da)
+        return pd.concat(out, names=['Home Microtype', 'Population Group'])
 
 
 class TotalUserCosts:
