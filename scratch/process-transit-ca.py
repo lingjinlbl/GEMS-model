@@ -5,7 +5,7 @@ import shutil
 
 miles2meters = 1609.34
 headwayFactor = 2 / 24.
-interliningFactor = 3.0
+interliningFactor = 5.0
 operatingHoursPerDay = 20
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +16,7 @@ subNetworksRaw = pd.read_csv(path, index_col="MicrotypeID")
 
 path = os.path.join(ROOT_DIR, "..", "input-data-california-raw", "modes", "bus-raw.csv")
 busInput = pd.read_csv(path, index_col="MicrotypeID")
-busInput['coveragePortion'] = 0.0
+busInput['CoveragePortion'] = 0.0
 busInput['Headway'] = 3600 / (busInput['VehicleRevenueMilesPerDay'] / busInput[
     'DirectionalRouteMiles']) / headwayFactor / interliningFactor
 busInput['VehicleCapacity'] = 40.

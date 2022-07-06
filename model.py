@@ -24,12 +24,16 @@ class OptimizationDomain:
         self.headways = []
         self.modesAndMicrotypes = []
         self.modificationToIdx = dict()
-        self.__scalingDefaults = {"headway": 0.01, "dedicated": 1.0}
+        self.__scalingDefaults = {"headway": 0.01, "dedicated": 1.0, "fare": 0.1, "fareSenior": 0.1, "coverage": 1.0}
         for idx, (changeType, changeDetails) in enumerate(modifications):
             if changeType == "dedicated":
                 self.modesAndMicrotypes.append(changeDetails)
             elif changeType == "headway":
                 self.headways.append(changeDetails)
+            elif (changeType == "fare") | (changeType == "fareSenior"):
+                pass
+            elif (changeType == "coverage") & (changeDetails[1].lower() == "bus"):
+                pass
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
             self.modificationToIdx[(changeType, changeDetails)] = idx
@@ -45,13 +49,21 @@ class OptimizationDomain:
 
         for (changeType, changeDetails) in self.modifications:
             if changeType == "dedicated":
-                lowerBounds.append(0.0)
-                upperBounds.append(0.6)
-                defaults.append(0.0)
+                lowerBounds.append(0.0 * self.__scalingDefaults[changeType])
+                upperBounds.append(0.6 * self.__scalingDefaults[changeType])
+                defaults.append(0.0 * self.__scalingDefaults[changeType])
             elif changeType == "headway":
-                lowerBounds.append(0.06)
-                upperBounds.append(3.600)
-                defaults.append(0.3)
+                lowerBounds.append(60 * self.__scalingDefaults[changeType])
+                upperBounds.append(3600 * self.__scalingDefaults[changeType])
+                defaults.append(300 * self.__scalingDefaults[changeType])
+            elif (changeType == "fare") | (changeType == "fareSenior"):
+                lowerBounds.append(0.0 * self.__scalingDefaults[changeType])
+                upperBounds.append(20.0 * self.__scalingDefaults[changeType])
+                defaults.append(2.0 * self.__scalingDefaults[changeType])
+            elif (changeType == "coverage") & (changeDetails[1].lower() == "bus"):
+                lowerBounds.append(0.001 * self.__scalingDefaults[changeType])
+                upperBounds.append(1.0 * self.__scalingDefaults[changeType])
+                defaults.append(0.2 * self.__scalingDefaults[changeType])
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
 
@@ -59,6 +71,9 @@ class OptimizationDomain:
 
     def scaling(self):
         return np.array([self.__scalingDefaults[changeType] for (changeType, changeDetails) in self.modifications])
+
+    def nSubNetworks(self):
+        return len(self.modesAndMicrotypes)
 
 
 class Model:
@@ -662,7 +677,7 @@ class Model:
         return self.__population.getUtilityParam(param, populationGroupTypeID, tripPurposeID, mode, mID)
 
     def emptyOptimizer(self):
-        return Optimizer(model=self)
+        return Optimizer(model=self, domain=OptimizationDomain([]))
 
 
 class Optimizer:
@@ -713,24 +728,12 @@ class Optimizer:
             else:
                 print("BAD INPUT ALPHA")
 
-    def getDedicationCost(self, reallocations: np.ndarray) -> float:
-        for (_, (mID, mode)) in self.__domain.modesAndMicrotypes:
-            dedicatedIdx, newDedicatedLength, mixedIdx, newMixedLength = self.getDedicationDistance(self, microtype,
-                                                                                                    modeName, newValue)
-            perMeterCosts = self.model.scenarioData["laneDedicationCost"].loc[
-                pd.MultiIndex.from_arrays([microtypes, modes]), "CostPerMeter"].values
-            cost = np.sum(reallocations[:self.nSubNetworks()] * perMeterCosts)  # TODO: Convert back to real numbers
-            if np.isnan(cost):
-                return np.inf
-            else:
-                return cost
-
-    def updateAndRunModel(self, x=None):
-        if x is not None:
+    def updateAndRunModel(self, xUnScaled=None):
+        if xUnScaled is not None:
             if self.model.choice.broken | (not self.model.successful):
                 print("Starting from a bad place so I'll reset")
                 self.model.initializeAllTimePeriods(True)
-            for mod, val in zip(self.__domain.modifications, x):
+            for mod, val in zip(self.__domain.modifications, xUnScaled):
                 self.model.interact.modifyModel(changeType=mod, value=val)
         self.model.collectAllCharacteristics()
 
@@ -836,7 +839,7 @@ class Optimizer:
             #                 options={'eps': 0.002, 'iprint': 1})
             bounds = Bounds(lowerBounds, upperBounds)
             return minimize(self.evaluate, x0, method='TNC', bounds=bounds,
-                            options={'eps': 0.0005, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
+                            options={'eps': 0.0002, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -875,10 +878,15 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-A_B", 1, False)
-    optimizer = Optimizer(model, modesAndMicrotypes=None,
-                          fromToSubNetworkIDs=[('A_1', 'Bus')], method="opt")
-    optimizer.evaluate([0.01])
+    model = Model("input-data", 1, False)
+    optimizer = Optimizer(model, domain=OptimizationDomain(
+        [('dedicated', ('A', 'Bus')),
+         ('headway', ('A', 'Bus')),
+         ('fare', ('B', 'Bus')),
+         ('coverage', ('A', 'Bus')),
+         ]),
+                          method="opt")
+    optimizer.updateAndRunModel(np.array([0.05, 250, 1.25, 0.4]))
     x, y = model.plotAllDynamicStats("production")
     outcome = optimizer.minimize()
     print(outcome)

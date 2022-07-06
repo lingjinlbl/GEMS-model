@@ -505,7 +505,7 @@ class Interact:
             coverageStack.append(widgets.FloatSlider(value=busServiceData.CoveragePortion, min=0.02, max=1.0, step=0.02,
                                                      description="Microtype " + mID))
             coverageStack[-1].observe(self.response, names="value")
-            self.__widgetIDtoField[coverageStack[-1].model_id] = ('coverage', mID)
+            self.__widgetIDtoField[coverageStack[-1].model_id] = ('coverage', (mID, "Bus"))
 
         titleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
         userCostStack = [widgets.HTML(value="<center><i>User Costs</i></center>")]
@@ -614,8 +614,8 @@ class Interact:
             raise NotImplementedError
         if changeType[0] == 'dedicated':
             microtype, modeName = changeType[1]
-            dedicatedIdx, newDedicatedLength, mixedIdx, newMixedLength = self.getDedicationDistance(self, microtype,
-                                                                                                    modeName, newValue)
+            dedicatedIdx, newDedicatedLength, mixedIdx, newMixedLength = self.getDedicationDistance(
+                microtype, modeName, newValue)
             # NOTE: Right now this relies on the ordering of the input csv
             self.model.data.updateNetworkLength(mixedIdx, newMixedLength)
             self.model.data.updateNetworkLength(dedicatedIdx, newDedicatedLength)
@@ -631,8 +631,9 @@ class Interact:
             microtype, modeName = changeType[1]
             self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue, True)
         if changeType[0] == 'coverage':
-            self.model.scenarioData['modeData']['bus'].loc[changeType[1], 'CoveragePortion'] = newValue
-            self.model.readFiles()
+            microtype, modeName = changeType[1]
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'CoveragePortion'] = newValue
+            self.model.microtypes[microtype].networks.updateModeData()
         if changeType[0] == 'population':
             mask = (self.model.scenarioData['populations']['MicrotypeID'] == changeType[1][0]) & (
                     self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])

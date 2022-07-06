@@ -305,7 +305,7 @@ class Network:
         return self.characteristics['ModesAllowed'].iloc[self._iloc]
 
     def __str__(self):
-        return str(tuple(self._VMT.keys()))
+        return str(self._modes) + '__' + str(self.modeAccumulation)
 
     def __contains__(self, mode):
         return mode in self._modes
@@ -478,7 +478,7 @@ class NetworkCollection:
             return self.__passengerModes[mode]
         else:
             return self.__freightModes[mode]
-        
+
     def fixedVMT(self, mode):
         if mode in self.__passengerModes:
             return self.__passengerModes[mode].fixedVMT

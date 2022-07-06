@@ -518,6 +518,7 @@ class BusMode(Mode):
         self._params = self.params.to_numpy()
         for n in self.networks:
             self.__operatingL[n] = self.updateOperatingL(n)
+        self.__routeLength = self.updateRouteLength()
 
     def getAccessDistance(self) -> float:
         """Order of magnitude estimate for average walking distance to nearest stop"""
