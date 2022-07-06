@@ -591,6 +591,17 @@ class Interact:
         field = self.__widgetIDtoField[change.owner.model_id]
         self.modifyModel(field, change)
 
+    def getDedicationDistance(self, microtype: str, modeName: str, dedicationPortion: float):
+        roadDF = self.returnRoadNetworkLengths(microtype)
+        modeDF = self.returnModeNetworkLengths(microtype, modeName)
+        routeLength = roadDF.sum() * self.model.scenarioData.data['modeData'][modeName.lower()].loc[microtype].get(
+            'CoveragePortion', 1)
+        newDedicatedLength = routeLength * dedicationPortion
+        newMixedLength = modeDF.sum() - newDedicatedLength
+        dedicatedIdx = modeDF.index[1]
+        mixedIdx = modeDF.index[0]
+        return dedicatedIdx, newDedicatedLength, mixedIdx, newMixedLength
+
     def modifyModel(self, changeType, value):
         if hasattr(value, 'new'):
             newValue = value.new
@@ -600,20 +611,16 @@ class Interact:
             print("BAD INPUT")
             print(value)
             print(changeType)
-            return
+            raise NotImplementedError
         if changeType[0] == 'dedicated':
             microtype, modeName = changeType[1]
-            roadDF = self.returnRoadNetworkLengths(microtype)
-            modeDF = self.returnModeNetworkLengths(microtype, modeName)
-            routeLength = roadDF.sum() * self.model.scenarioData.data['modeData'][modeName.lower()].loc[microtype].get(
-                'CoveragePortion', 1)
-            newDedicatedLength = routeLength * newValue
-            newMixedLength = modeDF.sum() - newDedicatedLength
+            dedicatedIdx, newDedicatedLength, mixedIdx, newMixedLength = self.getDedicationDistance(self, microtype,
+                                                                                                    modeName, newValue)
             # NOTE: Right now this relies on the ordering of the input csv
-            self.model.data.updateNetworkLength(modeDF.index[0], newMixedLength)
-            self.model.data.updateNetworkLength(modeDF.index[1], newDedicatedLength)
-            self.model.scenarioData['subNetworkData'].loc[modeDF.index[0], 'Length'] = newMixedLength
-            self.model.scenarioData['subNetworkData'].loc[modeDF.index[1], 'Length'] = newDedicatedLength
+            self.model.data.updateNetworkLength(mixedIdx, newMixedLength)
+            self.model.data.updateNetworkLength(dedicatedIdx, newDedicatedLength)
+            self.model.scenarioData['subNetworkData'].loc[mixedIdx, 'Length'] = newMixedLength
+            self.model.scenarioData['subNetworkData'].loc[dedicatedIdx, 'Length'] = newDedicatedLength
         if changeType[0] == 'headway':
             microtype, modeName = changeType[1]
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
