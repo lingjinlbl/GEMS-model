@@ -624,12 +624,18 @@ class Interact:
         if changeType[0] == 'headway':
             microtype, modeName = changeType[1]
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
+        if changeType[0] == 'fleetSize':
+            microtype, modeName = changeType[1]
+            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
+        if changeType[0] == 'perMileCharge':
+            microtype, modeName = changeType[1]
+            self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=True)
         if changeType[0] == 'fare':
             microtype, modeName = changeType[1]
             self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue)
         if changeType[0] == 'fareSenior':
             microtype, modeName = changeType[1]
-            self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue, True)
+            self.model.data.setModeFleetSize(modeName.lower(), microtype, newValue)
         if changeType[0] == 'coverage':
             microtype, modeName = changeType[1]
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'CoveragePortion'] = newValue

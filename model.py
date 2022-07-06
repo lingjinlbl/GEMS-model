@@ -24,7 +24,8 @@ class OptimizationDomain:
         self.headways = []
         self.modesAndMicrotypes = []
         self.modificationToIdx = dict()
-        self.__scalingDefaults = {"headway": 0.01, "dedicated": 1.0, "fare": 0.1, "fareSenior": 0.1, "coverage": 1.0}
+        self.__scalingDefaults = {"headway": 0.01, "dedicated": 1.0, "fare": 0.1, "fareSenior": 0.1, "coverage": 1.0,
+                                  "fleetSize": 1.0}
         for idx, (changeType, changeDetails) in enumerate(modifications):
             if changeType == "dedicated":
                 self.modesAndMicrotypes.append(changeDetails)
@@ -33,6 +34,8 @@ class OptimizationDomain:
             elif (changeType == "fare") | (changeType == "fareSenior"):
                 pass
             elif (changeType == "coverage") & (changeDetails[1].lower() == "bus"):
+                pass
+            elif (changeType == "fleetSize") & (changeDetails[1].lower() == "bike"):
                 pass
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
@@ -64,6 +67,10 @@ class OptimizationDomain:
                 lowerBounds.append(0.001 * self.__scalingDefaults[changeType])
                 upperBounds.append(1.0 * self.__scalingDefaults[changeType])
                 defaults.append(0.2 * self.__scalingDefaults[changeType])
+            elif (changeType == "fleetSize") & (changeDetails[1].lower() == "bike"):
+                lowerBounds.append(0.001 * self.__scalingDefaults[changeType])
+                upperBounds.append(1.2 * self.__scalingDefaults[changeType])
+                defaults.append(0.5 * self.__scalingDefaults[changeType])
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
 
@@ -878,12 +885,12 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, False)
+    model = Model("input-data-california-A", 1, False)
     optimizer = Optimizer(model, domain=OptimizationDomain(
-        [('dedicated', ('A', 'Bus')),
-         ('headway', ('A', 'Bus')),
-         ('fare', ('B', 'Bus')),
-         ('coverage', ('A', 'Bus')),
+        [('dedicated', ('1', 'Bus')),
+         ('headway', ('1', 'Bus')),
+         ('fare', ('2', 'Bus')),
+         ('coverage', ('1', 'Bus')),
          ]),
                           method="opt")
     optimizer.updateAndRunModel(np.array([0.05, 250, 1.25, 0.4]))

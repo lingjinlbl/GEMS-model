@@ -52,6 +52,7 @@ class ScenarioData:
         self.__transitLayerToIdx = dict()
         self.__subNetworkIdToIdx = dict()
         self.__distanceBinToDistance = dict()
+        self.__costTypeToIdx = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
             self.data = dict()
@@ -111,6 +112,10 @@ class ScenarioData:
     @property
     def firstFreightIdx(self):
         return len(self.passengerModeToIdx)
+
+    @property
+    def costTypeToIdx(self):
+        return self.__costTypeToIdx
 
     def __setitem__(self, key: str, value):
         self.data[key] = value
@@ -255,6 +260,8 @@ class ScenarioData:
 
         self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
                              'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
+        self.__costTypeToIdx = {'perStartPublicCost': 0, 'perEndPrivateCost': 1, 'perMilePrivateCost': 2,
+                                'perMilePublicCost': 3}
         uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
         self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
 
@@ -290,6 +297,7 @@ class ShapeParams:
         self.nParams = len(scenarioData.paramToIdx)
         self.nDemandDataTypes = len(scenarioData.demandDataTypeToIdx)
         self.nTransitLayers = len(scenarioData.transitLayerToIdx)
+        self.nCostTypes = len(scenarioData.costTypeToIdx)
 
 
 class Data:
@@ -320,7 +328,7 @@ class Data:
              self.params.nParams),
             dtype=float)
         self.__microtypeCosts = np.zeros(
-            (self.params.nMicrotypes, self.params.nDIs, self.params.nModesTotal, 3), dtype=float)
+            (self.params.nMicrotypes, self.params.nDIs, self.params.nModesTotal, self.params.nCostTypes), dtype=float)
         self.__transitLayerUtility = np.zeros((self.params.nPassengerModes, self.params.nTransitLayers), dtype=float)
         self.__choiceParameters = np.zeros((self.params.nDIs, self.params.nPassengerModes, self.params.nParams),
                                            dtype=float)
@@ -364,6 +372,10 @@ class Data:
         self.__freightProduction = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nFreightModes), dtype=float)
 
+    def setModeFleetSize(self, mode, microtype, fleetSize):
+        data = self.__fleetSize[:, self.scenarioData.microtypeIdToIdx[microtype], self.scenarioData.modeToIdx[mode]]
+        data.fill(fleetSize)
+
     def setModeStartCosts(self, mode, microtype, newCost, senior=None):
         data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
                self.scenarioData.modeToIdx[mode], 0]
@@ -375,6 +387,15 @@ class Data:
                 data[isSenior] = newCost
             else:
                 data[~isSenior] = newCost
+
+    def setModePerMileCosts(self, mode, microtype, newCost, public=False):
+        if public:
+            idx = self.scenarioData.costTypeToIdx['perMilePublicCost']
+        else:
+            idx = self.scenarioData.costTypeToIdx['perMilePrivateCost']
+        data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
+               self.scenarioData.modeToIdx[mode], idx]
+        data.fill(newCost)
 
     def toStarts(self):
         return self.__toStarts

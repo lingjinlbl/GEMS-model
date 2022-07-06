@@ -4,13 +4,14 @@ from utils.data import Data
 
 
 class FreightMode:
-    def __init__(self, name, networks: list, params: pd.DataFrame, microtypeId: str, demandData: np.ndarray,
-                 microtypeSpeed: np.ndarray, fleetSize: np.ndarray):
+    def __init__(self, name, networks: list, params: pd.DataFrame, microtypeId: str, microtypePopulation: float,
+                 demandData: np.ndarray, microtypeSpeed: np.ndarray, fleetSize: np.ndarray):
         self.name = name
         self.params = params
         self._params = params.to_numpy()
         self.modeParamsColumnToIdx = {i: params.index.get_loc(i) for i in params.index}
         self.microtypeId = microtypeId
+        self.microtypePopulation = microtypePopulation
         self.microtypeSpeed = microtypeSpeed
         self.microtypeProduction = demandData
         self.microtypeAccumulation = fleetSize

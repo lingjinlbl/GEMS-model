@@ -437,14 +437,14 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, networksAndModes, modeToModeData, microtypeID, demandData, speedData, microtypeCosts, fleetSize,
-                 freightProduction, accessDistance, demandDataTypeToIdx, modeToIdx, freightModeToIdx, diToIdx,
-                 verbose=False):
+    def __init__(self, networksAndModes, modeToModeData, microtypeID, microtypePopulation, demandData, speedData,
+                 microtypeCosts, fleetSize, freightProduction, accessDistance, demandDataTypeToIdx, modeToIdx,
+                 freightModeToIdx, diToIdx, verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
         self.__passengerModes = dict()
         self.__freightModes = dict()
-
+        self.__microtypePopulation = microtypePopulation
         self.__demandData = demandData
         self._speedData = speedData
         self.__microtypeCosts = microtypeCosts
@@ -463,6 +463,10 @@ class NetworkCollection:
             self.populateNetworksAndModes(networksAndModes, modeToModeData, microtypeID)
 
         # self.resetModes()
+
+    @property
+    def microtypePopulation(self):
+        return self.__microtypePopulation
 
     def subNetworkIDs(self):
         return list(self._networks.keys())
@@ -520,33 +524,33 @@ class NetworkCollection:
 
             if modeName == "bus":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
-                mode = BusMode(networks, params, microtypeID,
+                mode = BusMode(networks, params, microtypeID, self.microtypePopulation,
                                travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
                                fleetSize=fleetSize, accessDistance=accessDistance, diToIdx=self.__diToIdx)
                 self.__passengerModes["bus"] = mode
             elif modeName == "auto":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
-                mode = AutoMode(networks, params, microtypeID,
+                mode = AutoMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData,
                                 microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
                                 diToIdx=self.__diToIdx)
                 self.__passengerModes["auto"] = mode
             elif modeName == "walk":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                mode = WalkMode(networks, params, microtypeID,
+                mode = WalkMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
                                 fleetSize=fleetSize, accessDistance=accessDistance, diToIdx=self.__diToIdx)
                 self.__passengerModes["walk"] = mode
             elif modeName == "bike":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                mode = BikeMode(networks, params, microtypeID,
+                mode = BikeMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData,
                                 microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
                                 diToIdx=self.__diToIdx)
                 self.__passengerModes["bike"] = mode
             elif modeName == "rail":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                mode = RailMode(networks, params, microtypeID,
+                mode = RailMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData,
                                 microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
                                 diToIdx=self.__diToIdx)
@@ -554,7 +558,7 @@ class NetworkCollection:
             elif modeName.startswith("freight"):
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 freightProduction = self.__freightProduction[self.__freightModeToIdx[modeName], None]
-                mode = FreightMode(modeName, networks, params, microtypeID,
+                mode = FreightMode(modeName, networks, params, microtypeID, self.microtypePopulation,
                                    travelDemandData[self.__demandDataTypeToIdx['vehicleDistance'], None], speedData,
                                    fleetSize)
                 self.__freightModes[modeName] = mode
