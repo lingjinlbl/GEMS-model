@@ -38,6 +38,112 @@ class Externalities:
         return totalExternalities
 
 
+class Accessibility:
+    def __init__(self, scenarioData, data):
+        self.__scenarioData = scenarioData
+        self.__data = data
+        fixedData = data.getInvariants()
+        self.__activityDensity = fixedData["activityDensity"]
+        self.__toEnds = fixedData["toEnds"]
+        self.__toTripPurpose = fixedData["toTripPurpose"]
+        self.__toHomeMicrotype = fixedData["toHomeMicrotype"]
+        self.__toODI = fixedData["toODI"]
+        demand = data.getDemand()
+        self.__tripRate = demand["tripRate"]
+        self.__utilities = demand["utilities"]
+        self.__modeSplit = demand["modeSplit"]
+
+    @property
+    def tripPurposeToIdx(self):
+        return self.__scenarioData.tripPurposeToIdx
+
+    @property
+    def microtypeIdToIdx(self):
+        return self.__scenarioData.microtypeIdToIdx
+
+    @property
+    def passengerModeToIdx(self):
+        return self.__scenarioData.passengerModeToIdx
+
+    @property
+    def populationGroupToIdx(self):
+        return self.__scenarioData.populationGroupToIdx
+
+    @property
+    def timePeriods(self):
+        return self.__scenarioData["timePeriods"]["TimePeriodID"]
+
+    def init(self):
+        np.copyto(self.__activityDensity, pd.pivot_table(self.__scenarioData["activityDensity"], values="DensityKmSq",
+                                                         columns="TripPurposeID", index="MicrotypeID",
+                                                         aggfunc="sum").reindex(
+            index=pd.Index(self.microtypeIdToIdx.keys()),
+            columns=pd.Index(self.tripPurposeToIdx.keys()),
+            fill_value=0.0).fillna(0.0))
+
+    def calculate(self):
+        activityDensity = self.__activityDensity
+        toODI = self.__toODI
+        toEnds = self.__toEnds
+        inverseUtility = np.exp(self.__utilities)
+        tripRate = self.__tripRate
+        """
+        t -> time: 3
+        i -> demand index (homeMicrotypeID, populationGroupTypeID, tripPurposeID): 16
+        o -> odi: 32
+        m -> mode: 5
+        d -> destination: 4
+        p -> tripPurpose: 2
+        h -> home microtype
+        g -> population group
+        ----- 
+        
+        """
+        midx = pd.MultiIndex.from_product(
+            [self.microtypeIdToIdx.keys(), self.tripPurposeToIdx.keys(), self.populationGroupToIdx.keys(),
+             self.passengerModeToIdx.keys()],
+            names=["Microtype ID", "Trip Purpose", "Population Group", "Mode"])
+        accessibilityArray = np.einsum("tiom,tio,od,ihpg,dp->thpgm", inverseUtility,
+                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toODI,
+                                       activityDensity,
+                                       optimize=['einsum_path', (0, 1), (0, 2), (1, 2), (0, 1)])
+        out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx)
+        return out
+
+    def calculateByDI(self):
+        activityDensity = self.__activityDensity
+        toODI = self.__toODI
+        toEnds = self.__toEnds
+        inverseUtility = np.exp(self.__utilities)
+        modeSplit = self.__modeSplit
+        tripRate = self.__tripRate
+        """
+        t -> time: 3
+        i -> demand index (homeMicrotypeID, populationGroupTypeID, tripPurposeID): 16
+        o -> odi: 32
+        m -> mode: 5
+        d -> destination: 4
+        p -> tripPurpose: 2
+        h -> home microtype
+        g -> population group
+        ----- "Microtype ID", "Population Group", "Trip Purpose"
+
+        """
+        midx = pd.MultiIndex.from_product(
+            [self.microtypeIdToIdx.keys(), self.populationGroupToIdx.keys(), self.tripPurposeToIdx.keys()],
+            names=["Microtype ID", "Population Group", "Trip Purpose"])
+        accessibilityArray = np.einsum("tiom,tio,tiom,ihpg,od,dp->hpg", inverseUtility,
+                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), modeSplit, toODI, toEnds,
+                                       activityDensity)
+        out = dict()
+        for hm, midx in self.microtypeIdToIdx.items():
+            da = dict()
+            for tp, pidx in self.tripPurposeToIdx.items():
+                da[tp] = pd.Series(accessibilityArray[midx, pidx, :], index=self.populationGroupToIdx.keys())
+            out[hm] = pd.DataFrame(da)
+        return pd.concat(out, names=['Home Microtype', 'Population Group'])
+
+
 class TotalUserCosts:
     def __init__(self, total=0., totalEqualVOT=0., totalIVT=0., totalOVT=0., demandForTripsPerHour=0.,
                  demandForPMTPerHour=0.):
@@ -216,6 +322,14 @@ class Demand:
     @property
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
+
+    @property
+    def utilities(self):
+        return self.__currentUtility
+
+    @utilities.setter
+    def utilities(self, newUtilities):
+        np.copyto(self.__currentUtility, newUtilities)
 
     def modeSplitDataFrame(self):
         dis = pd.MultiIndex.from_tuples([di.toTuple() for di in self.diToIdx.keys()],
@@ -417,10 +531,12 @@ class Demand:
     def currentUtilities(self):
         return self.__currentUtility
 
-    def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray) -> np.ndarray:
-        newUtilities = utilsWithExcludedModes(self.__population.numpy, choiceCharacteristicsArray,
-                                              self.__population.transitLayerUtility)
-        return newUtilities
+    def calculateUtilities(self, choiceCharacteristicsArray: np.ndarray, excludeModes=True) -> np.ndarray:
+        if excludeModes:
+            return utilsWithExcludedModes(self.__population.numpy, choiceCharacteristicsArray,
+                                          self.__population.transitLayerUtility)
+        else:
+            return utils(self.__population.numpy, choiceCharacteristicsArray)
 
     def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
         demandForTrips = 0

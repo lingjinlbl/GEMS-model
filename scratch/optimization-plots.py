@@ -5,16 +5,17 @@ import os
 from model import Model, Optimizer
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-model = Model(ROOT_DIR + "/../input-data", nSubBins=2)
+model = Model(ROOT_DIR + "/../input-data-california-A", nSubBins=2)
 
-operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = model.collectAllCosts()
-optimizer = Optimizer(model, modesAndMicrotypes=[('A', 'bus')], fromToSubNetworkIDs=[('A', 'bus')], method="noisy")  # ,
+# operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = model.collectAllCosts()
+optimizer = Optimizer(model, modesAndMicrotypes=[('1', 'bus')], fromToSubNetworkIDs=[('1', 'bus')], method="noisy")  # ,
 
-headways = np.linspace(60, 300, 10)
-allocations = np.linspace(0.1, 0.2, 10)
+headways = np.linspace(180, 600, 10)
+allocations = np.linspace(0.0, 0.2, 10)
 collectedUserCosts = np.zeros((len(headways), len(allocations)))
 collectedOperatorCosts = np.zeros((len(headways), len(allocations)))
 collectedExternalityCosts = np.zeros((len(headways), len(allocations)))
+collectedAccessibility = np.zeros((len(headways), len(allocations)))
 busModeSplit = np.zeros((len(headways), len(allocations)))
 carModeSplit = np.zeros((len(headways), len(allocations)))
 
@@ -22,10 +23,11 @@ for i, h in enumerate(headways):
     for j, a in enumerate(allocations):
         optimizer.updateAndRunModel(np.array([a, h]))
         if model.successful:
-            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = model.collectAllCosts()  # TODO: add back in lane dedication
+            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = model.collectAllCosts()  # TODO: add back in lane dedication
             collectedUserCosts[i, j] = sum([uc.sum() for uc in vectorUserCosts.values()])
             collectedOperatorCosts[i, j] = operatorCosts.total
             collectedExternalityCosts[i, j] = sum([ex.sum() for ex in externalities.values()])
+            collectedAccessibility[i, j] = accessibility.loc['1', 'LowIncNoVeh', :, :].sum().sum()
             busModeSplit[i, j] = model.getModeSplit()[model.modeToIdx['bus']]
             carModeSplit[i, j] = model.getModeSplit()[model.modeToIdx['auto']]
         else:
@@ -33,6 +35,7 @@ for i, h in enumerate(headways):
             collectedUserCosts[i, j] = np.nan
             collectedOperatorCosts[i, j] = np.nan
             collectedExternalityCosts[i, j] = np.nan
+            collectedAccessibility[i, j] = np.nan
             busModeSplit[i, j] = np.nan
             carModeSplit[i, j] = np.nan
         print(model.getModeSpeeds())

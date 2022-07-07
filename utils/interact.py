@@ -58,6 +58,7 @@ class Interact:
         modes = col.qualitative.Bold
         microtypes = col.qualitative.Safe
         costs = col.qualitative.Vivid
+        groups = col.qualitative.Plotly
         out = {'bus': modes[0],
                'auto': modes[1],
                'walk': modes[5],
@@ -77,7 +78,19 @@ class Interact:
                '8': microtypes[7],
                'user': costs[1],
                'system': costs[1],
-               'dedication': costs[1]}
+               'dedication': costs[1],
+               'HighIncVeh': groups[0],
+               'HighIncNoVeh': groups[1],
+               'HighIncVehSenior': groups[2],
+               'HighIncNoVehSenior': groups[3],
+               'LowIncVeh': groups[4],
+               'LowIncNoVeh': groups[5],
+               'LowIncVehSenior': groups[6],
+               'LowIncNoVehSenior': groups[7],
+               'low-income-senior': groups[0],
+               'high-income-senior': groups[1],
+               'low-income': groups[3],
+               'high-income': groups[2]}
         return out
 
     @property
@@ -122,13 +135,13 @@ class Interact:
 
         for mID in self.model.scenarioData['microtypeIDs'].MicrotypeID:
             currentMicrotypeFig = go.FigureWidget(
-                make_subplots(rows=4, cols=2,
+                make_subplots(rows=5, cols=2,
                               shared_yaxes=True,
                               column_titles=['Current', 'Reference'])
             )
 
             currentMicrotypeFig.update_layout(
-                {'autosize': False, 'width': 900, 'height': 900, 'template': 'simple_white'})
+                {'autosize': False, 'width': 900, 'height': 1200, 'template': 'simple_white'})
 
             currentMicrotypeFig['layout']['xaxis']['title'] = 'Time (hr)'
             currentMicrotypeFig['layout']['yaxis']['title'] = 'Mode speed (mi/hr)'
@@ -137,22 +150,25 @@ class Interact:
             currentMicrotypeFig['layout']['yaxis3']['title'] = 'Mode split'
             currentMicrotypeFig['layout']['xaxis4']['title'] = 'Time (hr)'
             currentMicrotypeFig['layout']['yaxis5']['title'] = 'Auto speed (mi/hr)'
+            currentMicrotypeFig['layout']['xaxis5']['title'] = 'Time (hr)'
             currentMicrotypeFig['layout']['xaxis6']['title'] = 'Time (hr)'
-            currentMicrotypeFig['layout']['yaxis7']['title'] = 'Contribution to Social Cost'
+            currentMicrotypeFig['layout']['yaxis7']['title'] = 'Contribution to social cost'
+            currentMicrotypeFig['layout']['yaxis9']['title'] = 'Accessibility measure'
 
             microtypeFigs.append(currentMicrotypeFig)
 
             currentDiffFig = go.FigureWidget(
-                make_subplots(rows=2, cols=1,
+                make_subplots(rows=3, cols=1,
                               shared_yaxes=True)
             )
 
             currentDiffFig['layout']['yaxis']['title'] = 'Difference in mode split'
             currentDiffFig['layout']['yaxis2']['title'] = 'Difference in auto speed (m/s)'
             currentDiffFig['layout']['xaxis2']['title'] = 'Time (hr)'
+            currentDiffFig['layout']['yaxis3']['title'] = 'Accessibility measure'
 
             currentDiffFig.update_layout(
-                {'autosize': False, 'width': 900, 'height': 600, 'template': 'simple_white'})
+                {'autosize': False, 'width': 900, 'height': 800, 'template': 'simple_white'})
 
             diffFigs.append(currentDiffFig)
 
@@ -177,10 +193,12 @@ class Interact:
         self.__dataToHandle['modeSplit'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['modeSpeed'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['cost'] = {'current': dict(), 'ref': dict()}
+        self.__dataToHandle['accessibility'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['costCombined'] = {'current': dict(), 'ref': dict()}
         self.__dataToHandle['costDiff'] = dict()
         self.__dataToHandle['modeSplitDiff'] = dict()
         self.__dataToHandle['speedDiff'] = dict()
+        self.__dataToHandle['accessibilityDiff'] = dict()
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             microtypeFigs[idx].add_scatter(x=[], y=[], visible=True, name='Microtype ' + mID, row=3, col=1,
                                            showlegend=False,
@@ -230,6 +248,7 @@ class Interact:
                 self.__dataToHandle['modeSpeed']['ref'][mode][mID] = microtypeFigs[idx].data[-1]
                 microtypeFigs[idx].data[-1].line = {"shape": 'vh', "color": self.colors[mode]}
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            """ COSTS """
             microtypeFigs[idx].add_bar(x=['User', 'Freight', 'Transit', 'Revenue', 'Externality', 'Lane dedication'],
                                        y=[0.] * 4,
                                        visible=True, row=4, col=1, name='Microtype ' + mID, legendgroup="Costs",
@@ -247,6 +266,39 @@ class Interact:
                                         visible=True, name='Microtype ' + mID, showlegend=True)
             self.__dataToHandle['costDiff'][mID] = combinedCostDiffFig.data[-1]
             combinedCostDiffFig.data[-1].marker.color = self.colors[mID]
+        purposes = list(set(self.model.scenarioData.tripPurposeToIdx.keys()).difference({'home', 'work'}))
+        for di in self.model.diToIdx.keys():
+            homeMicrotype = di.homeMicrotype
+            populationGroup = di.populationGroupType
+            idx = self.model.microtypeIdToIdx[homeMicrotype]
+            if (homeMicrotype, populationGroup) not in self.__dataToHandle['accessibility']['current']:
+                microtypeFigs[idx].add_bar(
+                    x=purposes,
+                    y=[0.] * len(purposes),
+                    visible=True, row=5, col=1,
+                    name=populationGroup,
+                    legendgroup="Groups",
+                    showlegend=False)
+                self.__dataToHandle['accessibility']['current'][(homeMicrotype, populationGroup)] = \
+                    microtypeFigs[idx].data[-1]
+                microtypeFigs[idx].data[-1].marker.color = self.colors[populationGroup]
+                microtypeFigs[idx].add_bar(
+                    x=purposes,
+                    y=[0.] * len(purposes),
+                    visible=True, row=5, col=2, name=populationGroup, legendgroup="Groups",
+                    showlegend=True)
+                self.__dataToHandle['accessibility']['ref'][(homeMicrotype, populationGroup)] = microtypeFigs[idx].data[
+                    -1]
+                microtypeFigs[idx].data[-1].marker.color = self.colors[populationGroup]
+                diffFigs[idx].add_bar(
+                    x=purposes,
+                    y=[0.] * len(purposes),
+                    visible=True, row=3, col=1, name=populationGroup, legendgroup="Groups",
+                    showlegend=True)
+                self.__dataToHandle['accessibilityDiff'][(homeMicrotype, populationGroup)] = diffFigs[idx].data[
+                    -1]
+                diffFigs[idx].data[-1].marker.color = self.colors[populationGroup]
+
         for idx, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
             bothCostFigs.add_bar(x=['User', 'Freight', 'Transit', 'Revenue', 'Externality', 'Lane dedication'],
                                  y=[0.] * 4,
@@ -754,6 +806,17 @@ class Interact:
 
         # mIDs, costs = self.model.plotAllDynamicStats('costs')
         costs = self.__optimizer.sumAllCosts()
+        purposes = list(set(self.model.scenarioData.tripPurposeToIdx.keys()).difference({'home', 'work'}))
+        accessibility = self.model.calculateAccessibility(normalize=True).loc[:, purposes]
+
+        for ind, ((mID, groupID), handle) in enumerate(self.__dataToHandle['accessibility']['current'].items()):
+            handle.y = accessibility.loc[mID, groupID].values
+
+        for (mID, groupID), plot in self.__dataToHandle['accessibilityDiff'].items():
+            yRef = np.array(self.__dataToHandle['accessibility']['ref'][mID, groupID].y)
+            yCurrent = np.array(self.__dataToHandle['accessibility']['current'][mID, groupID].y)
+            plot.y = yCurrent - yRef
+
         for ind, (mID, handle) in enumerate(self.__dataToHandle['cost']['current'].items()):
             if isinstance(costs, pd.DataFrame):
                 handle.y = costs.loc[mID, :].values
@@ -851,6 +914,12 @@ class Interact:
                     # yRef = np.array(self.__dataToHandle['cost']['ref'][line].y)
                     # yCurrent = np.array(self.__dataToHandle['cost']['current'][line].y)
                     self.__dataToHandle['costDiff'][line].y = [0] * len(self.__dataToHandle['cost']['current'][line].y)
+            if plotType == "accessibilityDiff":
+                for line in plots.keys():
+                    # yRef = np.array(self.__dataToHandle['cost']['ref'][line].y)
+                    # yCurrent = np.array(self.__dataToHandle['cost']['current'][line].y)
+                    self.__dataToHandle['accessibilityDiff'][line].y = [0] * len(
+                        self.__dataToHandle['accessibility']['current'][line].y)
             if plotType == "modeSplitDiff":
                 for mode, group in plots.items():
                     for mID in group.keys():

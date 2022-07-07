@@ -11,7 +11,7 @@ from mock import Mock
 
 from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
-from utils.demand import Demand, Externalities, modeSplitFromUtilsWithExcludedModes
+from utils.demand import Demand, Externalities, modeSplitFromUtilsWithExcludedModes, Accessibility
 from utils.interact import Interact
 from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
 from utils.misc import TimePeriods, DistanceBins
@@ -172,6 +172,7 @@ class Model:
                                                      self.__transitionMatrices, self.__fixedData,
                                                      self.scenarioData)
         self.__externalities = Externalities(self.scenarioData)
+        self.__accessibility = Accessibility(self.scenarioData, self.data)
         self.__printLoc = stdout
         self.__interactive = interactive
         self.__tolerance = 2e-11
@@ -275,6 +276,7 @@ class Model:
 
     def initializeAllTimePeriods(self, override=False):
         self.__externalities.init()
+        self.__accessibility.init()
         self.__successful = True
         for timePeriod, durationInHours in self.__timePeriods:
             self.initializeTimePeriod(timePeriod, override)
@@ -289,7 +291,7 @@ class Model:
         return choiceCharacteristicsArray
 
     def demandSide(self, choiceCharacteristicsArray):
-        utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray)
+        utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray, True)
         modeSplitArray = modeSplitFromUtilsWithExcludedModes(utilitiesArray, self.__fixedData['toTransitLayer'])
         return modeSplitArray
 
@@ -359,7 +361,9 @@ class Model:
         Finalize
         """
         self.demand.updateMFD(self.microtypes, modeSplitArray=fixedPointModeSplit)
-        self.choice.updateChoiceCharacteristics(self.microtypes)
+        choiceCharacteristicsArray = self.choice.updateChoiceCharacteristics(self.microtypes)
+        utilities = self.demand.calculateUtilities(choiceCharacteristicsArray, False)
+        self.demand.utilities = utilities
 
     def getModeSplit(self, timePeriod=None, userClass=None, microtypeID=None, distanceBin=None, weighted=False):
         # TODO: allow subset of modesplit by userclass, microtype, distance, etc.
@@ -468,12 +472,20 @@ class Model:
             operatorCosts += self.getOperatorCosts() * durationInHours
             freightOperatorCosts += self.getFreightOperatorCosts() * durationInHours
             externalities[timePeriod] = self.__externalities.calcuate(self.microtypes) * durationInHours
-        return operatorCosts, freightOperatorCosts, vectorUserCosts, externalities
+        accessibility = self.calculateAccessibility()
+        return operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility
 
     def updatePopulation(self):
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, preserve=True)
             self.demand.updateTripGeneration(self.microtypes)
+
+    def calculateAccessibility(self, normalize=False):
+        acc = self.__accessibility.calculateByDI()
+        if normalize:
+            for (row, val) in self.scenarioData['populations'].iterrows():
+                acc.loc[val.MicrotypeID, val.PopulationGroupTypeID, :] /= val.Population
+        return acc
 
     def collectAllCharacteristics(self):
         vectorUserCosts = 0.0
@@ -626,7 +638,7 @@ class Model:
                                                              self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
-            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = self.collectAllCosts()
+            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = self.collectAllCosts()
             x = list(self.microtypeIdToIdx.keys())
             userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
                 level='homeMicrotype').sum(axis=0)
@@ -717,11 +729,20 @@ class Optimizer:
         self.__alphas = {"User": np.ones(len(model.microtypeIdToIdx)) * 20.,
                          "Operator": np.ones(len(model.microtypeIdToIdx)),
                          "Externality": np.ones(len(model.microtypeIdToIdx)),
-                         "Dedication": np.ones(len(model.microtypeIdToIdx))}
+                         "Dedication": np.ones(len(model.microtypeIdToIdx)),
+                         "Accessibility": np.ones(len(model.microtypeIdToIdx))}
+        self.__accessibilityMultipliers = pd.Series(0, index=pd.MultiIndex.from_tuples(
+            [(odi.homeMicrotype, odi.populationGroupType, odi.tripPurpose) for odi in model.diToIdx.keys()],
+            names=["Microtype ID", "Population Group", "Trip Purpose"]))
         self.__trialParams = []
         self.__objectiveFunctionValues = []
         self.__isImprovement = []
+        self.__initializeAccessibilityMultipliers()
         self.model = model
+
+    def __initializeAccessibilityMultipliers(self):
+        relevantTripTypes = set(self.__accessibilityMultipliers.unstack().columns).difference({'home', 'work'})
+        self.__accessibilityMultipliers.loc[pd.IndexSlice[:, :, list(relevantTripTypes)]] = 1.0
 
     def updateAlpha(self, costType, newValue, mID=None):
         if mID is None:
@@ -745,7 +766,7 @@ class Optimizer:
         self.model.collectAllCharacteristics()
 
     def sumAllCosts(self):
-        operatorCosts, freightOperatorCosts, vectorUserCosts, externalities = self.model.collectAllCosts()
+        operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = self.model.collectAllCosts()
         # if self.model.choice.broken | (not self.model.successful):
         #     return np.nan
         operatorCostsByMicrotype = operatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
@@ -769,6 +790,9 @@ class Optimizer:
                 costPerMeter = self.model.scenarioData['laneDedicationCost']['CostPerMeter'].get(
                     (val.MicrotypeID, val.ModesAllowed.lower()), 0.0)
                 dedicationCostsByMicrotype[val.MicrotypeID] += costPerMeter * val.Distance
+        am = self.__accessibilityMultipliers.unstack()
+
+        accessibilityByMicrotype = (accessibility.loc[am.index, am.columns] * am).unstack().sum(axis=1)
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
@@ -777,6 +801,7 @@ class Optimizer:
         output['Revenue'] = - operatorRevenuesByMicrotype * self.__alphas['Operator']
         output['Externality'] = externalityCostsByMicrotype * self.__alphas['Externality']
         output['Dedication'] = dedicationCostsByMicrotype * self.__alphas['Dedication']
+        output['Accessibility'] = accessibilityByMicrotype * self.__alphas['Accessibility']
         allCosts = pd.concat(output, axis=1)
         allCosts.index.set_names(['Microtype'], inplace=True)
         return allCosts
@@ -862,7 +887,7 @@ def startBar():
         options=['One microtype toy model', '4 microtype toy model', 'Los Angeles (National params)',
                  'California A', 'California B', 'California C', 'California D', 'California E', 'California F',
                  'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
-        value='Los Angeles (National params)',
+        value='4 microtype toy model',
         description='Input data:',
         disabled=False,
     )
