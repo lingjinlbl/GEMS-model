@@ -87,13 +87,13 @@ newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 
-# %% Microtypes
-oldPath = os.path.join(ROOT_DIR, "..", inFolder, "Microtypes.csv")
-newPath = os.path.join(ROOT_DIR, "..", outFolder, "Microtypes.csv")
-df = pd.read_csv(oldPath)
-newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
-newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
-newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
+# # %% Microtypes
+# oldPath = os.path.join(ROOT_DIR, "..", inFolder, "Microtypes.csv")
+# newPath = os.path.join(ROOT_DIR, "..", outFolder, "Microtypes.csv")
+# df = pd.read_csv(oldPath)
+# newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
+# newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
+# newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 
 # %% OriginDestination
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "OriginDestination.csv")

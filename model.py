@@ -9,11 +9,11 @@ from scipy.optimize import root, minimize, Bounds, shgo
 from mock import Mock
 # from skopt import gp_minimize, forest_minimize
 
-from utils.OD import TripCollection, OriginDestination, TripGeneration, TransitionMatrices
+from utils.OD import OriginDestination, TripGeneration, TransitionMatrices
 from utils.choiceCharacteristics import CollectedChoiceCharacteristics
 from utils.demand import Demand, Externalities, modeSplitFromUtilsWithExcludedModes, Accessibility
 from utils.interact import Interact
-from utils.microtype import MicrotypeCollection, CollectedTotalOperatorCosts
+from utils.microtype import MicrotypeCollection
 from utils.misc import TimePeriods, DistanceBins
 from utils.population import Population
 from utils.data import Data, ScenarioData
@@ -107,8 +107,6 @@ class Model:
         Stores currentTimePeriod to CollectedChoiceCharacteristics object
     population : Population
         Stores demandClasses, populationGroups, and totalCosts
-    trips : TripCollection
-        Stores a collection of trips through microtypes
     distanceBins : DistanceBins
         Set of distance bins for different distances of trips
     timePeriods  : TimePeriods
@@ -244,6 +242,10 @@ class Model:
     @property
     def successful(self):
         return self.__successful
+
+    def clearCostCache(self, type=None):
+        for cc in self.__choice.values():
+            cc.clearCache(type)
 
     def getCurrentTimePeriodDuration(self):
         return self.__timePeriods[self.currentTimePeriod]
@@ -461,19 +463,19 @@ class Model:
         self.__transitionMatrices.setTimePeriod(timePeriod)
 
     def collectAllCosts(self, event=None):
-        operatorCosts = CollectedTotalOperatorCosts()
-        freightOperatorCosts = CollectedTotalOperatorCosts()
+        operatorCosts = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)))
         externalities = dict()
         vectorUserCosts = dict()
+        policyRevenues = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)))
         for timePeriod, durationInHours in self.__timePeriods:
             self.setTimePeriod(timePeriod, preserve=True)
             matCosts = self.getMatrixUserCosts() * durationInHours
             vectorUserCosts[timePeriod] = matCosts
-            operatorCosts += self.getOperatorCosts() * durationInHours
-            freightOperatorCosts += self.getFreightOperatorCosts() * durationInHours
+            operatorCosts += self.getOperatorCosts() * durationInHours + self.getFreightOperatorCosts() * durationInHours
             externalities[timePeriod] = self.__externalities.calcuate(self.microtypes) * durationInHours
+            policyRevenues[:, :len(self.passengerModeToIdx)] += self.demand.getMatrixPolicyRevenues() * durationInHours
         accessibility = self.calculateAccessibility()
-        return operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility
+        return operatorCosts, policyRevenues, vectorUserCosts, externalities, accessibility
 
     def updatePopulation(self):
         for timePeriod, durationInHours in self.__timePeriods:
@@ -638,7 +640,7 @@ class Model:
                                                              self.timePeriods().keys()], axis=1)
             return x, y.transpose()
         elif type.lower() == "costs":
-            operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = self.collectAllCosts()
+            operatorCosts, policyRevenues, vectorUserCosts, externalities, accessibility = self.collectAllCosts()
             x = list(self.microtypeIdToIdx.keys())
             userCostsByMicrotype = self.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
                 level='homeMicrotype').sum(axis=0)
@@ -765,15 +767,16 @@ class Optimizer:
                 self.model.interact.modifyModel(changeType=mod, value=val)
         self.model.collectAllCharacteristics()
 
+    def costDataFrame(self, vals) -> pd.DataFrame:
+        return pd.DataFrame(vals, index=self.model.microtypeIdToIdx.keys(), columns=self.model.modeToIdx.keys())
+
     def sumAllCosts(self):
-        operatorCosts, freightOperatorCosts, vectorUserCosts, externalities, accessibility = self.model.collectAllCosts()
+        operatorCosts, policyRevenues, vectorUserCosts, externalities, accessibility = self.model.collectAllCosts()
         # if self.model.choice.broken | (not self.model.successful):
         #     return np.nan
-        operatorCostsByMicrotype = operatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
-        operatorRevenuesByMicrotype = operatorCosts.toDataFrame()['Revenue'].unstack().sum(axis=1)
-        freightCostsByMicrotype = freightOperatorCosts.toDataFrame()['Cost'].unstack().sum(axis=1)
-        if len(freightCostsByMicrotype) == 0:
-            freightCostsByMicrotype = operatorCostsByMicrotype * 0.0
+        operatorCostsByMicrotype = self.costDataFrame(operatorCosts)
+        operatorRevenuesByMicrotype = self.costDataFrame(policyRevenues)
+
         userCostsByMicrotype = self.model.userCostDataFrame(vectorUserCosts).stack().stack().stack().unstack(
             level='homeMicrotype').sum(axis=0)
         externalityCostsByMicrotype = pd.Series(sum([e.sum(axis=1) for e in externalities.values()]),
@@ -796,9 +799,11 @@ class Optimizer:
         output = dict()
         # {"User":1.0, "Operator":1.0, "Externality":1.0, "Dedication":1.0}
         output['User'] = userCostsByMicrotype * self.__alphas['User']
-        output['Freight'] = freightCostsByMicrotype * self.__alphas['User']
-        output['Operator'] = operatorCostsByMicrotype * self.__alphas['Operator']
-        output['Revenue'] = - operatorRevenuesByMicrotype * self.__alphas['Operator']
+        output['Freight'] = operatorCostsByMicrotype.iloc[:, len(self.model.passengerModeToIdx):].sum(axis=1) * \
+                            self.__alphas['Operator']
+        output['Operator'] = operatorCostsByMicrotype.iloc[:, :len(self.model.passengerModeToIdx)].sum(axis=1) * \
+                             self.__alphas['Operator']
+        output['Revenue'] = - operatorRevenuesByMicrotype.sum(axis=1) * self.__alphas['Operator']
         output['Externality'] = externalityCostsByMicrotype * self.__alphas['Externality']
         output['Dedication'] = dedicationCostsByMicrotype * self.__alphas['Dedication']
         output['Accessibility'] = accessibilityByMicrotype * self.__alphas['Accessibility']
@@ -871,7 +876,7 @@ class Optimizer:
             #                 options={'eps': 0.002, 'iprint': 1})
             bounds = Bounds(lowerBounds, upperBounds)
             return minimize(self.evaluate, x0, method='TNC', bounds=bounds,
-                            options={'eps': 0.0002, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
+                            options={'eps': 0.0005, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -915,7 +920,7 @@ if __name__ == "__main__":
         [('dedicated', ('1', 'Bus')),
          ('headway', ('1', 'Bus')),
          ('fare', ('2', 'Bus')),
-         ('coverage', ('1', 'Bus')),
+         ('fare', ('1', 'Bus')),
          ]),
                           method="opt")
     optimizer.updateAndRunModel(np.array([0.05, 250, 1.25, 0.4]))

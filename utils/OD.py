@@ -11,52 +11,6 @@ from .choiceCharacteristics import ChoiceCharacteristics
 warnings.filterwarnings("ignore")
 
 
-class Allocation:
-    def __init__(self, mapping=None):
-        if mapping is None:
-            self._mapping = Dict[str, float]
-        else:
-            assert (isinstance(mapping, Dict))
-            self._mapping = mapping
-
-    def __setitem__(self, key, value):
-        self._mapping[key] = value
-
-    def __getitem__(self, item):
-        return self._mapping[item]
-
-    def __contains__(self, item):
-        return item in self._mapping
-
-    @property
-    def mapping(self):
-        return self._mapping
-
-    def filterAllocation(self, validMicrotypes):
-        tot = 0.0
-        for key, val in self._mapping.items():
-            if key in validMicrotypes:
-                tot += val
-        out = {key: self._mapping[key] / tot for key in validMicrotypes if key in self}
-        return out
-
-    def keys(self):
-        return set(self._mapping.keys())
-
-    def __iter__(self):
-        return iter(self._mapping.items())
-
-    def pop(self, item):
-        self._mapping.pop(item)
-
-    def values(self):
-        # return np.ndarray([self._mapping[it] for it in sorted(self._mapping)])
-        return list(self._mapping.values())
-
-    def sortedValueArray(self):
-        return np.asarray(self.values())[np.argsort(self.keys())]
-
-
 class ModeSplit:
     """
     Class for storing mode splits and respective properties
@@ -240,41 +194,6 @@ class ModeCharacteristics:
         return list(self._modes)
 
 
-class DemandUnit:
-    def __init__(self, distance: float, demand: float, allocation=None, mode_split=None):
-        if allocation is None:
-            allocation = Allocation()
-        if mode_split is None:
-            mode_split = ModeSplit({'car': 1.0})
-        self.distance = distance
-        self.demand = demand
-        self.allocation = allocation
-        self.mode_split = mode_split
-
-    def __setitem__(self, key, value: Dict[str, float]):
-        self.allocation[key] = value
-
-    def __getitem__(self, item):
-        return self.allocation[item]
-
-    #
-    # def getChoiceCharacteristics(self) -> ModeCharacteristics:
-    #     mode_characteristics = ModeCharacteristics(list(self.mode_split.keys()))
-    #     for mode in self.mode_split.keys():
-    #         choice_characteristics = ChoiceCharacteristics()
-    #         for microtype in self.allocation.keys():
-    #             choice_characteristics += microtype.getThroughTimeCostWait(mode,
-    #                                                                        self.distance * self.allocation[microtype])
-    #             choice_characteristics += microtype.getStartTimeCostWait(mode)
-    #             choice_characteristics += microtype.getEndTimeCostWait(mode)
-    #         mode_characteristics[mode] = choice_characteristics
-    #     return mode_characteristics
-
-    def updateModeSplit(self, mode_split: ModeSplit):
-        for key in self.mode_split.keys():
-            self.mode_split[key] = (mode_split[key] + self.mode_split[key]) / 2.0
-
-
 class DemandIndex:
     def __init__(self, homeMicrotypeID, populationGroupTypeID, tripPurposeID):
         self.homeMicrotype = homeMicrotypeID
@@ -344,70 +263,6 @@ class ODindex:
     def toIndex(self):
         return pd.MultiIndex.from_tuples([(self.o, self.d, self.distBin)],
                                          names=('originMicrotype', 'destinationMicrotype', 'distanceBin'))
-
-
-class Trip:
-    def __init__(self, odIndex: ODindex, allocation: Allocation):
-        self.odIndex = odIndex
-        self.allocation = allocation
-
-
-class TripCollection:
-    """
-    Class to store trips, their microtypes, and the distance it belongs to as well as other aspects.
-    """
-
-    def __init__(self):
-        self.__trips = dict()
-
-    def __setitem__(self, key: ODindex, value: Trip):
-        self.__trips[key] = value
-
-    def addEmpty(self, item: ODindex) -> Trip:
-        if item.o == item.d:
-            allocation = Allocation({item.o: 1.0})
-        else:
-            allocation = Allocation({item.o: 0.5, item.d: 0.5})
-        return Trip(item, allocation)
-
-    def __getitem__(self, item: ODindex) -> Trip:
-        # assert isinstance(item, ODindex)
-        if item in self.__trips:
-            return self.__trips[item]
-        else:
-            # print("Not in database! for " + str(item))
-            if item.o == item.d:
-                allocation = Allocation({item.o: 1.0})
-            else:
-                allocation = Allocation({item.o: 0.5, item.d: 0.5})
-            self[item] = Trip(item, allocation)
-            return self[item]
-
-    def importTrips(self, df: pd.DataFrame):
-        for fromId in df.FromMicrotypeID.unique():
-            for toId in df.ToMicrotypeID.unique():
-                for dId in df.DistanceBinID.unique():
-                    sub = df.loc[
-                          (df.FromMicrotypeID == fromId) & (df.ToMicrotypeID == toId) & (df.DistanceBinID == dId), :]
-                    if len(sub) > 0:
-                        for row in sub.itertuples():
-                            if (not row.FromMicrotypeID == "None") & (not row.ToMicrotypeID == "None"):
-                                odi = ODindex(row.FromMicrotypeID, row.ToMicrotypeID, row.DistanceBinID)
-                                if odi in self.__trips:
-                                    self[odi].allocation[row.ThroughMicrotypeID] = row.Portion
-                                else:
-                                    self[odi] = Trip(odi, Allocation({row.ThroughMicrotypeID: row.Portion}))
-                    else:
-                        odi = ODindex(fromId, toId, dId)
-                        self[odi] = self.addEmpty(odi)
-        print("-------------------------------")
-        print("|  Loaded ", len(df), " unique trip types")
-
-    def __iter__(self):
-        return iter(self.__trips.items())
-
-    def __len__(self):
-        return len(self.__trips)
 
 
 class TripGeneration:
@@ -506,6 +361,19 @@ class OriginDestination:
             modeIncluded = np.array(
                 [('no' + mode).lower() not in transitLayer for mode in self.__scenarioData.passengerModeToIdx.keys()])
             self.__modelData['transitLayerUtility'][~modeIncluded, idx] -= 1e6
+
+        # ## # ## # ## # ## # ## # ## # ## # ## # ## # ## #
+        # Maybe use this to change availability layers based on mode params
+        ## # ## # ## # ## # ## # ## # ## # ## # ## # ## # ##
+        #
+        # modeInTransitLayer = (self.__modelData['transitLayerUtility'] == 0).T
+        #
+        # fromLayers = modeInTransitLayer[~modeInTransitLayer[:, 3], :]
+        # toLayers = modeInTransitLayer[modeInTransitLayer[:, 3], :]
+        # toTransitLayer = self.__modelData['toTransitLayer']
+        # currentlyAccessibleByOdi = toTransitLayer[:, modeInTransitLayer[:, 3]]
+        # currentlyNotAccessibleByOdi = toTransitLayer[:, ~modeInTransitLayer[:, 3]]
+        # odiToMode = self.__modelData['toTransitLayer'] @ (self.__modelData['transitLayerUtility'] == 0).T
 
         for odi, idx in self.__scenarioData.odiToIdx.items():
             self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = True

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from utils.supply import TravelDemand
+from utils.data import ScenarioData
 
 mph2mps = 1609.34 / 3600
 
@@ -51,13 +52,17 @@ class Mode:
         if np.any(self.microtypeCosts):
             pass
         else:
-            self.microtypeCosts[:, 0] = self.params.at[self.microtypeID, "PerStartCost"].copy()
-            self.microtypeCosts[:, 1] = self.params.at[self.microtypeID, "PerEndCost"].copy()
-            self.microtypeCosts[:, 2] = self.params.at[self.microtypeID, "PerMileCost"].copy()
+            self.microtypeCosts[:, ScenarioData.costTypeToIdx["perStartPublicCost"]] = self.params.at[
+                self.microtypeID, "PerStartCost"].copy()
+            self.microtypeCosts[:, ScenarioData.costTypeToIdx["perEndPrivateCost"]] = self.params.at[
+                self.microtypeID, "PerEndCost"].copy()
+            self.microtypeCosts[:, ScenarioData.costTypeToIdx["perMilePrivateCost"]] = self.params.at[
+                self.microtypeID, "PerMileCost"].copy()
             self.accessDistance.fill(self.getAccessDistance())
             if "SeniorFareDiscount" in self.params.columns:
                 seniorDIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
-                self.microtypeCosts[seniorDIs, 0] *= self.params.at[self.microtypeID, "SeniorFareDiscount"]
+                self.microtypeCosts[seniorDIs, ScenarioData.costTypeToIdx["perStartPublicCost"]] *= self.params.at[
+                    self.microtypeID, "SeniorFareDiscount"]
 
     @property
     def fare(self):

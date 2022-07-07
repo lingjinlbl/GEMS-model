@@ -678,16 +678,31 @@ class Interact:
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
         if changeType[0] == 'fleetSize':
             microtype, modeName = changeType[1]
-            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
-        if changeType[0] == 'perMileCharge':
+            self.model.data.setModeFleetSize(modeName.lower(), microtype, newValue)
+        if changeType[0] == 'perMileFee':
             microtype, modeName = changeType[1]
             self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=True)
+            self.model.clearCostCache("throughCosts")
+        if changeType[0] == 'perMileCost':
+            microtype, modeName = changeType[1]
+            self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=True)
+            self.model.clearCostCache("throughCosts")
+        if changeType[0] == 'parkingCost':
+            microtype, modeName = changeType[1]
+            self.model.data.setModeEndCosts(modeName.lower(), microtype, newValue, public=False, senior=False)
+            self.model.clearCostCache("endCosts")
+        if changeType[0] == 'parkingFee':
+            microtype, modeName = changeType[1]
+            self.model.data.setModeEndCosts(modeName.lower(), microtype, newValue, public=True, senior=False)
+            self.model.clearCostCache("endCosts")
         if changeType[0] == 'fare':
             microtype, modeName = changeType[1]
             self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue)
+            self.model.clearCostCache("startCosts")
         if changeType[0] == 'fareSenior':
             microtype, modeName = changeType[1]
-            self.model.data.setModeFleetSize(modeName.lower(), microtype, newValue)
+            self.model.data.setModeStartCosts(modeName.lower(), microtype, newValue, senior=True)
+            self.model.clearCostCache("startCosts")
         if changeType[0] == 'coverage':
             microtype, modeName = changeType[1]
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'CoveragePortion'] = newValue

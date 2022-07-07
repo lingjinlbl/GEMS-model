@@ -27,7 +27,18 @@ class ScenarioData:
         Read in data corresponding to various inputs.
     copy():
         Return a new ScenarioData copy containing data.
+
+    Class attributes
     """
+
+    demandDataTypeToIdx = {'tripStarts': 0, 'tripEnds': 1, 'passengerDistance': 3, 'vehicleDistance': 4,
+                           'discountTripStarts': 5}
+    paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
+                  'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
+    costTypeToIdx = {'perStartPublicCost': 0, 'perEndPublicCost': 1, 'perMilePublicCost': 2,
+                     'perStartPrivateCost': 3, 'perEndPrivateCost': 4, 'perMilePrivateCost': 5}
+
+    costTypeIsPublic = np.array([True, True, True, False, False, False])
 
     def __init__(self, path: str, timeStepInSeconds, data=None):
         """
@@ -47,13 +58,10 @@ class ScenarioData:
         self.__passengerModeToIdx = dict()
         self.__freightModeToIdx = dict()
         self.__tripPurposeToIdx = dict()
-        self.__demandDataTypeToIdx = dict()
         self.__microtypeIdToIdx = dict()
-        self.__paramToIdx = dict()
         self.__transitLayerToIdx = dict()
         self.__subNetworkIdToIdx = dict()
         self.__distanceBinToDistance = dict()
-        self.__costTypeToIdx = dict()
         self.__populationGroupToIdx = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
@@ -63,9 +71,9 @@ class ScenarioData:
             self.data = data
             self.loadData()
 
-    @property
-    def paramToIdx(self):
-        return self.__paramToIdx
+    # @property
+    # def paramToIdx(self):
+    #     return self.__paramToIdx
 
     @property
     def diToIdx(self):
@@ -79,9 +87,9 @@ class ScenarioData:
     def modeToIdx(self):
         return self.__modeToIdx
 
-    @property
-    def demandDataTypeToIdx(self):
-        return self.__demandDataTypeToIdx
+    # @property
+    # def demandDataTypeToIdx(self):
+    #     return self.__demandDataTypeToIdx
 
     @property
     def passengerModeToIdx(self):
@@ -115,9 +123,9 @@ class ScenarioData:
     def firstFreightIdx(self):
         return len(self.passengerModeToIdx)
 
-    @property
-    def costTypeToIdx(self):
-        return self.__costTypeToIdx
+    # @property
+    # def costTypeToIdx(self):
+    #     return self.__costTypeToIdx
 
     @property
     def tripPurposeToIdx(self):
@@ -263,20 +271,12 @@ class ScenarioData:
         self.__odiToIdx = {ODindex(*odi): idx for idx, odi in enumerate(
             odJoinedToDistance.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID']).groups)}
 
-        self.__demandDataTypeToIdx = {'tripStarts': 0, 'tripEnds': 1, 'passengerDistance': 3, 'vehicleDistance': 4,
-                                      'discountTripStarts': 5}
-
         self.__microtypeIdToIdx = {mID: idx for idx, mID in enumerate(self["microtypeIDs"].MicrotypeID)}
 
         self.__subNetworkIdToIdx = {sID: idx for idx, sID in enumerate(self["subNetworkData"].index)}
 
         self.__distanceBinToDistance = {bd.DistanceBinID: bd.MeanDistanceInMiles for db, bd in
                                         self["distanceBins"].iterrows()}
-
-        self.__paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
-                             'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
-        self.__costTypeToIdx = {'perStartPublicCost': 0, 'perEndPrivateCost': 1, 'perMilePrivateCost': 2,
-                                'perMilePublicCost': 3}
         uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
         self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
         self.__populationGroupToIdx = {grp: idx for idx, grp in
@@ -401,9 +401,13 @@ class Data:
         data = self.__fleetSize[:, self.scenarioData.microtypeIdToIdx[microtype], self.scenarioData.modeToIdx[mode]]
         data.fill(fleetSize)
 
-    def setModeStartCosts(self, mode, microtype, newCost, senior=None):
+    def setModeStartCosts(self, mode, microtype, newCost, public=True, senior=None):
+        if public:
+            costIdx = self.scenarioData.costTypeToIdx["perStartPublicCost"]
+        else:
+            costIdx = self.scenarioData.costTypeToIdx["perStartPrivateCost"]
         data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
-               self.scenarioData.modeToIdx[mode], 0]
+               self.scenarioData.modeToIdx[mode], costIdx]
         if senior is None:
             data.fill(newCost)
         else:
@@ -415,12 +419,28 @@ class Data:
 
     def setModePerMileCosts(self, mode, microtype, newCost, public=False):
         if public:
-            idx = self.scenarioData.costTypeToIdx['perMilePublicCost']
+            costIdx = self.scenarioData.costTypeToIdx['perMilePublicCost']
         else:
-            idx = self.scenarioData.costTypeToIdx['perMilePrivateCost']
+            costIdx = self.scenarioData.costTypeToIdx['perMilePrivateCost']
         data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
-               self.scenarioData.modeToIdx[mode], idx]
+               self.scenarioData.modeToIdx[mode], costIdx]
         data.fill(newCost)
+
+    def setModeEndCosts(self, mode, microtype, newCost, public=True, senior=None):
+        if public:
+            costIdx = self.scenarioData.costTypeToIdx["perEndPublicCost"]
+        else:
+            costIdx = self.scenarioData.costTypeToIdx["perEndPrivateCost"]
+        data = self.__microtypeCosts[self.scenarioData.microtypeIdToIdx[microtype], :,
+               self.scenarioData.modeToIdx[mode], costIdx]
+        if senior is None:
+            data.fill(newCost)
+        else:
+            isSenior = np.array([di.isSenior for di in self.scenarioData.diToIdx.keys()], dtype=bool)
+            if senior:
+                data[isSenior] = newCost
+            else:
+                data[~isSenior] = newCost
 
     def toStarts(self):
         return self.__toStarts
@@ -565,6 +585,7 @@ class Data:
             demand['choiceParametersFixed'] = self.__choiceParametersFixed
             demand['toTransitLayer'] = self.__toTransitLayer
             demand['transitLayerUtility'] = self.__transitLayerUtility
+            demand['microtypeCosts'] = self.__microtypeCosts
         else:
             demand['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
             demand['modeSplit'] = self.__modeSplit[timePeriodIdx, :, :, :]
@@ -580,6 +601,7 @@ class Data:
             demand['choiceParametersFixed'] = self.__choiceParametersFixed
             demand['toTransitLayer'] = self.__toTransitLayer
             demand['transitLayerUtility'] = self.__transitLayerUtility
+            demand['microtypeCosts'] = self.__microtypeCosts
         return demand
 
     def getInvariants(self):
