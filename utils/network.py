@@ -12,51 +12,6 @@ np.seterr(all='ignore')
 mph2mps = 1609.34 / 3600
 
 
-class TotalOperatorCosts:
-    def __init__(self):
-        self.__costs = dict()
-        self.__revenues = dict()
-        self.__net = dict()
-
-    def __setitem__(self, key: str, value: (float, float)):
-        self.__costs[key] = value[0]
-        self.__revenues[key] = value[1]
-        self.__net[key] = value[0] - value[1]
-
-    def __getitem__(self, item) -> float:
-        return self.__net[item]
-
-    def __iter__(self):
-        return iter(self.__net.items())
-
-    def __mul__(self, other):
-        output = TotalOperatorCosts()
-        for key in self.__costs.keys():
-            output[key] = (self.__costs[key] * other, self.__revenues[key] * other)
-        return output
-
-    def __add__(self, other):
-        output = TotalOperatorCosts()
-        for key in self.__costs.keys():
-            if key in self.__costs:
-                if key in other.__costs:
-                    output[key] = (self.__costs[key] + other.__costs[key], self.__revenues[key] + other.__revenues[key])
-                else:
-                    output[key] = (self.__costs[key], self.__revenues[key])
-            else:
-                if key in other.__costs:
-                    output[key] = (other.__costs[key], other.__revenues[key])
-                else:
-                    output[key] = (0., 0.)
-        return output
-
-    def __str__(self):
-        return [key + ' ' + str(item) for key, item in self.__costs.items()]
-
-    def toDataFrame(self, index=None):
-        return pd.DataFrame({'Cost': pd.Series(self.__costs), 'Revenue': pd.Series(self.__revenues)})
-
-
 class NetworkFlowParams:
     def __init__(self, smoothing, free_flow_speed, wave_velocity, jam_density, max_flow, avg_link_length):
         self.lam = smoothing
@@ -305,7 +260,7 @@ class Network:
         return self.characteristics['ModesAllowed'].iloc[self._iloc]
 
     def __str__(self):
-        return str(tuple(self._VMT.keys()))
+        return str(self._modes) + '__' + str(self.modeAccumulation)
 
     def __contains__(self, mode):
         return mode in self._modes
@@ -437,14 +392,14 @@ class Network:
 
 
 class NetworkCollection:
-    def __init__(self, networksAndModes, modeToModeData, microtypeID, demandData, speedData, microtypeCosts, fleetSize,
-                 freightProduction, accessDistance, demandDataTypeToIdx, modeToIdx, freightModeToIdx, diToIdx,
-                 verbose=False):
+    def __init__(self, networksAndModes, modeToModeData, microtypeID, microtypePopulation, demandData, speedData,
+                 microtypeCosts, fleetSize, freightProduction, accessDistance, demandDataTypeToIdx, modeToIdx,
+                 freightModeToIdx, diToIdx, verbose=False):
         self._networks = dict()
         self.modeToNetwork = dict()
         self.__passengerModes = dict()
         self.__freightModes = dict()
-
+        self.__microtypePopulation = microtypePopulation
         self.__demandData = demandData
         self._speedData = speedData
         self.__microtypeCosts = microtypeCosts
@@ -464,6 +419,10 @@ class NetworkCollection:
 
         # self.resetModes()
 
+    @property
+    def microtypePopulation(self):
+        return self.__microtypePopulation
+
     def subNetworkIDs(self):
         return list(self._networks.keys())
 
@@ -478,7 +437,7 @@ class NetworkCollection:
             return self.__passengerModes[mode]
         else:
             return self.__freightModes[mode]
-        
+
     def fixedVMT(self, mode):
         if mode in self.__passengerModes:
             return self.__passengerModes[mode].fixedVMT
@@ -520,33 +479,33 @@ class NetworkCollection:
 
             if modeName == "bus":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
-                mode = BusMode(networks, params, microtypeID,
+                mode = BusMode(networks, params, microtypeID, self.microtypePopulation,
                                travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
                                fleetSize=fleetSize, accessDistance=accessDistance, diToIdx=self.__diToIdx)
                 self.__passengerModes["bus"] = mode
             elif modeName == "auto":
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
-                mode = AutoMode(networks, params, microtypeID,
+                mode = AutoMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData,
                                 microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
                                 diToIdx=self.__diToIdx)
                 self.__passengerModes["auto"] = mode
             elif modeName == "walk":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                mode = WalkMode(networks, params, microtypeID,
+                mode = WalkMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData, microtypeCosts=microtypeCosts,
                                 fleetSize=fleetSize, accessDistance=accessDistance, diToIdx=self.__diToIdx)
                 self.__passengerModes["walk"] = mode
             elif modeName == "bike":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                mode = BikeMode(networks, params, microtypeID,
+                mode = BikeMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData,
                                 microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
                                 diToIdx=self.__diToIdx)
                 self.__passengerModes["bike"] = mode
             elif modeName == "rail":
                 self._speedData[self.__modeToIdx[modeName]] = params.loc[microtypeID, 'SpeedInMetersPerSecond']
-                mode = RailMode(networks, params, microtypeID,
+                mode = RailMode(networks, params, microtypeID, self.microtypePopulation,
                                 travelDemandData=travelDemandData, speedData=speedData,
                                 microtypeCosts=microtypeCosts, fleetSize=fleetSize, accessDistance=accessDistance,
                                 diToIdx=self.__diToIdx)
@@ -554,7 +513,7 @@ class NetworkCollection:
             elif modeName.startswith("freight"):
                 self._speedData[self.__modeToIdx[modeName]] = networks[0].autoSpeed
                 freightProduction = self.__freightProduction[self.__freightModeToIdx[modeName], None]
-                mode = FreightMode(modeName, networks, params, microtypeID,
+                mode = FreightMode(modeName, networks, params, microtypeID, self.microtypePopulation,
                                    travelDemandData[self.__demandDataTypeToIdx['vehicleDistance'], None], speedData,
                                    fleetSize)
                 self.__freightModes[modeName] = mode
@@ -608,15 +567,15 @@ class NetworkCollection:
         return self._speedData
 
     def getModeOperatingCosts(self):
-        out = TotalOperatorCosts()
+        out = np.zeros(len(self.__modeToIdx))
         for name, mode in self.passengerModes().items():
-            out[name] = (mode.getOperatorCosts(), mode.getOperatorRevenues())
+            out[self.__modeToIdx[name]] = mode.getOperatorCosts()
         return out
 
     def getFreightModeOperatingCosts(self):
-        out = TotalOperatorCosts()
+        out = np.zeros(len(self.__modeToIdx))
         for name, mode in self.freightModes().items():
-            out[name] = (mode.getOperatorCosts(), 0.0)
+            out[self.__modeToIdx[name]] = mode.getOperatorCosts()
         return out
 
     def iterModes(self):
