@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 # from noisyopt import minimizeCompass, minimizeSPSA
 from scipy.optimize import root, minimize, Bounds, shgo
-from mock import Mock
+# from mock import Mock
 # from skopt import gp_minimize, forest_minimize
 
 from utils.OD import OriginDestination, TripGeneration, TransitionMatrices
@@ -915,7 +915,7 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, False)
+    model = Model("input-data", 1, True)
     optimizer = Optimizer(model, domain=OptimizationDomain(
         [('dedicated', ('A', 'Bus')),
          ('headway', ('A', 'Bus')),

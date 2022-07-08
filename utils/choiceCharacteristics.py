@@ -227,7 +227,7 @@ class CollectedChoiceCharacteristics:
     def resetChoiceCharacteristics(self):
         # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
         #  'unprotected_travel_time': 5, 'distance': 6}
-        for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']: # TODO: vectorize
+        for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:  # TODO: vectorize
             self.__numpy[:, :, :, self.paramToIdx[param]] = 0.0
         # self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, :, self.paramToIdx['intercept']] = 1
@@ -266,12 +266,17 @@ class CollectedChoiceCharacteristics:
                                                                          self.costTypeToIdx['perMilePublicCost']]],
                                       self.__fixedData['toThroughDistance']))
 
+        waitTimeSeconds = self.__cache.setdefault(
+            'waitTimeSeconds', np.einsum('ijm,ki->jkm', allCosts[:, :, :, self.costTypeToIdx['waitTimeInSeconds']],
+                                         self.__fixedData['toStarts']))
+
         self.__numpy[:, :, :, self.paramToIdx['cost']] = startCosts + endCosts + throughCosts
         self.__numpy[:, :, :, self.paramToIdx['travel_time']] = travelTimeInHours[None, :]
         self.__numpy[:, :, :, self.paramToIdx['unprotected_travel_time']] = (travelTimeInHours * mixedTravelPortion)[
                                                                             None, :]
         self.__numpy[:, :, :, self.paramToIdx['mode_density']] = bikeFleetDensity[None, :, :]
         self.__numpy[:, :, :, self.paramToIdx['access_time']] = accessSeconds[None, :] / 3600.
+        self.__numpy[:, :, :, self.paramToIdx['wait_time']] = waitTimeSeconds / 3600.
         return self.__numpy
 
     def isBroken(self):

@@ -36,7 +36,7 @@ class ScenarioData:
     paramToIdx = {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
                   'unprotected_travel_time': 5, 'distance': 6, 'mode_density': 7}
     costTypeToIdx = {'perStartPublicCost': 0, 'perEndPublicCost': 1, 'perMilePublicCost': 2,
-                     'perStartPrivateCost': 3, 'perEndPrivateCost': 4, 'perMilePrivateCost': 5}
+                     'perStartPrivateCost': 3, 'perEndPrivateCost': 4, 'perMilePrivateCost': 5, 'waitTimeInSeconds': 6}
 
     costTypeIsPublic = np.array([True, True, True, False, False, False])
 

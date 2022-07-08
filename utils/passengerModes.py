@@ -63,6 +63,9 @@ class Mode:
                 seniorDIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
                 self.microtypeCosts[seniorDIs, ScenarioData.costTypeToIdx["perStartPublicCost"]] *= self.params.at[
                     self.microtypeID, "SeniorFareDiscount"]
+        if "Headway" in self.params.columns:
+            self.microtypeCosts[:, ScenarioData.costTypeToIdx["waitTimeInSeconds"]] = self.params.at[
+                                                                                          self.microtypeID, "Headway"].copy() / 2.0
 
     @property
     def fare(self):
@@ -116,6 +119,9 @@ class Mode:
             return 0.0
         else:
             return self.travelDemand.rateOfPmtPerHour
+
+    def updateHeadway(self, newHeadway):
+        pass
 
     def getOperatorCosts(self) -> float:
         return 0.0
@@ -328,7 +334,11 @@ class RailMode(Mode):
     @property
     def headwayInSec(self):
         # return self.params.to_numpy()[self._inds["Headway"]]
-        return self.params.at[self.microtypeID, "Headway"]
+        return self._params[self._idx, self.modeParamsColumnToIdx["Headway"]]
+
+    @headwayInSec.setter
+    def headwayInSec(self, value):
+        self._params[self._idx, self.modeParamsColumnToIdx["Headway"]] = value
 
     @property
     def stopSpacingInMeters(self):
@@ -359,11 +369,14 @@ class RailMode(Mode):
     def getSpeed(self):
         return self.routeAveragedSpeed
 
+    def assignVmtToNetworks(self):
+        self._networkAccumulation[0] = self.getRouteLength() / self.getSpeed() / self.headwayInSec
+
     def getRouteLength(self):
         return sum([n.L for n in self.networks])
 
     def getOperatorCosts(self) -> float:
-        return sum(self.getNs())[0] * self.vehicleOperatingCostPerHour
+        return sum(self.getNs()) * self.vehicleOperatingCostPerHour
 
     def getOperatorRevenues(self) -> float:
         return self.travelDemand.tripStartRatePerHour * self.fare
@@ -373,6 +386,10 @@ class RailMode(Mode):
 
     def updateScenarioInputs(self):
         self._params = self.params.to_numpy()
+
+    def updateHeadway(self, newHeadway):
+        self.headwayInSec = newHeadway
+        self.microtypeCosts[:, ScenarioData.costTypeToIdx["waitTimeInSeconds"]] = newHeadway / 2.0
 
 
 class AutoMode(Mode):
@@ -490,6 +507,10 @@ class BusMode(Mode):
     def desiredHeadwayInSec(self):
         return self._params[self._idx, self.modeParamsColumnToIdx["Headway"]]
 
+    @desiredHeadwayInSec.setter
+    def desiredHeadwayInSec(self, headway):
+        self._params[self._idx, self.modeParamsColumnToIdx["Headway"]] = headway
+
     @property
     def headwayInSec(self):
         return (self.__routeLength / self.routeAveragedSpeed) / self.__N
@@ -542,6 +563,10 @@ class BusMode(Mode):
     def relativeLength(self):
         # return self.params.to_numpy()[self._inds["VehicleSize"]]
         return self._params[self._idx, self.modeParamsColumnToIdx["VehicleSize"]]
+
+    def updateHeadway(self, newHeadway):
+        self.desiredHeadwayInSec = newHeadway
+        self.microtypeCosts[:, ScenarioData.costTypeToIdx["waitTimeInSeconds"]] = newHeadway / 2.0
 
     def updateScenarioInputs(self):
         self._params = self.params.to_numpy()

@@ -62,27 +62,27 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    def addStartTimeCostWait(self, mode: str, cc: np.ndarray):  # Could eventually be vectorized
-        if mode in self:
-            perStartCost = self.networks.getMode(mode).perStart
-            cc[self.paramToIdx['cost']] += perStartCost
-            if mode in ['bus', 'rail']:
-                waitTime = self.networks.getMode('bus').headwayInSec / 3600. / 4.  # TODO: Something better
-                cc[self.paramToIdx['wait_time']] += waitTime
-                accessTime = self.networks.getMode(
-                    mode).getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
-                cc[self.paramToIdx['access_time']] += accessTime
-                if np.isnan(waitTime) | np.isnan(accessTime):
-                    print('WHY IS THIS NAN')
+    # def addStartTimeCostWait(self, mode: str, cc: np.ndarray):  # Could eventually be vectorized
+    #     if mode in self:
+    #         perStartCost = self.networks.getMode(mode).perStart
+    #         cc[self.paramToIdx['cost']] += perStartCost
+    #         if mode in ['bus', 'rail']:
+    #             waitTime = self.networks.getMode(mode).headwayInSec / 3600. / 4.  # TODO: Something better
+    #             cc[self.paramToIdx['wait_time']] += waitTime
+    #             accessTime = self.networks.getMode(
+    #                 mode).getAccessDistance() / 1.5 / 3600.0  # TODO: Switch back to self.networks.modes['walk'].speedInMetersPerSecond
+    #             cc[self.paramToIdx['access_time']] += accessTime
+    #             if np.isnan(waitTime) | np.isnan(accessTime):
+    #                 print('WHY IS THIS NAN')
 
-    def addEndTimeCostWait(self, mode: str, cc: np.ndarray):
-        if mode in self:
-            cc[self.paramToIdx['cost']] += self.networks.getMode(mode).perEnd
-            if mode == 'bus':
-                cc[self.paramToIdx['wait_time']] += self.networks.getMode('bus').headwayInSec / 3600. / 4.
-                cc[self.paramToIdx['access_time']] += self.networks.getMode(mode).getAccessDistance() * \
-                                                      self.networks.getMode(
-                                                          'walk').speedInMetersPerSecond / 3600.0
+    # def addEndTimeCostWait(self, mode: str, cc: np.ndarray):
+    #     if mode in self:
+    #         cc[self.paramToIdx['cost']] += self.networks.getMode(mode).perEnd
+    #         if mode == 'bus':
+    #             cc[self.paramToIdx['wait_time']] += self.networks.getMode('bus').headwayInSec / 3600. / 4.
+    #             cc[self.paramToIdx['access_time']] += self.networks.getMode(mode).getAccessDistance() * \
+    #                                                   self.networks.getMode(
+    #                                                       'walk').speedInMetersPerSecond / 3600.0
 
 
 def getFlows(self):

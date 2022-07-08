@@ -33,6 +33,7 @@ class Interact:
         self.__microtypeToBusNetworkID = dict()
         self.__microtypeToBikeNetworkID = dict()
         self.__microtypeToBusService = dict()
+        self.__microtypeToRailService = dict()
         self.__widgetIDtoSubNetwork = dict()
         self.__widgetIDtoField = dict()
         self.__utilDropdownStatus = dict()
@@ -541,14 +542,41 @@ class Interact:
             costBusSeniorStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[costBusSeniorStack[-1].model_id] = ('fareSenior', (mID, 'Bus'))
 
-        headwayStack = []
+        headwayTitleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
+        headwayStack = [widgets.HTML(value="<center><i>Bus</i></center>")]
+        railHeadwayStack = [widgets.HTML(value="<center><i>Rail</i></center>")]
 
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            headwayTitleStack.append(widgets.HTML(value="<center><i>{}</i></center>".format(mID)))
             busServiceData = self.model.scenarioData['modeData']['bus'].loc[mID]
+            railServiceData = self.model.scenarioData['modeData']['rail'].loc[mID]
             self.__microtypeToBusService[mID] = busServiceData
-            headwayStack.append(widgets.IntSlider(busServiceData.Headway, 90, 1800, 30, description="Microtype " + mID))
+            self.__microtypeToRailService[mID] = railServiceData
+            headwayStack.append(widgets.FloatSlider(busServiceData.Headway, min=90, max=1800, step=30,
+                                                    layout=Layout(width='180px')))
             headwayStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[headwayStack[-1].model_id] = ('headway', (mID, 'Bus'))
+            railHeadwayStack.append(
+                widgets.FloatSlider(railServiceData.Headway, min=90, max=1800, step=30,
+                                    layout=Layout(width='180px')))
+            railHeadwayStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[railHeadwayStack[-1].model_id] = ('headway', (mID, 'Rail'))
+
+        feeTitleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
+        perMileFeeStack = [widgets.HTML(value="<center><i>Per Mile Fee</i></center>")]
+        perDestinationFeeStack = [widgets.HTML(value="<center><i>Cordon Fee</i></center>")]
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            feeTitleStack.append(widgets.HTML(value="<center><i>{}</i></center>".format(mID)))
+            perMileFeeStack.append(widgets.FloatSlider(0.0, min=0.0, max=10.0, step=0.25,
+                                                       layout=Layout(width='180px')))
+            perMileFeeStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[perMileFeeStack[-1].model_id] = ('perMileFee', (mID, 'Auto'))
+            perDestinationFeeStack.append(
+                widgets.FloatSlider(0.0, min=0.0, max=10.0, step=0.25,
+                                    layout=Layout(width='180px')))
+            perDestinationFeeStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[perDestinationFeeStack[-1].model_id] = ('parkingFee', (mID, 'Auto'))
 
         coverageStack = []
 
@@ -588,14 +616,23 @@ class Interact:
             dataAccordion.set_title(ind, title)
 
         scenarioAccordion = widgets.Accordion(
-            [widgets.HBox(
-                [widgets.VBox(dedicatedTitleStack), widgets.VBox(dedicatedBusStack), widgets.VBox(dedicatedBikeStack)]),
+            [
+                widgets.HBox(
+                    [widgets.VBox(dedicatedTitleStack), widgets.VBox(dedicatedBusStack),
+                     widgets.VBox(dedicatedBikeStack)]),
                 widgets.HBox(
                     [widgets.VBox(costTitleStack), widgets.VBox(costBusStack),
                      widgets.VBox(costBusSeniorStack)]),
-                widgets.VBox(headwayStack), widgets.VBox(coverageStack)])
+                widgets.HBox(
+                    [widgets.VBox(headwayTitleStack), widgets.VBox(headwayStack),
+                     widgets.VBox(railHeadwayStack)]),
+                widgets.HBox(
+                    [widgets.VBox(feeTitleStack), widgets.VBox(perMileFeeStack),
+                     widgets.VBox(perDestinationFeeStack)]),
+                widgets.VBox(coverageStack)])
 
-        for ind, title in enumerate(('Lane dedication', 'Cost', 'Bus headway (s)', 'Bus service area')):
+        for ind, title in enumerate(
+                ('Lane dedication', 'Fare', 'Transit headway (s)', 'Congestion pricing', 'Bus service area')):
             scenarioAccordion.set_title(ind, title)
 
         accordionChildren = [costAccordion, scenarioAccordion, dataAccordion]
@@ -675,7 +712,9 @@ class Interact:
             self.model.scenarioData['subNetworkData'].loc[dedicatedIdx, 'Length'] = newDedicatedLength
         if changeType[0] == 'headway':
             microtype, modeName = changeType[1]
-            self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
+            self.model.microtypes[microtype].networks.getMode(modeName.lower()).updateHeadway(newValue)
+            self.model.clearCostCache("waitTimeSeconds")
+            # self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'Headway'] = newValue
         if changeType[0] == 'fleetSize':
             microtype, modeName = changeType[1]
             self.model.data.setModeFleetSize(modeName.lower(), microtype, newValue)
