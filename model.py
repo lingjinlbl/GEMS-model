@@ -733,7 +733,7 @@ class Optimizer:
                          "Externality": np.ones(len(model.microtypeIdToIdx)),
                          "Dedication": np.ones(len(model.microtypeIdToIdx)),
                          "Accessibility": np.ones(len(model.microtypeIdToIdx))}
-        self.__accessibilityMultipliers = pd.Series(0, index=pd.MultiIndex.from_tuples(
+        self.__accessibilityMultipliers = pd.Series(0.0, index=pd.MultiIndex.from_tuples(
             [(odi.homeMicrotype, odi.populationGroupType, odi.tripPurpose) for odi in model.diToIdx.keys()],
             names=["Microtype ID", "Population Group", "Trip Purpose"]))
         self.__trialParams = []
@@ -743,7 +743,7 @@ class Optimizer:
         self.model = model
 
     def __initializeAccessibilityMultipliers(self):
-        relevantTripTypes = set(self.__accessibilityMultipliers.unstack().columns).difference({'home', 'work'})
+        relevantTripTypes = set(self.__accessibilityMultipliers.index.levels[-1]).difference({'home', 'work'})
         self.__accessibilityMultipliers.loc[pd.IndexSlice[:, :, list(relevantTripTypes)]] = 1.0
 
     def updateAlpha(self, costType, newValue, mID=None):
@@ -915,15 +915,14 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data-california-A", 1, False)
+    model = Model("input-data", 1, False)
     optimizer = Optimizer(model, domain=OptimizationDomain(
-        [('dedicated', ('1', 'Bus')),
-         ('headway', ('1', 'Bus')),
-         ('fare', ('2', 'Bus')),
-         ('fare', ('1', 'Bus')),
+        [('dedicated', ('A', 'Bus')),
+         ('headway', ('A', 'Bus')),
+         ('fare', ('A', 'Bus'))
          ]),
                           method="opt")
-    optimizer.updateAndRunModel(np.array([0.05, 250, 1.25, 0.4]))
-    x, y = model.plotAllDynamicStats("production")
+    # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
+    # x, y = model.plotAllDynamicStats("production")
     outcome = optimizer.minimize()
     print(outcome)

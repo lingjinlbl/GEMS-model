@@ -670,8 +670,6 @@ class BusMode(Mode):
         for n in self.networks:
             L_blocked = self.calculateBlockedDistance(n)
             n.setModeBlockedDistance(self.name, L_blocked)
-            if n.modeBlockedDistance.sum() > n.networkLength:
-                print('HMMMMM')
 
     # @profile
     def assignVmtToNetworks(self):

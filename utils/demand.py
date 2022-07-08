@@ -7,7 +7,7 @@ from .data import ScenarioData
 np.set_printoptions(precision=5)
 import pandas as pd
 
-from .OD import OriginDestination, TripGeneration, DemandIndex, ODindex, ModeSplit, TransitionMatrices
+from .OD import OriginDestination, TripGeneration, TransitionMatrices
 from .choiceCharacteristics import CollectedChoiceCharacteristics
 from .microtype import MicrotypeCollection
 from .misc import DistanceBins, TimePeriods
@@ -240,19 +240,19 @@ class Demand:
     # def __iter__(self) -> ((DemandIndex, ODindex), np.ndarray):
     #     return np.ndenumerate(self.__numpy)
 
-    def __setitem__(self, key: (DemandIndex, ODindex), value: ModeSplit):
-        self.__modeSplit[key] = value
+    # def __setitem__(self, key: (DemandIndex, ODindex), value: ModeSplit):
+    #     self.__modeSplit[key] = value
 
     @property
     def modeSplitData(self):
         return self.__modeSplitData
 
-    def __getitem__(self, item: (DemandIndex, ODindex)) -> ModeSplit:
-        if item in self:
-            return self.__modeSplit[item]
-        else:  # else return empty mode split
-            (demandIndex, odi) = item
-            print("WTF")
+    # def __getitem__(self, item: (DemandIndex, ODindex)) -> ModeSplit:
+    #     if item in self:
+    #         return self.__modeSplit[item]
+    #     else:  # else return empty mode split
+    #         (demandIndex, odi) = item
+    #         print("WTF")
 
     def __contains__(self, item):
         """ Return true if the correct value"""
@@ -415,27 +415,27 @@ class Demand:
         else:
             return utils(self.__population.numpy, choiceCharacteristicsArray)
 
-    def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
-        demandForTrips = 0
-        demandForDistance = 0
-        trips = dict()
-        for (di, odi), ms in self.__modeSplit.items():
-            relevant = ((userClass is None) or (di.populationGroupType == userClass)) & (
-                    (microtypeID is None) or (di.homeMicrotype == microtypeID)) & (
-                               (distanceBin is None) or (odi.distBin == distanceBin))
-            if relevant:
-                for mode, split in ms:
-                    new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
-                    trips[mode] = new_demand
-                demandForTrips += ms.demandForTripsPerHour
-                demandForDistance += ms.demandForPmtPerHour
-        for mode in trips.keys():
-            if otherModeSplit is not None:
-                trips[mode] /= (demandForTrips * 2.)
-                trips[mode] += otherModeSplit[mode] / 2.
-            else:
-                trips[mode] /= demandForTrips
-        return ModeSplit(trips, demandForTrips, demandForDistance)
+    # def getTotalModeSplit(self, userClass=None, microtypeID=None, distanceBin=None, otherModeSplit=None) -> ModeSplit:
+    #     demandForTrips = 0
+    #     demandForDistance = 0
+    #     trips = dict()
+    #     for (di, odi), ms in self.__modeSplit.items():
+    #         relevant = ((userClass is None) or (di.populationGroupType == userClass)) & (
+    #                 (microtypeID is None) or (di.homeMicrotype == microtypeID)) & (
+    #                            (distanceBin is None) or (odi.distBin == distanceBin))
+    #         if relevant:
+    #             for mode, split in ms:
+    #                 new_demand = trips.setdefault(mode, 0) + split * ms.demandForTripsPerHour
+    #                 trips[mode] = new_demand
+    #             demandForTrips += ms.demandForTripsPerHour
+    #             demandForDistance += ms.demandForPmtPerHour
+    #     for mode in trips.keys():
+    #         if otherModeSplit is not None:
+    #             trips[mode] /= (demandForTrips * 2.)
+    #             trips[mode] += otherModeSplit[mode] / 2.
+    #         else:
+    #             trips[mode] /= demandForTrips
+    #     return ModeSplit(trips, demandForTrips, demandForDistance)
 
     def getMatrixModeCounts(self):
         modeCounts = np.einsum('ij,ijk->k', self.__tripRate, self.__modeSplitData)
@@ -470,27 +470,6 @@ class Demand:
         if np.any(np.isnan(totalsByModeAndCharacteristic)):
             print('Something went wrong')
         return totalsByModeAndCharacteristic
-
-    # def getUserCosts(self, collectedChoiceCharacteristics: CollectedChoiceCharacteristics,
-    #                  originDestination: OriginDestination) -> CollectedTotalUserCosts:
-    #     out = CollectedTotalUserCosts()
-    #     for demandIndex, utilityParams in self.__population:
-    #         od = originDestination[demandIndex]
-    #         demandClass = self.__population[demandIndex]
-    #         for odi, portion in od.items():
-    #             ms = self[(demandIndex, odi)]
-    #
-    #             for mode in ms.keys():
-    #                 mcc = collectedChoiceCharacteristics[odi, mode]
-    #                 cost, inVehicle, outVehicle, demandForTripsPerHour, distance = demandClass.getCostPerCapita(mcc, ms,
-    #                                                                                                             [mode])
-    #                 if demandForTripsPerHour > 0:
-    #                     out[demandIndex, mode] = TotalUserCosts(cost * demandForTripsPerHour, 0.0,
-    #                                                             inVehicle * demandForTripsPerHour,
-    #                                                             outVehicle * demandForTripsPerHour,
-    #                                                             demandForTripsPerHour,
-    #                                                             demandForTripsPerHour * distance)
-    #     return out.updateTotals()
 
     def __str__(self):
         return "Trips: " + str(self.tripRate) + ", PMT: " + str(self.demandForPMT)
@@ -531,7 +510,7 @@ def modeSplitFromUtils(utilities: np.ndarray) -> np.ndarray:
 
 def modeSplitFromUtilsWithExcludedModes(utilities: np.ndarray, transitLayerPortion: np.ndarray) -> np.ndarray:
     expUtils = np.exp(utilities)
-    probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)
+    probabilities = expUtils / np.expand_dims(np.nansum(expUtils, axis=2), 2)  # TODO: Check if this needs to be nansum
     probabilities[np.isnan(expUtils)] = 0
     """ Indices:
     i: population group (demand index)
