@@ -387,13 +387,17 @@ class Data:
         self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
         self.__subNetworkScaledLength = np.zeros((self.params.nSubNetworks, 1))
+
         self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
+        self.__subNetworkInstantaneousAutoQueueAccumulation = np.zeros(
+            (self.params.nSubNetworks, self.params.nTimeSteps))
         self.__instantaneousTime = np.arange(self.params.nTimeSteps) * self.params.timeStepInSeconds
         self.__transitionMatrixNetworkIdx = np.zeros(self.params.nSubNetworks, dtype=bool)
         self.__nonAutoModes = np.array([True] * self.params.nModesTotal)
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
         self.__MFDs = [[] for _ in range(self.params.nSubNetworks)]
+        self.__maxInflow = [[] for _ in range(self.params.nSubNetworks)]
         self.__freightProduction = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nFreightModes), dtype=float)
 
@@ -496,6 +500,10 @@ class Data:
         return self.__subNetworkInstantaneousAutoAccumulation[self.__transitionMatrixNetworkIdx, :]
 
     @property
+    def q(self):
+        return self.__subNetworkInstantaneousAutoQueueAccumulation[self.__transitionMatrixNetworkIdx, :]
+
+    @property
     def utilities(self):
         return self.__utilities
 
@@ -524,14 +532,18 @@ class Data:
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
             supply['subNetworkScaledLength'] = self.__subNetworkScaledLength
+
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation
+            supply['subNetworkInstantaneousAutoQueueAccumulation'] = self.__subNetworkInstantaneousAutoQueueAccumulation
             supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
+            supply['subNetworkPreviousAutoQueueAccumulation'] = np.zeros(self.params.nSubNetworks)
             supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
             supply['nonAutoModes'] = self.__nonAutoModes
             supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
             supply['microtypeCosts'] = self.__microtypeCosts
             supply['MFDs'] = self.__MFDs
+            supply['maxInflow'] = self.__maxInflow
             supply['freightProduction'] = self.__freightProduction
             supply['transitionMatrix'] = self.__transitionMatrix
             supply['transitionMatrices'] = self.__transitionMatrices
@@ -554,16 +566,23 @@ class Data:
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
                                                                 :, startTimeStep:endTimeStep]
+            supply[
+                'subNetworkInstantaneousAutoQueueAccumulation'] = self.__subNetworkInstantaneousAutoQueueAccumulation[:,
+                                                                  startTimeStep:endTimeStep]
             if startTimeStep == 0:
                 supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
+                supply['subNetworkPreviousAutoQueueAccumulation'] = np.zeros(self.params.nSubNetworks)
             else:
                 supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[:,
                                                                startTimeStep - 1]
+                supply['subNetworkPreviousAutoQueueAccumulation'] = self.__subNetworkInstantaneousAutoQueueAccumulation[
+                                                                    :, startTimeStep - 1]
             supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
             supply['nonAutoModes'] = self.__nonAutoModes
             supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
             supply['microtypeCosts'] = self.__microtypeCosts
             supply['MFDs'] = self.__MFDs
+            supply['maxInflow'] = self.__maxInflow
             supply['transitionMatrix'] = self.__transitionMatrix[timePeriodIdx, :, :]
             supply['transitionMatrices'] = self.__transitionMatrices
         return supply

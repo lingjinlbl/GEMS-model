@@ -486,7 +486,7 @@ class Model:
         acc = self.__accessibility.calculateByDI()
         if normalize:
             for (row, val) in self.scenarioData['populations'].iterrows():
-                acc.loc[val.MicrotypeID, val.PopulationGroupTypeID, :] /= val.Population
+                acc.loc[pd.IndexSlice[val.MicrotypeID, val.PopulationGroupTypeID]] /= val.Population
         return acc
 
     def collectAllCharacteristics(self):

@@ -51,7 +51,7 @@ class Microtype:
 
     def resetDemand(self):
         self.networks.resetModes()
-        self.networks.demands.resetDemand()
+        # self.networks.demands.resetDemand()
 
     def getModeStartAndEndRate(self, mode: str) -> (float, float):
         return self.networks.demands.getStartRate(mode), self.networks.demands.getStartRate(mode)
@@ -122,6 +122,7 @@ class MicrotypeCollection:
         self.__diameters = np.ndarray([0])
         self.__numpyNetworkAccumulation = supplyData['subNetworkAccumulation']
         self.__numpyNetworkLength = supplyData['subNetworkLength']
+        # self.__numpyNetworkMaxAcceptance = supplyData['subNetworkMaxAcceptanceCapacity']
         self.__numpyScaledNetworkLength = supplyData['subNetworkScaledLength']
         self.__numpyNetworkVehicleSize = supplyData['subNetworkVehicleSize']
         self.__numpyNetworkSpeed = supplyData['subNetworkAverageSpeed']
@@ -129,14 +130,17 @@ class MicrotypeCollection:
         self.__numpyNetworkBlockedDistance = supplyData['subNetworkBlockedDistance']
         self.__numpyInstantaneousSpeed = supplyData['subNetworkInstantaneousSpeed']
         self.__numpyInstantaneousAccumulation = supplyData['subNetworkInstantaneousAutoAccumulation']
+        self.__numpyInstantaneousQueueAccumulation = supplyData['subNetworkInstantaneousAutoQueueAccumulation']
         self.__accessDistance = supplyData['accessDistance']
         self.__microtypeCosts = supplyData['microtypeCosts']
         self.__numpyFreightProduction = supplyData['freightProduction']  # only set to nonzero when production is fixed
         self.__transitionMatrixNetworkIdx = supplyData['transitionMatrixNetworkIdx']
         self.__nonAutoModes = supplyData['nonAutoModes']
         self.__nInit = supplyData['subNetworkPreviousAutoAccumulation']
+        self.__qInit = supplyData['subNetworkPreviousAutoQueueAccumulation']
         self.__subNetworkToMicrotype = supplyData['subNetworkToMicrotype']
         self.__MFDs = supplyData['MFDs']
+        self.__maxInflow = supplyData['maxInflow']
         self.__tripRate = demandData['tripRate']
         self.__modeSplit = demandData['modeSplit']
         self.__toStarts = demandData['toStarts']
@@ -319,6 +323,7 @@ class MicrotypeCollection:
                                          self.__numpyNetworkVehicleSize[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkLength[self.__networkIdToIdx[subNetworkId], :],
                                          self.__MFDs[self.__networkIdToIdx[subNetworkId]],
+                                         self.__maxInflow[self.__networkIdToIdx[subNetworkId]],
                                          self.modeToIdx)
                     self.__numpyScaledNetworkLength[self.__networkIdToIdx[subNetworkId], :] = self.__numpyNetworkLength[
                                                                                               self.__networkIdToIdx[
@@ -360,15 +365,16 @@ class MicrotypeCollection:
     def transitionMatrixMFD(self, durationInHours):
         tripStartRatePerSecond = self.tripStartRateByMode[:, self.modeToIdx['auto']] / 3600
 
-        autoDistanceByODI = (self.__tripRate * self.__modeSplit[:, :, self.modeToIdx['auto']]).sum(
-            axis=0) * self.__toDistanceByOrigin.sum(axis=1)
+        # autoDistanceByODI = (self.__tripRate * self.__modeSplit[:, :, self.modeToIdx['auto']]).sum(
+        #     axis=0) * self.__toDistanceByOrigin.sum(axis=1)
 
-        averageDistanceByStart = np.einsum("i,ij->j", autoDistanceByODI, self.__toStarts) / tripStartRatePerSecond
+        # averageDistanceByStart = np.einsum("i,ij->j", autoDistanceByODI, self.__toStarts) / tripStartRatePerSecond
 
         characteristicL = np.zeros((len(self)), dtype=float)
         L_eff = np.zeros((len(self)), dtype=float)
         # n_init = np.zeros((len(self)), dtype=float)
         speedFunctions = [None] * len(self)
+        inflowFunctions = [None] * len(self)
         for microtypeID, microtype in self:
             idx = self.microtypeIdToIdx[microtypeID]
             for autoNetwork in microtype.networks:
@@ -376,17 +382,20 @@ class MicrotypeCollection:
                     characteristicL[idx] += autoNetwork.diameter * 1609.34
                     # n_init[idx] = networkStateData.initialAccumulation
                     speedFunctions[idx] = autoNetwork.MFD
+                    inflowFunctions[idx] = autoNetwork.maxInflow
         n_init = self.__nInit[self.__transitionMatrixNetworkIdx]
+        q_init = self.__qInit[self.__transitionMatrixNetworkIdx]
         L_blocked = self.__numpyNetworkBlockedDistance[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
         L_eff = self.__numpyScaledNetworkLength[self.__transitionMatrixNetworkIdx, 0] - L_blocked
+        # MaxInflow = self.__numpyNetworkMaxAcceptance[self.__transitionMatrixNetworkIdx]
         n_other = (self.__numpyNetworkAccumulation[self.__transitionMatrixNetworkIdx, :][:,
                    self.nonAutoModes] * self.__numpyNetworkVehicleSize[self.__transitionMatrixNetworkIdx, :][:,
                                         self.nonAutoModes]).sum(axis=1)
         dt = self.__timeStepInSeconds
 
         # // TODO: other ways of having it sum to the correct value -- perhaps have it be proportional to the original characteristic L
-        expectedAverageTripDistance = np.linalg.inv(
-            (np.eye(len(characteristicL)) - self.transitionMatrix).T) @ characteristicL
+        # expectedAverageTripDistance = np.linalg.inv(
+        #     (np.eye(len(characteristicL)) - self.transitionMatrix).T) @ characteristicL
 
         # otherCharacteristicL = np.squeeze((np.eye(6) - self.transitionMatrix).T @ averageDistanceByStart[:, None])
         #
@@ -396,23 +405,23 @@ class MicrotypeCollection:
 
         ts = np.arange(0, durationInHours * 3600., dt)
         ns = np.zeros((len(self), np.size(ts)), dtype=float)
+        qs = np.zeros((len(self), np.size(ts)), dtype=float)
         # ns = doMatrixCalcs(ns, n_init, self.transitionMatrix, tripStartRatePerSecond, characteristicL,
         #                    L_eff,
         #                    n_other, dt, speedFunctions)
         # vs = vectorV(ns, n_other, L_eff, speedFunctions)
 
-        ns = doMatrixCalcs(ns, n_init, self.transitionMatrix, tripStartRatePerSecond,
-                           characteristicL,
-                           L_eff, n_other, dt, speedFunctions)
+        ns, qs = doMatrixCalcs(ns, qs, n_init, q_init, self.transitionMatrix, tripStartRatePerSecond,
+                               characteristicL, L_eff, n_other, dt, speedFunctions, inflowFunctions)
 
-        vs = vectorV(ns, n_other, L_eff, speedFunctions)
+        vs = vectorV(ns, qs, n_other, L_eff, speedFunctions)
 
-        # averageSpeeds = np.sum(ns, axis=1) / np.sum(ns / vs, axis=1)
+        averageSpeeds = np.sum(ns + qs, axis=1) / np.sum(ns / vs, axis=1)
         # production = (ns * vs).sum() * dt / 3600 * durationInHours
         # production_other = (ns_other * vs_other).sum() * dt / 3600 * durationInHours
         # production_requested = (averageDistanceByStart * tripStartRatePerSecond).sum() * durationInHours
 
-        averageSpeeds = np.min(vs, axis=1)
+        # averageSpeeds = np.min(vs, axis=1)
 
         self.__numpyMicrotypeSpeed[:, self.modeToIdx['auto']] = averageSpeeds
 
@@ -447,7 +456,7 @@ class MicrotypeCollection:
 
 
 @njit(fastmath=True, parallel=False, cache=True)
-def vectorV(N, n_other, L_eff, speedFunctions, minspeed=0.005):
+def vectorV(N, Q, n_other, L_eff, speedFunctions, minspeed=0.005):
     nTimeSteps = N.shape[1]
     out = np.empty_like(N)
 
@@ -466,11 +475,13 @@ def vectorV(N, n_other, L_eff, speedFunctions, minspeed=0.005):
 
 
 @njit(fastmath=True, parallel=False, cache=True)
-def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_other, dt, speedFunctions):
+def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, L_eff, n_other, dt,
+                  speedFunctions, inflowFunctions):
     X = Xprime.T
     nTimeSteps = N.shape[1]
 
     N[:, 0] = n_init
+    Q[:, 0] = q_init
 
     def v(n, n_other, L_eff, speedFunctions):
         density = (n + n_other) / L_eff
@@ -479,22 +490,38 @@ def doMatrixCalcs(N, n_init, Xprime, tripStartRate, characteristicL, L_eff, n_ot
             v_out[ind] = speedFunctions[ind](d)
         return v_out
 
-    def outflowPerSecond(n):
-        return v(n, n_other, L_eff, speedFunctions) * n / characteristicL
+    def maxInflow(n, n_other, L_eff, inflowFunctions):
+        density = (n + n_other) / L_eff
+        flow_out = np.zeros_like(n)
+        for ind, d in enumerate(density):
+            flow_out[ind] = inflowFunctions[ind](d)
+        return flow_out * L_eff
 
-    def inflowPerSecond(outfl):
-        return X @ outfl
+    def processOutflow(n):
+        dn = -v(n, n_other, L_eff, speedFunctions) * n / characteristicL * dt
+        dn[dn > n] = n[dn > n]
+        return dn
 
-    def spillback(n, demand, inflow, outflow, dt):
-        requestedN = (demand + inflow - outflow) * dt + n
-        return requestedN
+    def fillQueue(n, q, dn, tripStartRate):
+        dq = (-X @ dn) + tripStartRate * dt
+        return n + dn, q + dq
+
+    def drainQueue(n, q):
+        mi = maxInflow(n, n_other, L_eff, inflowFunctions) * dt
+        dn = q
+        dn[dn > mi] = mi[dn > mi]
+        n = n + dn
+        q = q - dn
+        return n, q
 
     for t in np.arange(nTimeSteps - 1):
         n_t = N[:, t]
-        outflow = outflowPerSecond(n_t)
-        inflow = inflowPerSecond(outflow)
-        n_t = spillback(n_t, tripStartRate, inflow, outflow, dt)
+        q_t = Q[:, t]
+        dn_t = processOutflow(n_t)
+        n_t, q_t = fillQueue(n_t, q_t, dn_t, tripStartRate)
+        n_t, q_t = drainQueue(n_t, q_t)
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
+        Q[:, t + 1] = q_t
 
-    return N
+    return N, Q
