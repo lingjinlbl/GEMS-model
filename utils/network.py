@@ -33,7 +33,7 @@ class Costs:
 class Network:
     def __init__(self, data, characteristics, subNetworkId, diameter=None, microtypeID=None, modeNetworkSpeed=None,
                  modeOperatingSpeed=None, modeAccumulation=None, modeBlockedDistance=None, modeVehicleSize=None,
-                 networkLength=None, MFD=(), maxInflow=(), modeToIdx=None):
+                 networkLength=None, networkMaxDensity=None, MFD=(), maxInflow=(), modeToIdx=None):
         self.data = data
 
         self.characteristics = characteristics
@@ -53,6 +53,7 @@ class Network:
         self.modeAccumulation = modeAccumulation
         self.modeVehicleSize = modeVehicleSize
         self.networkLength = networkLength
+        self.networkMaxDensity = networkMaxDensity
         self.modeBlockedDistance = modeBlockedDistance
         self.__MFD = MFD
         self.__maxInflow = maxInflow
@@ -142,6 +143,7 @@ class Network:
         return _maxInflow
 
     def defineMFD(self):
+        self.networkMaxDensity[0] = self.jamDensity
         if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
             if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "modified-quadratic":
                 a = self.__data[self.dataColumnToIdx["a"]]

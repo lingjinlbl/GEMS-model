@@ -387,6 +387,7 @@ class Data:
         self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
         self.__subNetworkScaledLength = np.zeros((self.params.nSubNetworks, 1))
+        self.__subNetworkMaxDensity = np.zeros((self.params.nSubNetworks, 1))
 
         self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
@@ -532,7 +533,7 @@ class Data:
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
             supply['subNetworkScaledLength'] = self.__subNetworkScaledLength
-
+            supply['subNetworkMaxDensity'] = self.__subNetworkMaxDensity
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation
             supply['subNetworkInstantaneousAutoQueueAccumulation'] = self.__subNetworkInstantaneousAutoQueueAccumulation
@@ -563,6 +564,7 @@ class Data:
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
             supply['subNetworkScaledLength'] = self.__subNetworkScaledLength
+            supply['subNetworkMaxDensity'] = self.__subNetworkMaxDensity
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
                                                                 :, startTimeStep:endTimeStep]
@@ -628,6 +630,7 @@ class Data:
         fixedData['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
         fixedData['subNetworkLength'] = self.__subNetworkLength
         fixedData['subNetworkScaledLength'] = self.__subNetworkScaledLength
+        fixedData['subNetworkMaxDensity'] = self.__subNetworkMaxDensity
         fixedData['toStarts'] = self.__toStarts
         fixedData['toEnds'] = self.__toEnds
         fixedData['microtypeCosts'] = self.__microtypeCosts

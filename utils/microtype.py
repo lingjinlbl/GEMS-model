@@ -124,6 +124,7 @@ class MicrotypeCollection:
         self.__numpyNetworkLength = supplyData['subNetworkLength']
         # self.__numpyNetworkMaxAcceptance = supplyData['subNetworkMaxAcceptanceCapacity']
         self.__numpyScaledNetworkLength = supplyData['subNetworkScaledLength']
+        self.__numpyNetworkMaxDensity = supplyData['subNetworkMaxDensity']
         self.__numpyNetworkVehicleSize = supplyData['subNetworkVehicleSize']
         self.__numpyNetworkSpeed = supplyData['subNetworkAverageSpeed']
         self.__numpyNetworkOperatingSpeed = supplyData['subNetworkOperatingSpeed']
@@ -322,6 +323,7 @@ class MicrotypeCollection:
                                          self.__numpyNetworkBlockedDistance[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkVehicleSize[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkLength[self.__networkIdToIdx[subNetworkId], :],
+                                         self.__numpyNetworkMaxDensity[self.__networkIdToIdx[subNetworkId], :],
                                          self.__MFDs[self.__networkIdToIdx[subNetworkId]],
                                          self.__maxInflow[self.__networkIdToIdx[subNetworkId]],
                                          self.modeToIdx)
@@ -387,6 +389,7 @@ class MicrotypeCollection:
         q_init = self.__qInit[self.__transitionMatrixNetworkIdx]
         L_blocked = self.__numpyNetworkBlockedDistance[self.__transitionMatrixNetworkIdx, :].sum(axis=1)
         L_eff = self.__numpyScaledNetworkLength[self.__transitionMatrixNetworkIdx, 0] - L_blocked
+        jam_density = self.__numpyNetworkMaxDensity[self.__transitionMatrixNetworkIdx, 0]
         # MaxInflow = self.__numpyNetworkMaxAcceptance[self.__transitionMatrixNetworkIdx]
         n_other = (self.__numpyNetworkAccumulation[self.__transitionMatrixNetworkIdx, :][:,
                    self.nonAutoModes] * self.__numpyNetworkVehicleSize[self.__transitionMatrixNetworkIdx, :][:,
@@ -412,7 +415,7 @@ class MicrotypeCollection:
         # vs = vectorV(ns, n_other, L_eff, speedFunctions)
 
         ns, qs = doMatrixCalcs(ns, qs, n_init, q_init, self.transitionMatrix, tripStartRatePerSecond,
-                               characteristicL, L_eff, n_other, dt, speedFunctions, inflowFunctions)
+                               characteristicL, L_eff, n_other, jam_density, dt, speedFunctions, inflowFunctions)
 
         vs = vectorV(ns, qs, n_other, L_eff, speedFunctions)
 
@@ -474,17 +477,19 @@ def vectorV(N, Q, n_other, L_eff, speedFunctions, minspeed=0.005):
     return out
 
 
-@njit(fastmath=True, parallel=False, cache=True)
-def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, L_eff, n_other, dt,
+# @njit(fastmath=True, parallel=False, cache=True)
+def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, L_eff, n_other, jam_density, dt,
                   speedFunctions, inflowFunctions):
     X = Xprime.T
+    Xinv = np.linalg.inv(X)
     nTimeSteps = N.shape[1]
 
     N[:, 0] = n_init
     Q[:, 0] = q_init
 
-    def v(n, n_other, L_eff, speedFunctions):
-        density = (n + n_other) / L_eff
+    def v(n, q, n_other, L_eff, jam_density, speedFunctions):
+        queue_backup = Xinv @ q
+        density = (n + n_other) / (L_eff - queue_backup * jam_density)
         v_out = np.zeros_like(n)
         for ind, d in enumerate(density):
             v_out[ind] = speedFunctions[ind](d)
@@ -497,17 +502,27 @@ def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, 
             flow_out[ind] = inflowFunctions[ind](d)
         return flow_out * L_eff
 
-    def processOutflow(n):
-        dn = -v(n, n_other, L_eff, speedFunctions) * n / characteristicL * dt
+    def processOutflow(n, q):
+        dn = -v(n, q, n_other, L_eff, jam_density, speedFunctions) * n / characteristicL * dt
         dn[dn > n] = n[dn > n]
         return dn
 
-    def fillQueue(n, q, dn, tripStartRate):
-        dq = (-X @ dn) + tripStartRate * dt
-        return n + dn, q + dq
+    def fillQueue(n, q, dn_outflow, tripStartRate):
+        # 1: People start trips in the current location
+        dn_start = tripStartRate * dt
+        # 2: See how many people want to transfer into each subregion
+        dn_inflow = (-X @ dn_outflow)
+        # 3: calculate max inflow
+        inflow_max = maxInflow(n, n_other, L_eff, inflowFunctions) * dt
+        # 4: calculate inflow that must be turned back
+        inflow_desired = dn_start + dn_inflow + q + dn_outflow
+        inflow_actual = inflow_desired.copy()
+        inflow_actual[inflow_actual > inflow_max] = inflow_max[inflow_actual > inflow_max]
+        q_out = inflow_desired - inflow_actual
+        return n + inflow_actual, q_out
 
     def drainQueue(n, q):
-        mi = maxInflow(n, n_other, L_eff, inflowFunctions) * dt
+
         dn = q
         dn[dn > mi] = mi[dn > mi]
         n = n + dn
@@ -517,9 +532,9 @@ def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, 
     for t in np.arange(nTimeSteps - 1):
         n_t = N[:, t]
         q_t = Q[:, t]
-        dn_t = processOutflow(n_t)
+        dn_t = processOutflow(n_t, q_t)
         n_t, q_t = fillQueue(n_t, q_t, dn_t, tripStartRate)
-        n_t, q_t = drainQueue(n_t, q_t)
+        # n_t, q_t = drainQueue(n_t, q_t)
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
         Q[:, t + 1] = q_t
