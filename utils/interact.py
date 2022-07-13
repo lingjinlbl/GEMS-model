@@ -455,12 +455,46 @@ class Interact:
                 parameterVBox[-1].observe(self.response, names="value")
                 self.__widgetIDtoField[parameterVBox[-1].model_id] = ('vMax', row.Index)
                 if ~np.isnan(row.k_jam):
-                    parameterVBox.append(widgets.FloatSlider(value=row.k_jam, min=0.1, max=0.3, step=0.002,
+                    parameterVBox.append(widgets.FloatSlider(value=row.k_jam, min=0.1, max=0.6, step=0.002,
                                                              description="Jam density (veh/m)",
                                                              orientation='horizontal',
                                                              style={'description_width': '1.25in'}))
                     parameterVBox[-1].observe(self.response, names="value")
                     self.__widgetIDtoField[parameterVBox[-1].model_id] = ('densityMax', row.Index)
+                if 'a' in row._fields:
+                    if ~np.isnan(row.a):
+                        parameterVBox.append(widgets.FloatSlider(value=row.a, min=-300, max=-50, step=5,
+                                                                 description="a",
+                                                                 orientation='horizontal',
+                                                                 style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('mfd_a', row.Index)
+                if 'b' in row._fields:
+                    if ~np.isnan(row.b):
+                        parameterVBox.append(widgets.FloatSlider(value=row.a, min=0.05, max=0.2, step=0.005,
+                                                                 description="b",
+                                                                 orientation='horizontal',
+                                                                 style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('mfd_b', row.Index)
+                if 'maxInflowPerMeterPerHour' in row._fields:
+                    if ~np.isnan(row.maxInflowPerMeterPerHour):
+                        parameterVBox.append(
+                            widgets.FloatSlider(value=row.maxInflowPerMeterPerHour, min=0.5, max=10.0, step=0.1,
+                                                description="Max inflow",
+                                                orientation='horizontal',
+                                                style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('maxInflowPerMeterPerHour', row.Index)
+                if 'maxInflowDensity' in row._fields:
+                    if ~np.isnan(row.maxInflowPerMeterPerHour):
+                        parameterVBox.append(
+                            widgets.FloatSlider(value=row.maxInflowPerMeterPerHour, min=0.1, max=0.5, step=0.02,
+                                                description="Max accepting density",
+                                                orientation='horizontal',
+                                                style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('maxInflowDensity', row.Index)
                 if ~np.isnan(row.capacityFlow):
                     parameterVBox.append(widgets.FloatSlider(value=row.capacityFlow, min=0.1, max=0.6, step=0.002,
                                                              description="Capacity flow (veh/s)",
@@ -757,6 +791,15 @@ class Interact:
             self.model.microtypes.recompileMFDs()  # TODO: simplify to only microtyype
         if changeType[0] == 'densityMax':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'k_jam'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'mfd_a':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'a'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'mfd_b':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'b'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'maxInflowPerMeterPerHour':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'maxInflowPerMeterPerHour'] = newValue
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'capacityFlow':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow'] = newValue

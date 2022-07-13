@@ -177,7 +177,7 @@ class ScenarioData:
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         subnetworkColumns = ["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
                              "capacityFlow", "smoothingFactor", "waveSpeed", "a", "b",
-                             "criticalDensity", "k_jam", "MicrotypeID"]
+                             "criticalDensity", "k_jam", "MicrotypeID", "maxInflowPerMeterPerHour", "maxInflowDensity"]
         renamedColumns = {"criticalDensity": "b", "densityMax": "k_jam"}
         subNetworkData = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                      usecols=lambda x: x in subnetworkColumns,

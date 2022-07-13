@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 
-geotype = 'A'
+geotype = 'F'
 
 inFolder = "input-data-california"
 outFolder = "input-data-california-" + geotype
@@ -83,6 +83,7 @@ newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "ActivityDensity.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "ActivityDensity.csv")
 df = pd.read_csv(oldPath)
+df.loc[df["ActivityID"] == "parks", "TripPurposeID"] = "leisure"
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)

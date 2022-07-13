@@ -924,5 +924,6 @@ if __name__ == "__main__":
                           method="opt")
     # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
     # x, y = model.plotAllDynamicStats("production")
+    model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
     outcome = optimizer.minimize()
     print(outcome)

@@ -128,15 +128,18 @@ class Network:
 
     def defineMaxInflow(self):
         if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
-            densityMax = self.__data[self.dataColumnToIdx["k_jam"]]
-            if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "modified-quadratic":
-                inflowMax = - self.__data[self.dataColumnToIdx["a"]] * self.__data[self.dataColumnToIdx["b"]] ** 2.0
+            if "maxInflowPerMeterPerHour" in self.dataColumnToIdx:
+                inflowMax = self.__data[self.dataColumnToIdx["maxInflowPerMeterPerHour"]]
             else:
-                inflowMax = 1.0
+                inflowMax = 3.0
+            if "maxInflowDensity" in self.dataColumnToIdx:
+                inflowMaxDensity = self.__data[self.dataColumnToIdx["maxInflowDensity"]]
+            else:
+                inflowMaxDensity = 0.15
 
             @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
             def _maxInflow(density):
-                return (densityMax - density) * inflowMax
+                return max([(inflowMaxDensity - density) * inflowMax, 0])
         else:
             def _maxInflow(density):
                 return np.inf
@@ -241,6 +244,7 @@ class Network:
     def updateNetworkData(self):  # CONSOLIDATE
         np.copyto(self.__data, self.data.iloc[self._iloc, :].to_numpy())
         self.MFD = self.defineMFD()
+        self.maxInflow = self.defineMaxInflow()
 
     # @property
     # def type(self):

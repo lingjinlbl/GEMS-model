@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
+import scipy as sp
 from numba import njit
 from scipy.optimize import nnls
 
@@ -417,7 +418,7 @@ class MicrotypeCollection:
         ns, qs = doMatrixCalcs(ns, qs, n_init, q_init, self.transitionMatrix, tripStartRatePerSecond,
                                characteristicL, L_eff, n_other, jam_density, dt, speedFunctions, inflowFunctions)
 
-        vs = vectorV(ns, qs, n_other, L_eff, speedFunctions)
+        vs = vectorV(ns, qs, np.linalg.pinv(self.transitionMatrix.T), n_other, L_eff, jam_density, speedFunctions)
 
         averageSpeeds = np.sum(ns + qs, axis=1) / np.sum(ns / vs, axis=1)
         # production = (ns * vs).sum() * dt / 3600 * durationInHours
@@ -459,12 +460,14 @@ class MicrotypeCollection:
 
 
 @njit(fastmath=True, parallel=False, cache=True)
-def vectorV(N, Q, n_other, L_eff, speedFunctions, minspeed=0.005):
+def vectorV(N, Q, Xinv, n_other, L_eff, jam_density, speedFunctions, minspeed=0.005):
     nTimeSteps = N.shape[1]
     out = np.empty_like(N)
 
-    def v(n, n_other, L_eff, speedFunctions):
-        density = (n + n_other) / L_eff
+    def v(n, q, n_other, L_eff, jam_density, speedFunctions):
+        queue_backup = Xinv @ q
+        queue_backup[queue_backup < 0] = 0
+        density = (n + n_other) / (L_eff - queue_backup * jam_density)
         v_out = np.zeros_like(n)
         for ind, d in enumerate(density):
             v_out[ind] = speedFunctions[ind](d)
@@ -472,16 +475,17 @@ def vectorV(N, Q, n_other, L_eff, speedFunctions, minspeed=0.005):
 
     for t in np.arange(nTimeSteps):
         n = N[:, t]
-        out[:, t] = v(n, n_other, L_eff, speedFunctions)
+        q = Q[:, t]
+        out[:, t] = v(n, q, n_other, L_eff, jam_density, speedFunctions)
 
     return out
 
 
-# @njit(fastmath=True, parallel=False, cache=True)
+@njit(fastmath=True, parallel=False, cache=True)
 def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, L_eff, n_other, jam_density, dt,
                   speedFunctions, inflowFunctions):
     X = Xprime.T
-    Xinv = np.linalg.inv(X)
+    Xinv = np.linalg.pinv(X)
     nTimeSteps = N.shape[1]
 
     N[:, 0] = n_init
@@ -489,6 +493,8 @@ def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, 
 
     def v(n, q, n_other, L_eff, jam_density, speedFunctions):
         queue_backup = Xinv @ q
+        queue_backup[queue_backup < 0] = 0
+        # queue_backup = sp.optimize.nnls(X, q)[0]
         density = (n + n_other) / (L_eff - queue_backup * jam_density)
         v_out = np.zeros_like(n)
         for ind, d in enumerate(density):
@@ -500,7 +506,7 @@ def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, 
         flow_out = np.zeros_like(n)
         for ind, d in enumerate(density):
             flow_out[ind] = inflowFunctions[ind](d)
-        return flow_out * L_eff
+        return flow_out * L_eff / 3600.0
 
     def processOutflow(n, q):
         dn = -v(n, q, n_other, L_eff, jam_density, speedFunctions) * n / characteristicL * dt
@@ -512,11 +518,16 @@ def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, 
         dn_start = tripStartRate * dt
         # 2: See how many people want to transfer into each subregion
         dn_inflow = (-X @ dn_outflow)
+        dn_transfer = (-Xtransfer @ dn_outflow)
+        dn_stay = dn_inflow - dn_transfer
         # 3: calculate max inflow
         inflow_max = maxInflow(n, n_other, L_eff, inflowFunctions) * dt
         # 4: calculate inflow that must be turned back
         inflow_desired = dn_start + dn_inflow + q + dn_outflow
         inflow_actual = inflow_desired.copy()
+        # if np.sum(inflow_actual > inflow_max) > 0:
+        #     print('Turning back {0} vehicles'.format(
+        #         int(np.sum(inflow_actual[inflow_actual > inflow_max] - inflow_max[inflow_actual > inflow_max]))))
         inflow_actual[inflow_actual > inflow_max] = inflow_max[inflow_actual > inflow_max]
         q_out = inflow_desired - inflow_actual
         return n + inflow_actual, q_out
@@ -538,5 +549,12 @@ def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, 
         n_t[n_t < 0] = 0.0
         N[:, t + 1] = n_t
         Q[:, t + 1] = q_t
+
+    # if np.any(Q > 0):
+    #     print("Max")
+    #     # print(Q.max(axis=1))
+    #     print("End")
+    #     print(Q[:, -1])
+    #     # print("Queue stats: \n   Max: {0}\n   End: {1}".format(Q.max(axis=1), Q[:, -1]))
 
     return N, Q
