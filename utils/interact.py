@@ -612,6 +612,17 @@ class Interact:
             perDestinationFeeStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[perDestinationFeeStack[-1].model_id] = ('parkingFee', (mID, 'Auto'))
 
+        fleetSizeTitleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
+        bikeFleetSizeStack = [widgets.HTML(value="<center><i>Shared bike fleet size</i></center>")]
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            bikeData = self.model.scenarioData['modeData']['bike'].loc[mID]
+            fleetSizeTitleStack.append(widgets.HTML(value="<center><i>{}</i></center>".format(mID)))
+            bikeFleetSizeStack.append(widgets.FloatSlider(bikeData.BikesPerCapita, min=0.0, max=2.0, step=0.02,
+                                                          layout=Layout(width='180px')))
+            bikeFleetSizeStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[bikeFleetSizeStack[-1].model_id] = ('fleetSize', (mID, 'Bike'))
+
         coverageStack = []
 
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -663,10 +674,13 @@ class Interact:
                 widgets.HBox(
                     [widgets.VBox(feeTitleStack), widgets.VBox(perMileFeeStack),
                      widgets.VBox(perDestinationFeeStack)]),
+                widgets.HBox(
+                    [widgets.VBox(fleetSizeTitleStack), widgets.VBox(bikeFleetSizeStack)]),
                 widgets.VBox(coverageStack)])
 
         for ind, title in enumerate(
-                ('Lane dedication', 'Fare', 'Transit headway (s)', 'Congestion pricing', 'Bus service area')):
+                ('Lane dedication', 'Fare', 'Transit headway (s)', 'Congestion pricing', 'Fleet Size',
+                 'Bus service area')):
             scenarioAccordion.set_title(ind, title)
 
         accordionChildren = [costAccordion, scenarioAccordion, dataAccordion]
@@ -752,6 +766,7 @@ class Interact:
         if changeType[0] == 'fleetSize':
             microtype, modeName = changeType[1]
             self.model.data.setModeFleetSize(modeName.lower(), microtype, newValue)
+            self.model.clearCostCache("bikeFleetDensity")
         if changeType[0] == 'perMileFee':
             microtype, modeName = changeType[1]
             self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=True)
