@@ -564,13 +564,13 @@ class Interact:
                       self.model.scenarioData['modeData']['bus'].index == mID, :]
 
             costBusStack.append(
-                widgets.FloatSlider(value=busData.PerStartCost[0], min=0, max=5.0, step=0.1,
+                widgets.FloatSlider(value=busData.PerStartCost[0], min=-2.0, max=5.0, step=0.1,
                                     layout=Layout(width='180px')))
             costBusStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[costBusStack[-1].model_id] = ('fare', (mID, 'Bus'))
 
             costBusSeniorStack.append(
-                widgets.FloatSlider(value=busData.PerStartCost[0] * busData.SeniorFareDiscount[0], min=0, max=5.0,
+                widgets.FloatSlider(value=busData.PerStartCost[0] * busData.SeniorFareDiscount[0], min=-2.0, max=5.0,
                                     step=0.1,
                                     layout=Layout(width='180px')))
             costBusSeniorStack[-1].observe(self.response, names="value")
