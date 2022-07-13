@@ -489,7 +489,7 @@ class Interact:
                 if 'maxInflowDensity' in row._fields:
                     if ~np.isnan(row.maxInflowPerMeterPerHour):
                         parameterVBox.append(
-                            widgets.FloatSlider(value=row.maxInflowPerMeterPerHour, min=0.1, max=0.5, step=0.02,
+                            widgets.FloatSlider(value=row.maxInflowDensity, min=0.1, max=0.5, step=0.01,
                                                 description="Max accepting density",
                                                 orientation='horizontal',
                                                 style={'description_width': '1.25in'}))
@@ -800,6 +800,9 @@ class Interact:
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'maxInflowPerMeterPerHour':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'maxInflowPerMeterPerHour'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'maxInflowDensity':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'maxInflowDensity'] = newValue
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'capacityFlow':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow'] = newValue

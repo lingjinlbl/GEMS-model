@@ -518,8 +518,6 @@ def doMatrixCalcs(N, Q, n_init, q_init, Xprime, tripStartRate, characteristicL, 
         dn_start = tripStartRate * dt
         # 2: See how many people want to transfer into each subregion
         dn_inflow = (-X @ dn_outflow)
-        dn_transfer = (-Xtransfer @ dn_outflow)
-        dn_stay = dn_inflow - dn_transfer
         # 3: calculate max inflow
         inflow_max = maxInflow(n, n_other, L_eff, inflowFunctions) * dt
         # 4: calculate inflow that must be turned back

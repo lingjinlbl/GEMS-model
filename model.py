@@ -889,9 +889,9 @@ class Optimizer:
 
 def startBar():
     modelInput = widgets.Dropdown(
-        options=['One microtype toy model', '4 microtype toy model', 'Los Angeles (National params)',
-                 'California A', 'California B', 'California C', 'California D', 'California E', 'California F',
-                 'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
+        options=['One microtype toy model', '4 microtype toy model',  # 'Los Angeles (National params)',
+                 'California A', 'California B', 'California C', 'California D', 'California E', 'California F'],
+        # 'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
         value='4 microtype toy model',
         description='Input data:',
         disabled=False,
