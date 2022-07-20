@@ -360,7 +360,7 @@ class Interact:
             microtypeText = widgets.HTML(
                 value="<center><b>Microtype " + mID + "</b></center>"
             )
-            slider = widgets.FloatSlider(value=1.0, min=0.2, max=2.0, step=0.01, orientation='horizontal')
+            slider = widgets.FloatSlider(value=1.0, min=0.2, max=5.0, step=0.01, orientation='horizontal')
             slider.observe(self.response, names="value")
             self.__widgetIDtoField[slider.model_id] = ('networkLength', mID)
             networkLengthStack.append(widgets.HBox([microtypeText, slider]))
