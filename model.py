@@ -5,8 +5,9 @@ import ipywidgets as widgets
 import numpy as np
 import pandas as pd
 # from noisyopt import minimizeCompass, minimizeSPSA
-from scipy.optimize import root, minimize, Bounds, shgo
+from scipy.optimize import root, minimize, Bounds, shgo, least_squares
 # from mock import Mock
+import os
 # from skopt import gp_minimize, forest_minimize
 
 from utils.OD import OriginDestination, TripGeneration, TransitionMatrices
@@ -182,6 +183,10 @@ class Model:
             self.interact.init()
 
     @property
+    def path(self):
+        return self.__path
+
+    @property
     def nSubBins(self):
         return self.__nSubBins
 
@@ -346,7 +351,7 @@ class Model:
 
         startingPoint = self.toObjectiveFunction(self.demand.modeSplitData)
 
-        if np.linalg.norm(self.g(startingPoint)) < self.__tolerance * 10.:
+        if np.linalg.norm(self.g(startingPoint)) < self.__tolerance * 2.:
             fixedPointModeSplit = self.fromObjectiveFunction(startingPoint)
             success = True
         else:

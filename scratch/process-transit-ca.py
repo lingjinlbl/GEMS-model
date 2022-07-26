@@ -174,7 +174,7 @@ autoInput.to_csv(os.path.join(ROOT_DIR, "..", "input-data-california", "modes", 
 railInput.to_csv(os.path.join(ROOT_DIR, "..", "input-data-california", "modes", "rail.csv"))
 
 microtypeData = pd.read_csv(os.path.join(ROOT_DIR, "..", "input-data-california-raw", "Microtypes.csv"))
-distances = pd.read_csv(os.path.join(ROOT_DIR, "..", "input-data-california-raw", "AvgTripLengths-100m.csv"))
+distances = pd.read_csv(os.path.join(ROOT_DIR, "..", "input-data-california-raw", "AvgTripLengths-400m.csv"))
 
 distances.sort_values(by="MicrotypeID").rename(columns={'avg_thru_length': 'DiameterInMiles'}).to_csv(
     os.path.join(ROOT_DIR, "..", "input-data-california", "Microtypes.csv"), index=False)
@@ -216,7 +216,7 @@ df = pd.read_csv(oldPath).rename(columns={"PopulationGroupID": "PopulationGroupT
 df.to_csv(newPath, index=False)
 
 # %% TransitionMatrix
-oldPath = os.path.join(ROOT_DIR, "..", "input-data-california-raw", "TransitionMatrix-100m.csv")
+oldPath = os.path.join(ROOT_DIR, "..", "input-data-california-raw", "TransitionMatrix-400m.csv")
 newPath = os.path.join(ROOT_DIR, "..", "input-data-california", "TransitionMatrix.csv")
 shutil.copyfile(oldPath, newPath)
 
