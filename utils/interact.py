@@ -835,6 +835,7 @@ class Interact:
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'AccessDistanceMultiplier'] = newValue
             self.model.microtypes.updateNetworkData()
             self.model.microtypes[microtype].networks.getMode(modeName.lower()).defineCosts(override=True)
+            self.model.clearCostCache("accessDistance")
         if changeType[0] == 'population':
             mask = (self.model.scenarioData['populations']['MicrotypeID'] == changeType[1][0]) & (
                     self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])

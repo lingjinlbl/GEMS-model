@@ -3,7 +3,12 @@ import numpy as np
 import pandas as pd
 import os
 from scipy.optimize import root, minimize, Bounds, shgo, least_squares
-from skopt import gp_minimize
+import mkl
+
+mkl.set_num_threads(7)
+
+
+# from skopt import gp_minimize
 
 
 class OptimizationVariables:
@@ -70,9 +75,9 @@ class OptimizationVariables:
             return 10.0, 30.0, 17.0
         elif changeType == "densityMax":
             return 0.1, 1.0, 0.4
-        elif changeType == "a":
+        elif changeType == "mfd_a":
             return -1500.0, -200.0, -250.0
-        elif changeType == "b":
+        elif changeType == "mfd_b":
             return 0.01666667, 0.1, 0.05
         elif changeType == "accessDistanceMultiplier":
             return 0.0, 2.0, 0.3
@@ -215,10 +220,12 @@ class Calibrator:
 
     def f(self, x: np.ndarray) -> np.ndarray:
         self.optimizationVariables.modifyModelInPlace(self.model, x)
+        print(x)
         self.model.collectAllCharacteristics()
         modeSplitData, speedData, utilityData, _ = self.model.toPandas()
         error = self.calibrationVariables.getError(modeSplitData, speedData, utilityData, x)
         error[np.isnan(error)] = 5
+        print((error ** 2.0).sum(0))
         return error
 
     def calibrate(self, method='trf'):
@@ -255,48 +262,54 @@ if __name__ == "__main__":
     #                             ('passengerWait', ('C', 'Bus')),
     #                             ('passengerWait', ('D', 'Bus'))]
 
-    calibrationVariableNames = [('accessDistanceMultiplier', ('1', 'Bus')),
-                                ('accessDistanceMultiplier', ('2', 'Bus')),
-                                ('accessDistanceMultiplier', ('3', 'Bus')),
-                                ('accessDistanceMultiplier', ('4', 'Bus')),
-                                ('accessDistanceMultiplier', ('5', 'Bus')),
-                                ('accessDistanceMultiplier', ('6', 'Bus')),
-                                ('minStopTime', ('1', 'Bus')),
-                                ('minStopTime', ('2', 'Bus')),
-                                ('minStopTime', ('3', 'Bus')),
-                                ('minStopTime', ('4', 'Bus')),
-                                ('minStopTime', ('5', 'Bus')),
-                                ('minStopTime', ('6', 'Bus')),
-                                # ('networkLength', ('1', '')),
-                                # ('networkLength', ('2', '')),
-                                # ('networkLength', ('3', '')),
-                                # ('networkLength', ('4', '')),
-                                # ('networkLength', ('5', '')),
-                                # ('networkLength', ('6', '')),
-                                ('modeSpeedMPH', ('1', 'Walk')),
-                                ('modeSpeedMPH', ('2', 'Walk')),
-                                ('modeSpeedMPH', ('3', 'Walk')),
-                                ('modeSpeedMPH', ('4', 'Walk')),
-                                ('modeSpeedMPH', ('5', 'Walk')),
-                                ('modeSpeedMPH', ('6', 'Walk')),
-                                ('modeSpeedMPH', ('1', 'Bike')),
-                                ('modeSpeedMPH', ('2', 'Bike')),
-                                ('modeSpeedMPH', ('3', 'Bike')),
-                                ('modeSpeedMPH', ('4', 'Bike')),
-                                ('modeSpeedMPH', ('5', 'Bike')),
-                                ('modeSpeedMPH', ('6', 'Bike')),
-                                ('modeSpeedMPH', ('1', 'Rail')),
-                                ('modeSpeedMPH', ('2', 'Rail')),
-                                ('modeSpeedMPH', ('3', 'Rail')),
-                                ('modeSpeedMPH', ('4', 'Rail')),
-                                ('modeSpeedMPH', ('5', 'Rail')),
-                                ('modeSpeedMPH', ('6', 'Rail')),
-                                ('passengerWait', ('1', 'Bus')),
-                                ('passengerWait', ('2', 'Bus')),
-                                ('passengerWait', ('3', 'Bus')),
-                                ('passengerWait', ('4', 'Bus')),
-                                ('passengerWait', ('5', 'Bus')),
-                                ('passengerWait', ('6', 'Bus'))]
+    calibrationVariableNames = [
+        ('accessDistanceMultiplier', ('1', 'Bus')),
+        ('accessDistanceMultiplier', ('2', 'Bus')),
+        ('accessDistanceMultiplier', ('3', 'Bus')),
+        ('accessDistanceMultiplier', ('4', 'Bus')),
+        ('accessDistanceMultiplier', ('5', 'Bus')),
+        ('accessDistanceMultiplier', ('6', 'Bus')),
+        ('minStopTime', ('1', 'Bus')),
+        ('minStopTime', ('2', 'Bus')),
+        ('minStopTime', ('3', 'Bus')),
+        ('minStopTime', ('4', 'Bus')),
+        ('minStopTime', ('5', 'Bus')),
+        ('minStopTime', ('6', 'Bus')),
+        # ('networkLength', ('1', '')),
+        # ('networkLength', ('2', '')),
+        # ('networkLength', ('3', '')),
+        # ('networkLength', ('4', '')),
+        # ('networkLength', ('5', '')),
+        # ('networkLength', ('6', '')),
+        ('modeSpeedMPH', ('1', 'Walk')),
+        ('modeSpeedMPH', ('2', 'Walk')),
+        ('modeSpeedMPH', ('3', 'Walk')),
+        ('modeSpeedMPH', ('4', 'Walk')),
+        ('modeSpeedMPH', ('5', 'Walk')),
+        ('modeSpeedMPH', ('6', 'Walk')),
+        ('modeSpeedMPH', ('1', 'Bike')),
+        ('modeSpeedMPH', ('2', 'Bike')),
+        ('modeSpeedMPH', ('3', 'Bike')),
+        ('modeSpeedMPH', ('4', 'Bike')),
+        ('modeSpeedMPH', ('5', 'Bike')),
+        ('modeSpeedMPH', ('6', 'Bike')),
+        ('modeSpeedMPH', ('1', 'Rail')),
+        ('modeSpeedMPH', ('2', 'Rail')),
+        ('modeSpeedMPH', ('3', 'Rail')),
+        ('modeSpeedMPH', ('4', 'Rail')),
+        ('modeSpeedMPH', ('5', 'Rail')),
+        ('modeSpeedMPH', ('6', 'Rail')),
+        ('passengerWait', ('1', 'Bus')),
+        ('passengerWait', ('2', 'Bus')),
+        ('passengerWait', ('3', 'Bus')),
+        ('passengerWait', ('4', 'Bus')),
+        ('passengerWait', ('5', 'Bus')),
+        ('passengerWait', ('6', 'Bus'))]
+
+    # model.interact.modifyModel(('networkLength', ('2', '')), 4.0)
+    # model.interact.modifyModel(('networkLength', ('3', '')), 4.0)
+    # model.interact.modifyModel(('networkLength', ('4', '')), 4.0)
+    # model.interact.modifyModel(('networkLength', ('5', '')), 4.0)
 
     calibrationVariables = OptimizationVariables(calibrationVariableNames)
     calibrator = Calibrator(model, calibrationVariables, regularization=0.2)
