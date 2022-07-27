@@ -62,9 +62,9 @@ class Network:
             self.MFD = self.defineMFD()
             self.maxInflow = self.defineMaxInflow()
         if diameter is None:
-            self.__diameter = 1.0
+            self.__diameterInMeters = np.array([1609.34])
         else:
-            self.__diameter = diameter
+            self.__diameterInMeters = diameter
         self.modeNetworkSpeed.fill(self.freeFlowSpeed)
         self.modeOperatingSpeed.fill(self.freeFlowSpeed)
 
@@ -289,7 +289,7 @@ class Network:
 
     @property
     def diameter(self):
-        return self.__diameter
+        return self.__diameterInMeters[0]
 
     @property
     def modesAllowed(self):

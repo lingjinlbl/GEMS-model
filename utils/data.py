@@ -372,6 +372,8 @@ class Data:
         self.__transitionMatrices = np.zeros(
             (self.params.nODIs, self.params.nMicrotypes, self.params.nMicrotypes))
         self.__accessDistance = np.zeros((self.params.nMicrotypes, self.params.nModesTotal))
+        self.__microtypeDiameterInMeters = np.zeros((self.params.nMicrotypes, 1))
+        self.__microtypeDiameterMultiplier = np.ones((self.params.nMicrotypes, 1), dtype=float)
         self.__microtypeMixedTrafficDistance = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
         self.__fleetSize = np.zeros(
@@ -401,6 +403,17 @@ class Data:
         self.__maxInflow = [[] for _ in range(self.params.nSubNetworks)]
         self.__freightProduction = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nFreightModes), dtype=float)
+
+    def getDefaultMicrotypeDiameter(self, microtype):
+        return self.__microtypeDiameterInMeters[self.scenarioData.microtypeIdToIdx[microtype]] / \
+               self.__microtypeDiameterMultiplier[self.scenarioData.microtypeIdToIdx[microtype]]
+
+    def updateMicrotypeDiameter(self, microtype, newMultiplier):
+        defaultValue = self.__microtypeDiameterInMeters[self.scenarioData.microtypeIdToIdx[microtype]] / \
+                       self.__microtypeDiameterMultiplier[self.scenarioData.microtypeIdToIdx[microtype]]
+        newValue = defaultValue * newMultiplier
+        self.__microtypeDiameterInMeters[self.scenarioData.microtypeIdToIdx[microtype]] = newValue
+        self.__microtypeDiameterMultiplier[self.scenarioData.microtypeIdToIdx[microtype]] = newMultiplier
 
     def setModeFleetSize(self, mode, microtype, fleetSize):
         data = self.__fleetSize[:, self.scenarioData.microtypeIdToIdx[microtype], self.scenarioData.modeToIdx[mode]]
@@ -548,6 +561,7 @@ class Data:
             supply['freightProduction'] = self.__freightProduction
             supply['transitionMatrix'] = self.__transitionMatrix
             supply['transitionMatrices'] = self.__transitionMatrices
+            supply['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
         else:
             startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
             supply = dict()
@@ -587,6 +601,7 @@ class Data:
             supply['maxInflow'] = self.__maxInflow
             supply['transitionMatrix'] = self.__transitionMatrix[timePeriodIdx, :, :]
             supply['transitionMatrices'] = self.__transitionMatrices
+            supply['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
         return supply
 
     def getDemand(self, timePeriodIdx=None):
@@ -648,6 +663,7 @@ class Data:
         fixedData['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
         fixedData['accessDistance'] = self.__accessDistance
         fixedData['activityDensity'] = self.__activityDensity
+        fixedData['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
         return fixedData
 
     def updateNetworkLength(self, networkId, newLength):

@@ -120,7 +120,7 @@ class MicrotypeCollection:
         self.__numpyFleetSize = supplyData[
             'fleetSize']  # Only nonzero when fleet size (rather than production) is fixed
         self.__numpyMicrotypeMixedTrafficDistance = supplyData['microtypeMixedTrafficDistance']
-        self.__diameters = np.ndarray([0])
+        self.__microtypeDiameterInMeters = supplyData['microtypeDiameterInMeters']
         self.__numpyNetworkAccumulation = supplyData['subNetworkAccumulation']
         self.__numpyNetworkLength = supplyData['subNetworkLength']
         # self.__numpyNetworkMaxAcceptance = supplyData['subNetworkMaxAcceptanceCapacity']
@@ -191,10 +191,6 @@ class MicrotypeCollection:
     @property
     def microtypeIdToIdx(self):
         return self.__scenarioData.microtypeIdToIdx
-
-    @property
-    def diameters(self):
-        return self.__diameters
 
     @property
     def numpySpeed(self):
@@ -293,9 +289,6 @@ class MicrotypeCollection:
         subNetworkCharacteristics = self.__scenarioData["subNetworkDataFull"]
         modeToSubNetworkData = self.__scenarioData["modeToSubNetworkData"]
         microtypeData = self.__scenarioData["microtypeIDs"]
-        self.__diameters = np.zeros(len(microtypeData), dtype=float)
-        for microtypeId, idx in self.microtypeIdToIdx.items():
-            self.__diameters[idx] = microtypeData.loc[microtypeId, 'DiameterInMiles'] * 1609.34
 
         if len(self.__microtypes) == 0:
             self.__modeToMicrotype = dict()
@@ -304,6 +297,7 @@ class MicrotypeCollection:
 
         collectMatrixIds = (sum(self.__transitionMatrixNetworkIdx) == 0)
         for microtypeId, diameter in microtypeData.itertuples(index=False):
+            self.__microtypeDiameterInMeters[self.microtypeIdToIdx[microtypeId], None] = diameter * 1609.34
             self.microtypePopulation[microtypeId] = populationByMicrotype.loc[microtypeId].Population
             if (microtypeId in self) & ~override:
                 self[microtypeId].resetDemand()
@@ -317,7 +311,9 @@ class MicrotypeCollection:
                         modeToSubNetworkData['SubnetworkID'] == subNetworkId]
                     self.__subNetworkToMicrotype[
                         self.microtypeIdToIdx[microtypeId], self.__networkIdToIdx[subNetworkId]] = True
-                    subNetwork = Network(subNetworkData, subNetworkCharacteristics, subNetworkId, diameter, microtypeId,
+                    subNetwork = Network(subNetworkData, subNetworkCharacteristics, subNetworkId,
+                                         self.__microtypeDiameterInMeters[self.microtypeIdToIdx[microtypeId], None],
+                                         microtypeId,
                                          self.__numpyNetworkSpeed[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkOperatingSpeed[self.__networkIdToIdx[subNetworkId], :],
                                          self.__numpyNetworkAccumulation[self.__networkIdToIdx[subNetworkId], :],
@@ -382,7 +378,7 @@ class MicrotypeCollection:
             idx = self.microtypeIdToIdx[microtypeID]
             for autoNetwork in microtype.networks:
                 if "auto" in autoNetwork:
-                    characteristicL[idx] += autoNetwork.diameter * 1609.34
+                    characteristicL[idx] += autoNetwork.diameter
                     # n_init[idx] = networkStateData.initialAccumulation
                     speedFunctions[idx] = autoNetwork.MFD
                     inflowFunctions[idx] = autoNetwork.maxInflow

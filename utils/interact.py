@@ -360,10 +360,14 @@ class Interact:
             microtypeText = widgets.HTML(
                 value="<center><b>Microtype " + mID + "</b></center>"
             )
-            slider = widgets.FloatSlider(value=1.0, min=0.2, max=5.0, step=0.01, orientation='horizontal')
+            slider = widgets.FloatSlider(value=1.0, min=0.05, max=3.0, step=0.01, orientation='horizontal')
             slider.observe(self.response, names="value")
-            self.__widgetIDtoField[slider.model_id] = ('networkLength', (mID, ""))
-            networkLengthStack.append(widgets.HBox([microtypeText, slider]))
+            self.__widgetIDtoField[slider.model_id] = ('throughDistanceMultiplier', (mID, ""))
+            defaultValue = widgets.HTML(
+                value="<left> * {dist:.3f} miles</left>".format(
+                    dist=self.model.scenarioData['microtypeIDs'].loc[mID, "DiameterInMiles"])
+            )
+            networkLengthStack.append(widgets.HBox([microtypeText, slider, defaultValue]))
 
         populationStack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -676,7 +680,8 @@ class Interact:
         dataAccordion = widgets.Accordion(
             [widgets.VBox(networkLengthStack), widgets.VBox(populationStack), widgets.VBox(utilStack),
              widgets.VBox(MFDstack)])
-        for ind, title in enumerate(('Network Length', 'Population', 'Utility parameters', 'MFD parameters')):
+        for ind, title in enumerate(
+                ('Microtype Through Distance', 'Population', 'Utility parameters', 'MFD parameters')):
             dataAccordion.set_title(ind, title)
 
         scenarioAccordion = widgets.Accordion(
@@ -788,6 +793,9 @@ class Interact:
             microtype, modeName = changeType[1]
             self.model.data.setModeFleetSize(modeName.lower(), microtype, newValue)
             self.model.clearCostCache("bikeFleetDensity")
+        if changeType[0] == 'throughDistanceMultiplier':
+            microtype, _ = changeType[1]
+            self.model.data.updateMicrotypeDiameter(microtype, newValue)
         if changeType[0] == 'perMileFee':
             microtype, modeName = changeType[1]
             self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=True)
