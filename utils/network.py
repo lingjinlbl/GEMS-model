@@ -33,7 +33,7 @@ class Costs:
 class Network:
     def __init__(self, data, characteristics, subNetworkId, diameter=None, microtypeID=None, modeNetworkSpeed=None,
                  modeOperatingSpeed=None, modeAccumulation=None, modeBlockedDistance=None, modeVehicleSize=None,
-                 networkLength=None, MFD=(), modeToIdx=None):
+                 networkLength=None, networkMaxDensity=None, MFD=(), maxInflow=(), modeToIdx=None):
         self.data = data
 
         self.characteristics = characteristics
@@ -53,15 +53,18 @@ class Network:
         self.modeAccumulation = modeAccumulation
         self.modeVehicleSize = modeVehicleSize
         self.networkLength = networkLength
+        self.networkMaxDensity = networkMaxDensity
         self.modeBlockedDistance = modeBlockedDistance
         self.__MFD = MFD
+        self.__maxInflow = maxInflow
         np.copyto(self.networkLength, self.__data[self.dataColumnToIdx["Length"]])
         if len(self.__MFD) == 0:
             self.MFD = self.defineMFD()
+            self.maxInflow = self.defineMaxInflow()
         if diameter is None:
-            self.__diameter = 1.0
+            self.__diameterInMeters = np.array([1609.34])
         else:
-            self.__diameter = diameter
+            self.__diameterInMeters = diameter
         self.modeNetworkSpeed.fill(self.freeFlowSpeed)
         self.modeOperatingSpeed.fill(self.freeFlowSpeed)
 
@@ -75,6 +78,17 @@ class Network:
             self.__MFD.append(value)
         else:
             self.__MFD[0] = value
+
+    @property
+    def maxInflow(self):
+        return self.__maxInflow[0]
+
+    @maxInflow.setter
+    def maxInflow(self, value):
+        if len(self.__maxInflow) == 0:
+            self.__maxInflow.append(value)
+        else:
+            self.__maxInflow[0] = value
 
     def runSingleNetworkMFD(self):
         Ntot = (self.modeAccumulation * self.modeVehicleSize).sum()
@@ -112,7 +126,27 @@ class Network:
     def setModeVehicleSize(self, mode, vehicleSize: float):
         np.copyto(self.modeVehicleSize[self.__modeToIdx[mode], None], vehicleSize)
 
+    def defineMaxInflow(self):
+        if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
+            if "maxInflowPerMeterPerHour" in self.dataColumnToIdx:
+                inflowMax = self.__data[self.dataColumnToIdx["maxInflowPerMeterPerHour"]]
+            else:
+                inflowMax = 3.0
+            if "maxInflowDensity" in self.dataColumnToIdx:
+                inflowMaxDensity = self.__data[self.dataColumnToIdx["maxInflowDensity"]]
+            else:
+                inflowMaxDensity = 0.15
+
+            @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
+            def _maxInflow(density):
+                return max([(inflowMaxDensity - density) * inflowMax, 0])
+        else:
+            def _maxInflow(density):
+                return np.inf
+        return _maxInflow
+
     def defineMFD(self):
+        self.networkMaxDensity[0] = self.jamDensity
         if self.characteristics.iat[self._iloc, self.charColumnToIdx["Type"]] == "Road":
             if self.characteristics.iat[self._iloc, self.charColumnToIdx["MFD"]] == "modified-quadratic":
                 a = self.__data[self.dataColumnToIdx["a"]]
@@ -127,6 +161,7 @@ class Network:
                 @nb.cfunc("float64(float64)", fastmath=True, parallel=False, cache=True)
                 def _MFD(density):
                     crossoverDensity = densityMax - np.sqrt(densityMax ** 2 - densityMax * criticalDensity)
+                    # dm (1 - sqrt(1 - crit/dm))
                     if density <= 0:
                         return -a * criticalDensity
                     elif density < crossoverDensity:
@@ -209,6 +244,7 @@ class Network:
     def updateNetworkData(self):  # CONSOLIDATE
         np.copyto(self.__data, self.data.iloc[self._iloc, :].to_numpy())
         self.MFD = self.defineMFD()
+        self.maxInflow = self.defineMaxInflow()
 
     # @property
     # def type(self):
@@ -253,7 +289,7 @@ class Network:
 
     @property
     def diameter(self):
-        return self.__diameter
+        return self.__diameterInMeters[0]
 
     @property
     def modesAllowed(self):
@@ -411,7 +447,7 @@ class NetworkCollection:
         self.__freightModeToIdx = freightModeToIdx
         self.__diToIdx = diToIdx
 
-        self.demands = TravelDemands([])
+        # self.demands = TravelDemands([])
         self.verbose = verbose
 
         if isinstance(networksAndModes, Dict) and isinstance(modeToModeData, Dict):
@@ -520,8 +556,8 @@ class NetworkCollection:
             else:
                 print("BAD!")
                 Mode(networks, params, microtypeID, "bad")
-        for modeName, mode in self.__passengerModes.items():
-            self.demands[modeName] = mode.travelDemand
+        # for modeName, mode in self.__passengerModes.items():
+        #     self.demands[modeName] = mode.travelDemand
 
     def updateModeData(self):
         for m in self.__passengerModes.values():

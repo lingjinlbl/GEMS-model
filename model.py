@@ -491,7 +491,7 @@ class Model:
         acc = self.__accessibility.calculateByDI()
         if normalize:
             for (row, val) in self.scenarioData['populations'].iterrows():
-                acc.loc[val.MicrotypeID, val.PopulationGroupTypeID, :] /= val.Population
+                acc.loc[pd.IndexSlice[val.MicrotypeID, val.PopulationGroupTypeID]] /= val.Population
         return acc
 
     def collectAllCharacteristics(self):
@@ -894,9 +894,9 @@ class Optimizer:
 
 def startBar():
     modelInput = widgets.Dropdown(
-        options=['One microtype toy model', '4 microtype toy model', 'Los Angeles (National params)',
-                 'California A', 'California B', 'California C', 'California D', 'California E', 'California F',
-                 'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
+        options=['One microtype toy model', '4 microtype toy model',  # 'Los Angeles (National params)',
+                 'California A', 'California B', 'California C', 'California D', 'California E', 'California F'],
+        # 'Geotype A', 'Geotype B', 'Geotype C', 'Geotype D', 'Geotype E', 'Geotype F'],
         value='4 microtype toy model',
         description='Input data:',
         disabled=False,
@@ -929,5 +929,6 @@ if __name__ == "__main__":
                           method="opt")
     # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
     # x, y = model.plotAllDynamicStats("production")
+    model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
     outcome = optimizer.minimize()
     print(outcome)

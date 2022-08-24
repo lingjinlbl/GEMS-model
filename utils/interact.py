@@ -360,10 +360,14 @@ class Interact:
             microtypeText = widgets.HTML(
                 value="<center><b>Microtype " + mID + "</b></center>"
             )
-            slider = widgets.FloatSlider(value=1.0, min=0.2, max=2.0, step=0.01, orientation='horizontal')
+            slider = widgets.FloatSlider(value=1.0, min=0.05, max=3.0, step=0.01, orientation='horizontal')
             slider.observe(self.response, names="value")
-            self.__widgetIDtoField[slider.model_id] = ('networkLength', (mID, ""))
-            networkLengthStack.append(widgets.HBox([microtypeText, slider]))
+            self.__widgetIDtoField[slider.model_id] = ('throughDistanceMultiplier', (mID, ""))
+            defaultValue = widgets.HTML(
+                value="<left> * {dist:.3f} miles</left>".format(
+                    dist=self.model.scenarioData['microtypeIDs'].loc[mID, "DiameterInMiles"])
+            )
+            networkLengthStack.append(widgets.HBox([microtypeText, slider, defaultValue]))
 
         populationStack = []
         for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
@@ -455,12 +459,46 @@ class Interact:
                 parameterVBox[-1].observe(self.response, names="value")
                 self.__widgetIDtoField[parameterVBox[-1].model_id] = ('vMax', row.Index)
                 if ~np.isnan(row.k_jam):
-                    parameterVBox.append(widgets.FloatSlider(value=row.k_jam, min=0.1, max=0.3, step=0.002,
+                    parameterVBox.append(widgets.FloatSlider(value=row.k_jam, min=0.1, max=0.6, step=0.002,
                                                              description="Jam density (veh/m)",
                                                              orientation='horizontal',
                                                              style={'description_width': '1.25in'}))
                     parameterVBox[-1].observe(self.response, names="value")
                     self.__widgetIDtoField[parameterVBox[-1].model_id] = ('densityMax', row.Index)
+                if 'a' in row._fields:
+                    if ~np.isnan(row.a):
+                        parameterVBox.append(widgets.FloatSlider(value=row.a, min=-300, max=-50, step=5,
+                                                                 description="a",
+                                                                 orientation='horizontal',
+                                                                 style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('mfd_a', row.Index)
+                if 'b' in row._fields:
+                    if ~np.isnan(row.b):
+                        parameterVBox.append(widgets.FloatSlider(value=row.a, min=0.05, max=0.2, step=0.005,
+                                                                 description="b",
+                                                                 orientation='horizontal',
+                                                                 style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('mfd_b', row.Index)
+                if 'maxInflowPerMeterPerHour' in row._fields:
+                    if ~np.isnan(row.maxInflowPerMeterPerHour):
+                        parameterVBox.append(
+                            widgets.FloatSlider(value=row.maxInflowPerMeterPerHour, min=0.5, max=10.0, step=0.1,
+                                                description="Max inflow",
+                                                orientation='horizontal',
+                                                style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('maxInflowPerMeterPerHour', row.Index)
+                if 'maxInflowDensity' in row._fields:
+                    if ~np.isnan(row.maxInflowPerMeterPerHour):
+                        parameterVBox.append(
+                            widgets.FloatSlider(value=row.maxInflowDensity, min=0.1, max=0.5, step=0.01,
+                                                description="Max accepting density",
+                                                orientation='horizontal',
+                                                style={'description_width': '1.25in'}))
+                        parameterVBox[-1].observe(self.response, names="value")
+                        self.__widgetIDtoField[parameterVBox[-1].model_id] = ('maxInflowDensity', row.Index)
                 if ~np.isnan(row.capacityFlow):
                     parameterVBox.append(widgets.FloatSlider(value=row.capacityFlow, min=0.1, max=0.6, step=0.002,
                                                              description="Capacity flow (veh/s)",
@@ -530,13 +568,13 @@ class Interact:
                       self.model.scenarioData['modeData']['bus'].index == mID, :]
 
             costBusStack.append(
-                widgets.FloatSlider(value=busData.PerStartCost[0], min=0, max=5.0, step=0.1,
+                widgets.FloatSlider(value=busData.PerStartCost[0], min=-2.0, max=5.0, step=0.1,
                                     layout=Layout(width='180px')))
             costBusStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[costBusStack[-1].model_id] = ('fare', (mID, 'Bus'))
 
             costBusSeniorStack.append(
-                widgets.FloatSlider(value=busData.PerStartCost[0] * busData.SeniorFareDiscount[0], min=0, max=5.0,
+                widgets.FloatSlider(value=busData.PerStartCost[0] * busData.SeniorFareDiscount[0], min=-2.0, max=5.0,
                                     step=0.1,
                                     layout=Layout(width='180px')))
             costBusSeniorStack[-1].observe(self.response, names="value")
@@ -577,6 +615,17 @@ class Interact:
                                     layout=Layout(width='180px')))
             perDestinationFeeStack[-1].observe(self.response, names="value")
             self.__widgetIDtoField[perDestinationFeeStack[-1].model_id] = ('parkingFee', (mID, 'Auto'))
+
+        fleetSizeTitleStack = [widgets.HTML(value="<center><b>Microtype</b></center>")]
+        bikeFleetSizeStack = [widgets.HTML(value="<center><i>Shared bike fleet size</i></center>")]
+
+        for ind, mID in enumerate(self.model.scenarioData['microtypeIDs'].MicrotypeID):
+            bikeData = self.model.scenarioData['modeData']['bike'].loc[mID]
+            fleetSizeTitleStack.append(widgets.HTML(value="<center><i>{}</i></center>".format(mID)))
+            bikeFleetSizeStack.append(widgets.FloatSlider(bikeData.BikesPerCapita, min=0.0, max=2.0, step=0.02,
+                                                          layout=Layout(width='180px')))
+            bikeFleetSizeStack[-1].observe(self.response, names="value")
+            self.__widgetIDtoField[bikeFleetSizeStack[-1].model_id] = ('fleetSize', (mID, 'Bike'))
 
         coverageStack = []
 
@@ -631,7 +680,8 @@ class Interact:
         dataAccordion = widgets.Accordion(
             [widgets.VBox(networkLengthStack), widgets.VBox(populationStack), widgets.VBox(utilStack),
              widgets.VBox(MFDstack)])
-        for ind, title in enumerate(('Network Length', 'Population', 'Utility parameters', 'MFD parameters')):
+        for ind, title in enumerate(
+                ('Microtype Through Distance', 'Population', 'Utility parameters', 'MFD parameters')):
             dataAccordion.set_title(ind, title)
 
         scenarioAccordion = widgets.Accordion(
@@ -648,11 +698,14 @@ class Interact:
                 widgets.HBox(
                     [widgets.VBox(feeTitleStack), widgets.VBox(perMileFeeStack),
                      widgets.VBox(perDestinationFeeStack)]),
+                widgets.HBox(
+                    [widgets.VBox(fleetSizeTitleStack), widgets.VBox(bikeFleetSizeStack)]),
                 widgets.VBox(coverageStack), widgets.VBox(minStopTimeStack),
                 widgets.VBox(accessDistanceStack)])
 
         for ind, title in enumerate(
-                ('Lane dedication', 'Fare', 'Transit headway (s)', 'Congestion pricing', 'Bus service area', 'Min bus stop time',
+                ('Lane dedication', 'Fare', 'Transit headway (s)', 'Congestion pricing', 'Fleet Size',
+                 'Bus service area', 'Min bus stop time',
                  'Bus access distance multiplier')):
             scenarioAccordion.set_title(ind, title)
 
@@ -739,6 +792,10 @@ class Interact:
         if changeType[0] == 'fleetSize':
             microtype, modeName = changeType[1]
             self.model.data.setModeFleetSize(modeName.lower(), microtype, newValue)
+            self.model.clearCostCache("bikeFleetDensity")
+        if changeType[0] == 'throughDistanceMultiplier':
+            microtype, _ = changeType[1]
+            self.model.data.updateMicrotypeDiameter(microtype, newValue)
         if changeType[0] == 'perMileFee':
             microtype, modeName = changeType[1]
             self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=True)
@@ -786,6 +843,7 @@ class Interact:
             self.model.scenarioData['modeData'][modeName.lower()].loc[microtype, 'AccessDistanceMultiplier'] = newValue
             self.model.microtypes.updateNetworkData()
             self.model.microtypes[microtype].networks.getMode(modeName.lower()).defineCosts(override=True)
+            self.model.clearCostCache("accessDistance")
         if changeType[0] == 'population':
             mask = (self.model.scenarioData['populations']['MicrotypeID'] == changeType[1][0]) & (
                     self.model.scenarioData['populations']['PopulationGroupTypeID'] == changeType[1][1])
@@ -798,11 +856,17 @@ class Interact:
         if changeType[0] == 'densityMax':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'k_jam'] = newValue
             self.model.microtypes.recompileMFDs()
-        if changeType[0] == 'a':
+        if changeType[0] == 'mfd_a':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'a'] = newValue
             self.model.microtypes.recompileMFDs()
-        if changeType[0] == 'b':
+        if changeType[0] == 'mfd_b':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'b'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'maxInflowPerMeterPerHour':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'maxInflowPerMeterPerHour'] = newValue
+            self.model.microtypes.recompileMFDs()
+        if changeType[0] == 'maxInflowDensity':
+            self.model.scenarioData['subNetworkData'].loc[changeType[1], 'maxInflowDensity'] = newValue
             self.model.microtypes.recompileMFDs()
         if changeType[0] == 'capacityFlow':
             self.model.scenarioData['subNetworkData'].loc[changeType[1], 'capacityFlow'] = newValue
