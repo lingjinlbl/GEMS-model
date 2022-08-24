@@ -112,7 +112,8 @@ class OptimizationVariables:
 
 class CalibrationValues:
     def __init__(self, speed=pd.DataFrame(), modeSplit=pd.DataFrame(), travelTime=pd.DataFrame(),
-                 columnsFromTravelTime=('avg_speed (mph)',), optimizationVariables=None, regularize=0):
+                 columnsFromTravelTime=('avg_speed (mph)',), optimizationVariables=None, regularize=0,
+                 speedScaling=1.0):
         self.__speedData = speed
         self.__modeSplitData = modeSplit
         self.__travelTimeData = travelTime
@@ -121,7 +122,7 @@ class CalibrationValues:
         self.__optimizationVariables = optimizationVariables
         self.__numberOfVariables = 0
         self.values = np.ndarray(0)
-        self.__speedScaling = 4.0
+        self.__speedScaling = speedScaling
         self.__regularize = regularize
 
     def loadData(self, path):
@@ -213,11 +214,12 @@ class CalibrationValues:
 
 
 class Calibrator:
-    def __init__(self, model: Model, optimizationVariables: OptimizationVariables, regularization=0.0):
+    def __init__(self, model: Model, optimizationVariables: OptimizationVariables, regularization=0.0,
+                 speedScaling=1.0):
         self.model = model
         self.optimizationVariables = optimizationVariables
         self.calibrationVariables = CalibrationValues(optimizationVariables=optimizationVariables,
-                                                      regularize=regularization)
+                                                      regularize=regularization, speedScaling)
         self.calibrationVariables.loadData(path=model.path)
 
     def f(self, x: np.ndarray) -> np.ndarray:
@@ -314,7 +316,7 @@ if __name__ == "__main__":
     # model.interact.modifyModel(('networkLength', ('5', '')), 4.0)
 
     calibrationVariables = OptimizationVariables(calibrationVariableNames)
-    calibrator = Calibrator(model, calibrationVariables, regularization=0.2)
+    calibrator = Calibrator(model, calibrationVariables, regularization=0.2, speedScaling=10.0)
     result = calibrator.calibrate()
     final = calibrationVariables.toPandas(result.x).unstack()
     print(final)
