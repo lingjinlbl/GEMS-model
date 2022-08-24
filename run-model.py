@@ -74,16 +74,16 @@ x0 = optimizer.x0()
 # These are defined in the Optimizer definition above
 
 optimizer.evaluate(x0)
-modeSplit, speed, utility = model.toPandas()
+modeSplit, speed, utility, cont = model.toPandas()
 allCosts = optimizer.sumAllCosts()
 
 # // Update the model to allocate 10% of bus route to bus lanes in microtype 1
 optimizer.evaluate([0.1, 0., 0., 0., 0.3, 0.3])
-modeSplit2, speed2, utility2 = model.toPandas()
+modeSplit2, speed2, utility2, _ = model.toPandas()
 allCosts2 = optimizer.sumAllCosts()
 
 # // Run the full optimizer (this can take a long time!)
 optimizer.minimize()
-modeSplit_opt, speed_opt, utility_opt = model.toPandas()
+modeSplit_opt, speed_opt, utility_opt, _ = model.toPandas()
 allCosts_opt = optimizer.sumAllCosts()
 print('done')

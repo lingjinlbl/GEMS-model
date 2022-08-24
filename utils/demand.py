@@ -338,7 +338,7 @@ class Demand:
 
         microtypes.updateTransitionMatrix(self.__transitionMatrices.averageMatrix(weights))
 
-    def updateMFD(self, microtypes: MicrotypeCollection, nIters=3, utilitiesArray=None, modeSplitArray=None):
+    def updateMFD(self, microtypes: MicrotypeCollection, nIters=2, utilitiesArray=None, modeSplitArray=None):
         if utilitiesArray is not None:
             np.copyto(self.__modeSplitData, modeSplitFromUtils(utilitiesArray))
             np.copyto(self.__currentUtility, utilitiesArray)

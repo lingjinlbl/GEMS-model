@@ -25,6 +25,11 @@ if os.path.exists(modesDir):
     shutil.rmtree(modesDir)
 os.makedirs(modesDir)
 
+calibrationDir = os.path.join(ROOT_DIR, "..", outFolder, "calibration")
+if os.path.exists(calibrationDir):
+    shutil.rmtree(calibrationDir)
+os.makedirs(calibrationDir)
+
 shutil.copytree(os.path.join(ROOT_DIR, "..", inFolder, "fleets"), os.path.join(ROOT_DIR, "..", outFolder, "fleets"))
 
 for mode in ["auto", "bike", "bus", "rail", "walk"]:
@@ -83,17 +88,18 @@ newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "ActivityDensity.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "ActivityDensity.csv")
 df = pd.read_csv(oldPath)
+df.loc[df["ActivityID"] == "parks", "TripPurposeID"] = "leisure"
 newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
 newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 
-# # %% Microtypes
-# oldPath = os.path.join(ROOT_DIR, "..", inFolder, "Microtypes.csv")
-# newPath = os.path.join(ROOT_DIR, "..", outFolder, "Microtypes.csv")
-# df = pd.read_csv(oldPath)
-# newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :]
-# newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
-# newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
+# %% Microtypes
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "AvgTripLengths-200m.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "Microtypes.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df.MicrotypeID.str.startswith(geotype), :].rename(columns={'avg_thru_length': 'DiameterInMiles'})
+newdf.loc[:, "MicrotypeID"] = newdf.loc[:, "MicrotypeID"].str.split('_').str[1].values
+newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 
 # %% OriginDestination
 oldPath = os.path.join(ROOT_DIR, "..", inFolder, "OriginDestination.csv")
@@ -159,7 +165,7 @@ newdf = pd.concat([newdf, otherdf])
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
 
 # %% RoadNetworkCosts
-oldPath = os.path.join(ROOT_DIR, "..", inFolder, "TransitionMatrix.csv")
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "TransitionMatrix-200m.csv")
 newPath = os.path.join(ROOT_DIR, "..", outFolder, "TransitionMatrices.csv")
 df = pd.read_csv(oldPath).rename(columns={"DestMicrotypeID": "DestinationMicrotypeID"}).set_index(
     ["OriginMicrotypeID", "DestinationMicrotypeID", "DistanceBinID", "From"])
@@ -171,5 +177,23 @@ newdf.loc[:, "DestinationMicrotypeID"] = newdf.loc[:, "DestinationMicrotypeID"].
 newdf.loc[:, "From"] = newdf.loc[:, "From"].str.split('_').str[1].values
 newdf.columns = newdf.columns.str.split('_').str[-1].values
 newdf.sort_values(newdf.columns[0], ascending=True).to_csv(newPath, index=False)
+
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "calibration", "avg_speed_from_HERE.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "calibration", "avg_speed_from_HERE.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df['geotype'] == geotype, :].drop(columns=['geotype'])
+newdf.to_csv(newPath, index=False)
+
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "calibration", "NHTS_trip_travel_time.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "calibration", "NHTS_trip_travel_time.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df['geotype'] == geotype, :].drop(columns=['geotype'])
+newdf.to_csv(newPath, index=False)
+
+oldPath = os.path.join(ROOT_DIR, "..", inFolder, "calibration", "NHTS_mode_split.csv")
+newPath = os.path.join(ROOT_DIR, "..", outFolder, "calibration", "NHTS_mode_split.csv")
+df = pd.read_csv(oldPath)
+newdf = df.loc[df['geotype'] == geotype, :].drop(columns=['geotype'])
+newdf.to_csv(newPath, index=False)
 
 print("AA")

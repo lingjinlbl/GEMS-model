@@ -63,17 +63,22 @@ SubnetworkID,MicrotypeID,ModesAllowed,Dedicated,Length,MFD,Type,capacityFlow,den
 
 defaults = {'1': {'a': -80.4, 'b': 0.13, 'k_jam': 0.5,
                   'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road', 'smoothingFactor': np.nan,
-                  'waveSpeed': np.nan, 'vMax': 11.6},
+                  'waveSpeed': np.nan, 'vMax': 11.6, 'maxInflowPerMeterPerHour': 3.0, 'maxInflowDensity': 0.15},
             '2': {'a': -148.79, 'b': 0.1, 'k_jam': 0.5,
-                  'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road'},
+                  'MFD': 'modified-quadratic', 'avgLinkLength': 50, 'Type': 'Road', 'maxInflowPerMeterPerHour': 3.0,
+                  'maxInflowDensity': 0.15},
             '3': {'a': -302.29, 'b': 0.07, 'k_jam': 0.5,
-                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road', 'maxInflowPerMeterPerHour': 7.0,
+                  'maxInflowDensity': 0.15},
             '4': {'a': -195.76, 'b': 0.09, 'k_jam': 0.5,
-                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road', 'maxInflowPerMeterPerHour': 7.0,
+                  'maxInflowDensity': 0.15},
             '5': {'a': -147.41, 'b': 0.11, 'k_jam': 0.5,
-                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road', 'maxInflowPerMeterPerHour': 7.0,
+                  'maxInflowDensity': 0.15},
             '6': {'a': -226.65, 'b': 0.1,
-                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road'},
+                  'MFD': 'rural', 'avgLinkLength': 50, 'Type': 'Road', 'maxInflowPerMeterPerHour': 7.0,
+                  'maxInflowDensity': 0.15},
             'bus': {'vMax': 17.0, 'capacityFlow': 0.4, 'MFD': 'bottleneck', 'avgLinkLength': 50, 'Type': 'Road'},
             'walk': {'vMax': 1.35, 'MFD': 'fixed', 'Type': 'Sidewalk'},
             'bike': {'vMax': 5., 'k_jam': 0.15, 'MFD': 'fixed', 'Type': 'Road'},
@@ -169,7 +174,7 @@ autoInput.to_csv(os.path.join(ROOT_DIR, "..", "input-data-california", "modes", 
 railInput.to_csv(os.path.join(ROOT_DIR, "..", "input-data-california", "modes", "rail.csv"))
 
 microtypeData = pd.read_csv(os.path.join(ROOT_DIR, "..", "input-data-california-raw", "Microtypes.csv"))
-distances = pd.read_csv(os.path.join(ROOT_DIR, "..", "input-data-california-raw", "AvgTripLengths-100m.csv"))
+distances = pd.read_csv(os.path.join(ROOT_DIR, "..", "input-data-california-raw", "AvgTripLengths-400m.csv"))
 
 distances.sort_values(by="MicrotypeID").rename(columns={'avg_thru_length': 'DiameterInMiles'}).to_csv(
     os.path.join(ROOT_DIR, "..", "input-data-california", "Microtypes.csv"), index=False)
@@ -211,7 +216,7 @@ df = pd.read_csv(oldPath).rename(columns={"PopulationGroupID": "PopulationGroupT
 df.to_csv(newPath, index=False)
 
 # %% TransitionMatrix
-oldPath = os.path.join(ROOT_DIR, "..", "input-data-california-raw", "TransitionMatrix-100m.csv")
+oldPath = os.path.join(ROOT_DIR, "..", "input-data-california-raw", "TransitionMatrix-400m.csv")
 newPath = os.path.join(ROOT_DIR, "..", "input-data-california", "TransitionMatrix.csv")
 shutil.copyfile(oldPath, newPath)
 
