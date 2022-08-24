@@ -164,8 +164,12 @@ class CollectedChoiceCharacteristics:
     def clearCache(self, category=None):
         if category is None:
             self.__cache.clear()
-        else:
+        elif category in self.__cache:
             self.__cache.pop(category)
+
+    @property
+    def costTypeToIdx(self):
+        return self.__scenarioData.costTypeToIdx
 
     @property
     def odiToIdx(self):
@@ -223,11 +227,10 @@ class CollectedChoiceCharacteristics:
     def resetChoiceCharacteristics(self):
         # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
         #  'unprotected_travel_time': 5, 'distance': 6}
-        for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:
+        for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:  # TODO: vectorize
             self.__numpy[:, :, :, self.paramToIdx[param]] = 0.0
         # self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, :, self.paramToIdx['intercept']] = 1
-        self.clearCache()
 
     def updateChoiceCharacteristics(self, microtypes) -> np.ndarray:
         endIdx = self.__scenarioData.firstFreightIdx
@@ -251,11 +254,21 @@ class CollectedChoiceCharacteristics:
         bikeFleetDensity = self.__cache.setdefault(
             'bikeFleetDensity', np.einsum('im,ki->km', self.__fleetSize[:, :endIdx], self.__fixedData['toStarts']))
         startCosts = self.__cache.setdefault(
-            'startCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 0], self.__fixedData['toStarts']))
+            'startCosts', np.einsum('ijmc,ki->jkm', allCosts[:, :, :, [self.costTypeToIdx['perStartPrivateCost'],
+                                                                       self.costTypeToIdx['perStartPublicCost']]],
+                                    self.__fixedData['toStarts']))
         endCosts = self.__cache.setdefault(
-            'endCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 1], self.__fixedData['toEnds']))
+            'endCosts', np.einsum('ijmc,ki->jkm', allCosts[:, :, :, [self.costTypeToIdx['perEndPrivateCost'],
+                                                                     self.costTypeToIdx['perEndPublicCost']]],
+                                  self.__fixedData['toEnds']))
         throughCosts = self.__cache.setdefault(
-            'throughCosts', np.einsum('ijm,ki->jkm', allCosts[:, :, :, 2], self.__fixedData['toThroughDistance']))
+            'throughCosts', np.einsum('ijmc,ki->jkm', allCosts[:, :, :, [self.costTypeToIdx['perMilePrivateCost'],
+                                                                         self.costTypeToIdx['perMilePublicCost']]],
+                                      self.__fixedData['toThroughDistance']))
+
+        waitTimeSeconds = self.__cache.setdefault(
+            'waitTimeSeconds', np.einsum('ijm,ki->jkm', allCosts[:, :, :, self.costTypeToIdx['waitTimeInSeconds']],
+                                         self.__fixedData['toStarts']))
 
         self.__numpy[:, :, :, self.paramToIdx['cost']] = startCosts + endCosts + throughCosts
         self.__numpy[:, :, :, self.paramToIdx['travel_time']] = travelTimeInHours[None, :]
@@ -263,6 +276,7 @@ class CollectedChoiceCharacteristics:
                                                                             None, :]
         self.__numpy[:, :, :, self.paramToIdx['mode_density']] = bikeFleetDensity[None, :, :]
         self.__numpy[:, :, :, self.paramToIdx['access_time']] = accessSeconds[None, :] / 3600.
+        self.__numpy[:, :, :, self.paramToIdx['wait_time']] = waitTimeSeconds / 3600.
         return self.__numpy
 
     def isBroken(self):

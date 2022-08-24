@@ -7,6 +7,14 @@ work,A,C,short,0.4
 work,A,C,medium,0.6
 work,A,D,medium,0.6
 work,A,D,long,0.4
+test,A,A,short,0.7
+test,A,A,medium,0.3
+test,A,B,short,0.5
+test,A,B,medium,0.5
+test,A,C,short,0.4
+test,A,C,medium,0.6
+test,A,D,medium,0.6
+test,A,D,long,0.4
 nonwork,A,A,short,0.7
 nonwork,A,A,medium,0.3
 nonwork,A,B,short,0.5

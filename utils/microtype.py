@@ -7,56 +7,7 @@ import pandas as pd
 from numba import njit
 from scipy.optimize import nnls
 
-from .OD import TransitionMatrix, Allocation
-from .choiceCharacteristics import ChoiceCharacteristics
-from .network import Network, NetworkCollection, Costs, TotalOperatorCosts
-from .freight import FreightMode
-
-
-class CollectedTotalOperatorCosts:
-    def __init__(self):
-        self.__costs = dict()
-        self.total = 0.
-
-    def __setitem__(self, key: str, value: TotalOperatorCosts):
-        self.__costs[key] = value
-        self.updateTotals(value)
-
-    def __getitem__(self, item: str) -> TotalOperatorCosts:
-        return self.__costs[item]
-
-    def updateTotals(self, value: TotalOperatorCosts):
-        for mode, cost in value:
-            self.total += cost
-
-    def __mul__(self, other):
-        out = CollectedTotalOperatorCosts()
-        for mode in self.__costs.keys():
-            out[mode] = self[mode] * other
-        return out
-
-    def __add__(self, other):
-        out = CollectedTotalOperatorCosts()
-        for mode in other.__costs.keys():
-            if mode in self.__costs:
-                out[mode] = self[mode] + other[mode]
-            else:
-                out[mode] = other[mode]
-        return out
-
-    def __iadd__(self, other):
-        for mode in other.__costs.keys():
-            if mode in self.__costs:
-                self[mode] = self[mode] + other[mode]
-            else:
-                self[mode] = other[mode]
-        return self
-
-    def toDataFrame(self):
-        return pd.concat({key: val.toDataFrame([key]) for key, val in self.__costs.items()})
-
-    def __str__(self):
-        return str(self.toDataFrame())
+from .network import Network, NetworkCollection, Costs
 
 
 class Microtype:
@@ -111,27 +62,27 @@ class Microtype:
     def getModeMeanDistance(self, mode: str):
         return self.networks.demands.getAverageDistance(mode)
 
-    def addStartTimeCostWait(self, mode: str, cc: np.ndarray):  # Could eventually be vectorized
-        if mode in self:
-            perStartCost = self.networks.getMode(mode).perStart
-            cc[self.paramToIdx['cost']] += perStartCost
-            if mode in ['bus', 'rail']:
-                waitTime = self.networks.getMode('bus').headwayInSec / 3600. / 4.  # TODO: Something better
-                cc[self.paramToIdx['wait_time']] += waitTime
-                accessTime = self.networks.getMode(
-                    mode).getAccessDistance() / self.networks.getMode('walk').speedInMetersPerSecond / 3600.0
-                cc[self.paramToIdx['access_time']] += accessTime
-                if np.isnan(waitTime) | np.isnan(accessTime):
-                    print('WHY IS THIS NAN')
+    # def addStartTimeCostWait(self, mode: str, cc: np.ndarray):  # Could eventually be vectorized
+    #     if mode in self:
+    #         perStartCost = self.networks.getMode(mode).perStart
+    #         cc[self.paramToIdx['cost']] += perStartCost
+    #         if mode in ['bus', 'rail']:
+    #             waitTime = self.networks.getMode(mode).headwayInSec / 3600. / 4.  # TODO: Something better
+    #             cc[self.paramToIdx['wait_time']] += waitTime
+    #             accessTime = self.networks.getMode(
+    #                 mode).getAccessDistance() / self.networks.getMode('walk').speedInMetersPerSecond / 3600.0
+    #             cc[self.paramToIdx['access_time']] += accessTime
+    #             if np.isnan(waitTime) | np.isnan(accessTime):
+    #                 print('WHY IS THIS NAN')
 
-    def addEndTimeCostWait(self, mode: str, cc: np.ndarray):
-        if mode in self:
-            cc[self.paramToIdx['cost']] += self.networks.getMode(mode).perEnd
-            if mode == 'bus':
-                cc[self.paramToIdx['wait_time']] += self.networks.getMode('bus').headwayInSec / 3600. / 4.
-                cc[self.paramToIdx['access_time']] += self.networks.getMode(mode).getAccessDistance() * \
-                                                      self.networks.getMode(
-                                                          'walk').speedInMetersPerSecond / 3600.0
+    # def addEndTimeCostWait(self, mode: str, cc: np.ndarray):
+    #     if mode in self:
+    #         cc[self.paramToIdx['cost']] += self.networks.getMode(mode).perEnd
+    #         if mode == 'bus':
+    #             cc[self.paramToIdx['wait_time']] += self.networks.getMode('bus').headwayInSec / 3600. / 4.
+    #             cc[self.paramToIdx['access_time']] += self.networks.getMode(mode).getAccessDistance() * \
+    #                                                   self.networks.getMode(
+    #                                                       'walk').speedInMetersPerSecond / 3600.0
 
 
 def getFlows(self):
@@ -155,6 +106,7 @@ class MicrotypeCollection:
     def __init__(self, scenarioData, supplyData, demandData):
         self.__timeStepInSeconds = scenarioData.timeStepInSeconds
         self.__microtypes = dict()
+        self.microtypePopulation = dict()
         self.__scenarioData = scenarioData
         self.modeData = scenarioData["modeData"]
         self.__firstFreightModeIdx = len(self.modeData)
@@ -213,6 +165,10 @@ class MicrotypeCollection:
     @property
     def modeToIdx(self):
         return self.__scenarioData.modeToIdx
+
+    @property
+    def passengerModeToIdx(self):
+        return self.__scenarioData.passengerModeToIdx
 
     @property
     def freightModeToIdx(self):
@@ -338,8 +294,11 @@ class MicrotypeCollection:
         if len(self.__microtypes) == 0:
             self.__modeToMicrotype = dict()
 
+        populationByMicrotype = self.__scenarioData["populations"].groupby("MicrotypeID").agg({"Population": sum})
+
         collectMatrixIds = (sum(self.__transitionMatrixNetworkIdx) == 0)
         for microtypeId, diameter in microtypeData.itertuples(index=False):
+            self.microtypePopulation[microtypeId] = populationByMicrotype.loc[microtypeId].Population
             if (microtypeId in self) & ~override:
                 self[microtypeId].resetDemand()
             else:
@@ -378,6 +337,7 @@ class MicrotypeCollection:
                     else:
                         modeToModeData[mode] = self.fleetData[mode]
                 netCol = NetworkCollection(subNetworkToModes, modeToModeData, microtypeId,
+                                           self.microtypePopulation[microtypeId],
                                            self.__numpyDemand[self.microtypeIdToIdx[microtypeId], :, :],
                                            self.__numpyMicrotypeSpeed[self.microtypeIdToIdx[microtypeId], :],
                                            self.__microtypeCosts[self.microtypeIdToIdx[microtypeId], :, :, :],
@@ -473,24 +433,17 @@ class MicrotypeCollection:
         return {mode: {microtypeId: self.__numpyMicrotypeSpeed[microtypeIdx, modeIdx] for microtypeId, microtypeIdx in
                        self.microtypeIdToIdx.items()} for mode, modeIdx in self.modeToIdx.items()}
 
-    def getOperatorCosts(self) -> CollectedTotalOperatorCosts:
-        operatorCosts = CollectedTotalOperatorCosts()
+    def getOperatorCosts(self) -> np.ndarray:
+        operatorCosts = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)))
         for mID, microtype in self:
-            operatorCosts[mID] = microtype.networks.getModeOperatingCosts()
+            operatorCosts[self.microtypeIdToIdx[mID], :] = microtype.networks.getModeOperatingCosts()
         return operatorCosts
 
-    def getFreightOperatorCosts(self):
-        operatorCosts = CollectedTotalOperatorCosts()
+    def getFreightOperatorCosts(self) -> np.ndarray:
+        operatorCosts = np.zeros((len(self.microtypeIdToIdx), len(self.modeToIdx)))
         for mID, microtype in self:
-            operatorCosts[mID] = microtype.networks.getFreightModeOperatingCosts()
+            operatorCosts[self.microtypeIdToIdx[mID], :] = microtype.networks.getFreightModeOperatingCosts()
         return operatorCosts
-
-    def filterAllocation(self, mode, inputAllocation: Allocation):
-        validMicrotypes = self.__modeToMicrotype[mode]
-        if inputAllocation.keys() == validMicrotypes:
-            return inputAllocation.mapping
-        else:
-            return inputAllocation.filterAllocation(validMicrotypes)
 
 
 @njit(fastmath=True, parallel=False, cache=True)

@@ -128,6 +128,9 @@ class Population:
         self.__numpy = fixedData['choiceParameters']
         self.__numpyCost = fixedData['choiceParametersFixed']
         self.__transitLayerUtility = fixedData['transitLayerUtility']
+        self.__toTripPurpose = fixedData['toTripPurpose']
+        self.__toHomeMicrotype = fixedData['toHomeMicrotype']
+        self.__toODI = fixedData['toODI']
         self.__modes = scenarioData.getPassengerModes()
         self.utilsToDollars = 200
         self.defaultValueOfTimePerHour = 45
@@ -137,12 +140,20 @@ class Population:
         return self.__scenarioData.diToIdx
 
     @property
+    def tripPurposeToIdx(self):
+        return self.__scenarioData.tripPurposeToIdx
+
+    @property
     def passengerModeToIdx(self):
         return self.__scenarioData.passengerModeToIdx
 
     @property
     def paramToIdx(self):
         return self.__scenarioData.paramToIdx
+
+    @property
+    def populationGroupToIdx(self):
+        return self.__scenarioData.populationGroupToIdx
 
     @property
     def numpy(self) -> np.ndarray:
@@ -155,6 +166,14 @@ class Population:
     @property
     def transitLayerUtility(self) -> np.ndarray:
         return self.__transitLayerUtility
+
+    @property
+    def toTripPurpose(self) -> np.ndarray:
+        return self.__toTripPurpose
+
+    @property
+    def toODI(self) -> np.ndarray:
+        return self.__toODI
 
     def __setitem__(self, key: DemandIndex, value: DemandClass):
         self.__demandClasses[key] = value
@@ -245,12 +264,17 @@ class Population:
                           'BetaTravelTimeMixed_Pooled']] *= 60.0
                 di = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
                 if di in self.diToIdx:
+                    idx = self.diToIdx[di]
                     for mode, values in df.iterrows():
                         self.__numpy[
-                            self.diToIdx[di], self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
+                            idx, self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
                     for mode, values in dfPooled.iterrows():
                         self.__numpyCost[
-                            self.diToIdx[di], self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
+                            idx, self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
+                    self.__toTripPurpose[idx, self.tripPurposeToIdx[tripPurpose]] = True
+                    self.__toHomeMicrotype[idx, self.__scenarioData.microtypeIdToIdx[homeMicrotypeID]] = True
+                    self.__toODI[idx, self.__scenarioData.microtypeIdToIdx[homeMicrotypeID], self.tripPurposeToIdx[
+                        tripPurpose], self.populationGroupToIdx[groupId]] = True
 
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):
                 demandIndex = DemandIndex(homeMicrotypeID, groupId, tripPurpose)
