@@ -41,7 +41,7 @@ class Mode:
         self._PMT = self.travelDemand.rateOfPmtPerHour
         self._VMT = 0.
 
-    def defineCosts(self):
+    def defineCosts(self, override=False):
         if "SeniorFareDiscount" in self.params.columns:
             seniorDIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
             self.__fareIdx = (np.where(~seniorDIs)[0][0], 0)
@@ -49,7 +49,7 @@ class Mode:
         else:
             self.__fareIdx = (0, 0)
             self.__discountFareIdx = (0, 0)
-        if np.any(self.microtypeCosts):
+        if np.any(self.microtypeCosts) & ~override:
             pass
         else:
             self.microtypeCosts[:, ScenarioData.costTypeToIdx["perStartPublicCost"]] = self.params.at[
@@ -171,6 +171,13 @@ class WalkMode(Mode):
     def getSpeed(self):
         return self.speedInMetersPerSecond
 
+    def updateScenarioInputs(self):
+        self._params = self.params.to_numpy()
+        self.microtypeSpeed.fill(self.speedInMetersPerSecond)
+        for n in self.networks:
+            n.setModeNetworkSpeed(self.name, self.speedInMetersPerSecond)
+            n.setModeOperatingSpeed(self.name, self.speedInMetersPerSecond)
+
 
 class BikeMode(Mode):
     def __init__(self, networks, modeParams: pd.DataFrame, microtypeID: str, microtypePopulation: float,
@@ -282,14 +289,11 @@ class BikeMode(Mode):
             return 0.0
 
     def updateScenarioInputs(self):
-        pass
-        # self._params = self.params.to_numpy()
-        # for n in self.networks:
-        # self._L_blocked[n] = 0.0
-        # self._VMT[n] = 0.0
-        # self._N_eff[n] = 0.0
-        # self._speed[n] = n.base_speed
-        # self.__operatingL[n] = self.updateOperatingL(n)
+        self._params = self.params.to_numpy()
+        self.microtypeSpeed.fill(self.speedInMetersPerSecond)
+        for n in self.networks:
+            n.setModeNetworkSpeed(self.name, self.speedInMetersPerSecond)
+            n.setModeOperatingSpeed(self.name, self.speedInMetersPerSecond)
 
 
 class RailMode(Mode):
@@ -386,6 +390,10 @@ class RailMode(Mode):
 
     def updateScenarioInputs(self):
         self._params = self.params.to_numpy()
+        self.microtypeSpeed.fill(self.routeAveragedSpeed)
+        for n in self.networks:
+            n.setModeNetworkSpeed(self.name, self.routeAveragedSpeed)
+            n.setModeOperatingSpeed(self.name, self.routeAveragedSpeed)
 
     def updateHeadway(self, newHeadway):
         self.headwayInSec = newHeadway

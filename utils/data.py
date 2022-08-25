@@ -177,7 +177,7 @@ class ScenarioData:
                                            dtype={"MicrotypeID": str}).set_index("MicrotypeID", drop=False)
         subnetworkColumns = ["SubnetworkID", "Length", "vMax", "densityMax", "avgLinkLength",
                              "capacityFlow", "smoothingFactor", "waveSpeed", "a", "b",
-                             "criticalDensity", "k_jam", "MicrotypeID"]
+                             "criticalDensity", "k_jam", "MicrotypeID", "maxInflowPerMeterPerHour", "maxInflowDensity"]
         renamedColumns = {"criticalDensity": "b", "densityMax": "k_jam"}
         subNetworkData = pd.read_csv(os.path.join(self.__path, "SubNetworks.csv"),
                                      usecols=lambda x: x in subnetworkColumns,
@@ -372,6 +372,8 @@ class Data:
         self.__transitionMatrices = np.zeros(
             (self.params.nODIs, self.params.nMicrotypes, self.params.nMicrotypes))
         self.__accessDistance = np.zeros((self.params.nMicrotypes, self.params.nModesTotal))
+        self.__microtypeDiameterInMeters = np.zeros((self.params.nMicrotypes, 1))
+        self.__microtypeDiameterMultiplier = np.ones((self.params.nMicrotypes, 1), dtype=float)
         self.__microtypeMixedTrafficDistance = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nModesTotal))
         self.__fleetSize = np.zeros(
@@ -387,15 +389,31 @@ class Data:
         self.__subNetworkVehicleSize = np.zeros((self.params.nSubNetworks, self.params.nModesTotal))
         self.__subNetworkLength = np.zeros((self.params.nSubNetworks, 1))
         self.__subNetworkScaledLength = np.zeros((self.params.nSubNetworks, 1))
+        self.__subNetworkMaxDensity = np.zeros((self.params.nSubNetworks, 1))
+
         self.__subNetworkInstantaneousSpeed = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
         self.__subNetworkInstantaneousAutoAccumulation = np.zeros((self.params.nSubNetworks, self.params.nTimeSteps))
+        self.__subNetworkInstantaneousAutoQueueAccumulation = np.zeros(
+            (self.params.nSubNetworks, self.params.nTimeSteps))
         self.__instantaneousTime = np.arange(self.params.nTimeSteps) * self.params.timeStepInSeconds
         self.__transitionMatrixNetworkIdx = np.zeros(self.params.nSubNetworks, dtype=bool)
         self.__nonAutoModes = np.array([True] * self.params.nModesTotal)
         self.__nonAutoModes[self.scenarioData.modeToIdx['auto']] = False
         self.__MFDs = [[] for _ in range(self.params.nSubNetworks)]
+        self.__maxInflow = [[] for _ in range(self.params.nSubNetworks)]
         self.__freightProduction = np.zeros(
             (self.params.nTimePeriods, self.params.nMicrotypes, self.params.nFreightModes), dtype=float)
+
+    def getDefaultMicrotypeDiameter(self, microtype):
+        return self.__microtypeDiameterInMeters[self.scenarioData.microtypeIdToIdx[microtype]] / \
+               self.__microtypeDiameterMultiplier[self.scenarioData.microtypeIdToIdx[microtype]]
+
+    def updateMicrotypeDiameter(self, microtype, newMultiplier):
+        defaultValue = self.__microtypeDiameterInMeters[self.scenarioData.microtypeIdToIdx[microtype]] / \
+                       self.__microtypeDiameterMultiplier[self.scenarioData.microtypeIdToIdx[microtype]]
+        newValue = defaultValue * newMultiplier
+        self.__microtypeDiameterInMeters[self.scenarioData.microtypeIdToIdx[microtype]] = newValue
+        self.__microtypeDiameterMultiplier[self.scenarioData.microtypeIdToIdx[microtype]] = newMultiplier
 
     def setModeFleetSize(self, mode, microtype, fleetSize):
         data = self.__fleetSize[:, self.scenarioData.microtypeIdToIdx[microtype], self.scenarioData.modeToIdx[mode]]
@@ -496,6 +514,10 @@ class Data:
         return self.__subNetworkInstantaneousAutoAccumulation[self.__transitionMatrixNetworkIdx, :]
 
     @property
+    def q(self):
+        return self.__subNetworkInstantaneousAutoQueueAccumulation[self.__transitionMatrixNetworkIdx, :]
+
+    @property
     def utilities(self):
         return self.__utilities
 
@@ -524,17 +546,22 @@ class Data:
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
             supply['subNetworkScaledLength'] = self.__subNetworkScaledLength
+            supply['subNetworkMaxDensity'] = self.__subNetworkMaxDensity
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation
+            supply['subNetworkInstantaneousAutoQueueAccumulation'] = self.__subNetworkInstantaneousAutoQueueAccumulation
             supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
+            supply['subNetworkPreviousAutoQueueAccumulation'] = np.zeros(self.params.nSubNetworks)
             supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
             supply['nonAutoModes'] = self.__nonAutoModes
             supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
             supply['microtypeCosts'] = self.__microtypeCosts
             supply['MFDs'] = self.__MFDs
+            supply['maxInflow'] = self.__maxInflow
             supply['freightProduction'] = self.__freightProduction
             supply['transitionMatrix'] = self.__transitionMatrix
             supply['transitionMatrices'] = self.__transitionMatrices
+            supply['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
         else:
             startTimeStep, endTimeStep = self.getStartAndEndInd(timePeriodIdx)
             supply = dict()
@@ -551,21 +578,30 @@ class Data:
             supply['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
             supply['subNetworkLength'] = self.__subNetworkLength
             supply['subNetworkScaledLength'] = self.__subNetworkScaledLength
+            supply['subNetworkMaxDensity'] = self.__subNetworkMaxDensity
             supply['subNetworkInstantaneousSpeed'] = self.__subNetworkInstantaneousSpeed[:, startTimeStep:endTimeStep]
             supply['subNetworkInstantaneousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[
                                                                 :, startTimeStep:endTimeStep]
+            supply[
+                'subNetworkInstantaneousAutoQueueAccumulation'] = self.__subNetworkInstantaneousAutoQueueAccumulation[:,
+                                                                  startTimeStep:endTimeStep]
             if startTimeStep == 0:
                 supply['subNetworkPreviousAutoAccumulation'] = np.zeros(self.params.nSubNetworks)
+                supply['subNetworkPreviousAutoQueueAccumulation'] = np.zeros(self.params.nSubNetworks)
             else:
                 supply['subNetworkPreviousAutoAccumulation'] = self.__subNetworkInstantaneousAutoAccumulation[:,
                                                                startTimeStep - 1]
+                supply['subNetworkPreviousAutoQueueAccumulation'] = self.__subNetworkInstantaneousAutoQueueAccumulation[
+                                                                    :, startTimeStep - 1]
             supply['transitionMatrixNetworkIdx'] = self.__transitionMatrixNetworkIdx
             supply['nonAutoModes'] = self.__nonAutoModes
             supply['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
             supply['microtypeCosts'] = self.__microtypeCosts
             supply['MFDs'] = self.__MFDs
+            supply['maxInflow'] = self.__maxInflow
             supply['transitionMatrix'] = self.__transitionMatrix[timePeriodIdx, :, :]
             supply['transitionMatrices'] = self.__transitionMatrices
+            supply['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
         return supply
 
     def getDemand(self, timePeriodIdx=None):
@@ -609,6 +645,7 @@ class Data:
         fixedData['subNetworkVehicleSize'] = self.__subNetworkVehicleSize
         fixedData['subNetworkLength'] = self.__subNetworkLength
         fixedData['subNetworkScaledLength'] = self.__subNetworkScaledLength
+        fixedData['subNetworkMaxDensity'] = self.__subNetworkMaxDensity
         fixedData['toStarts'] = self.__toStarts
         fixedData['toEnds'] = self.__toEnds
         fixedData['microtypeCosts'] = self.__microtypeCosts
@@ -626,6 +663,7 @@ class Data:
         fixedData['subNetworkToMicrotype'] = self.__subNetworkToMicrotype
         fixedData['accessDistance'] = self.__accessDistance
         fixedData['activityDensity'] = self.__activityDensity
+        fixedData['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
         return fixedData
 
     def updateNetworkLength(self, networkId, newLength):
