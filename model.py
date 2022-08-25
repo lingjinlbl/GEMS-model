@@ -19,6 +19,10 @@ from utils.misc import TimePeriods, DistanceBins
 from utils.population import Population
 from utils.data import Data, ScenarioData
 
+import mkl
+
+mkl.set_num_threads(7)
+
 
 class OptimizationDomain:
     def __init__(self, modifications: list):
@@ -26,7 +30,7 @@ class OptimizationDomain:
         self.modesAndMicrotypes = []
         self.modificationToIdx = dict()
         self.__scalingDefaults = {"headway": 0.01, "dedicated": 1.0, "fare": 0.1, "fareSenior": 0.1, "coverage": 1.0,
-                                  "fleetSize": 1.0}
+                                  "fleetSize": 1.0, "perMileFee": 0.1, "stopSpacing": 0.001}
         for idx, (changeType, changeDetails) in enumerate(modifications):
             if changeType == "dedicated":
                 self.modesAndMicrotypes.append(changeDetails)
@@ -37,6 +41,10 @@ class OptimizationDomain:
             elif (changeType == "coverage") & (changeDetails[1].lower() == "bus"):
                 pass
             elif (changeType == "fleetSize") & (changeDetails[1].lower() == "bike"):
+                pass
+            elif (changeType == "perMileFee") & (changeDetails[1].lower() == "auto"):
+                pass
+            elif (changeType == "stopSpacing") & (changeDetails[1].lower() == "bus"):
                 pass
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
@@ -72,6 +80,14 @@ class OptimizationDomain:
                 lowerBounds.append(0.001 * self.__scalingDefaults[changeType])
                 upperBounds.append(1.2 * self.__scalingDefaults[changeType])
                 defaults.append(0.5 * self.__scalingDefaults[changeType])
+            elif (changeType == "perMileFee") & (changeDetails[1].lower() == "auto"):
+                lowerBounds.append(0.0 * self.__scalingDefaults[changeType])
+                upperBounds.append(5.0 * self.__scalingDefaults[changeType])
+                defaults.append(0.0 * self.__scalingDefaults[changeType])
+            elif (changeType == "stopSpacing") & (changeDetails[1].lower() == "bus"):
+                lowerBounds.append(200.0 * self.__scalingDefaults[changeType])
+                upperBounds.append(1600.0 * self.__scalingDefaults[changeType])
+                defaults.append(400.0 * self.__scalingDefaults[changeType])
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
 
@@ -174,7 +190,7 @@ class Model:
         self.__accessibility = Accessibility(self.scenarioData, self.data)
         self.__printLoc = stdout
         self.__interactive = interactive
-        self.__tolerance = 2e-11
+        self.__tolerance = 4e-11
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
@@ -881,7 +897,7 @@ class Optimizer:
             #                 options={'eps': 0.002, 'iprint': 1})
             bounds = Bounds(lowerBounds, upperBounds)
             return minimize(self.evaluate, x0, method='TNC', bounds=bounds,
-                            options={'eps': 0.0005, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
+                            options={'eps': 0.001, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -920,15 +936,32 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, True)
+    model = Model("input-data-california-A", 1, False)
     optimizer = Optimizer(model, domain=OptimizationDomain(
-        [('dedicated', ('A', 'Bus')),
-         ('headway', ('A', 'Bus')),
-         ('fare', ('A', 'Bus'))
+        [('dedicated', ('1', 'Bus')),
+         ('headway', ('1', 'Bus')),
+         ('fare', ('1', 'Bus')),
+         ('perMileFee', ('1', 'Auto')),
+         ('stopSpacing', ('1', 'Bus')),
          ]),
                           method="opt")
     # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
     # x, y = model.plotAllDynamicStats("production")
-    model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
+    # model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
+    outcome = optimizer.minimize()
+    print(outcome)
+
+    model = Model("input-data", 1, False)
+    optimizer = Optimizer(model, domain=OptimizationDomain(
+        [('dedicated', ('A', 'Bus')),
+         ('headway', ('A', 'Bus')),
+         ('fare', ('A', 'Bus')),
+         ('perMileFee', ('A', 'Auto')),
+         ('stopSpacing', ('A', 'Bus'))
+         ]),
+                          method="opt")
+    # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
+    # x, y = model.plotAllDynamicStats("production")
+    # model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
     outcome = optimizer.minimize()
     print(outcome)
