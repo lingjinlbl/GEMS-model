@@ -179,20 +179,29 @@ class OriginDestination:
         self.__distances = distances
         print("|  Loaded ", len(ods), " ODs and ", len(distances), "unique distance bins")
 
+        for odi, idx in self.__scenarioData.odiToIdx.items():
+            self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = True
+            self.__modelData['toEnds'][idx, self.__scenarioData.microtypeIdToIdx[odi.d]] = True
+            self.__modelData['toODI'][
+                idx,
+                self.__scenarioData.microtypeIdToIdx[odi.o],
+                self.__scenarioData.microtypeIdToIdx[odi.d],
+                self.__scenarioData.distanceBinToIdx[odi.distBin]] = True
+            self.__modelData['toDistanceByOrigin'][idx, self.__scenarioData.microtypeIdToIdx[
+                odi.d]] = self.__distanceBins[odi.distBin]
+            # TODO: Expand through distance to have a mode dimension, then filter and reallocate
+            self.__modelData['toThroughDistance'][idx, :] = self.__transitionMatrices.assignmentMatrix(odi) * \
+                                                            self.__distanceBins[odi.distBin]
+
         for timePeriodId, duration in self.__timePeriods:
             self.initializeTimePeriod(timePeriodId, self.__timePeriods.getTimePeriodName(timePeriodId))
 
-        for originMicrotype in self.__scenarioData.microtypeIds:
-            for destinationMicrotype in self.__scenarioData.microtypeIds:
-                sub = modeAvailability.loc[(modeAvailability['OriginMicrotypeID'] == originMicrotype) & (
-                        modeAvailability['DestinationMicrotypeID'] == destinationMicrotype), :]
-                for distanceBin in self.__distances.DistanceBinID:
-                    odi = ODindex(originMicrotype, destinationMicrotype, distanceBin)
-                    if odi in self.__scenarioData.odiToIdx:
-                        for row in sub.itertuples():
-                            self.__modelData['toTransitLayer'][
-                                self.__scenarioData.odiToIdx[odi], self.__scenarioData.transitLayerToIdx[
-                                    row.TransitLayer]] = row.Portion
+        for (o, d), sub in modeAvailability.groupby(['OriginMicrotypeID', 'DestinationMicrotypeID']):
+            mat = self.__modelData['toODI'][:, self.__scenarioData.microtypeIdToIdx[o],
+                  self.__scenarioData.microtypeIdToIdx[d], :]
+            for row in sub.itertuples():
+                self.__modelData['toTransitLayer'][np.any(mat, axis=1), self.__scenarioData.transitLayerToIdx[
+                    row.TransitLayer]] = row.Portion
 
         for transitLayer, idx in self.__scenarioData.transitLayerToIdx.items():
             modeIncluded = np.array(
@@ -211,15 +220,6 @@ class OriginDestination:
         # currentlyAccessibleByOdi = toTransitLayer[:, modeInTransitLayer[:, 3]]
         # currentlyNotAccessibleByOdi = toTransitLayer[:, ~modeInTransitLayer[:, 3]]
         # odiToMode = self.__modelData['toTransitLayer'] @ (self.__modelData['transitLayerUtility'] == 0).T
-
-        for odi, idx in self.__scenarioData.odiToIdx.items():
-            self.__modelData['toStarts'][idx, self.__scenarioData.microtypeIdToIdx[odi.o]] = True
-            self.__modelData['toEnds'][idx, self.__scenarioData.microtypeIdToIdx[odi.d]] = True
-            self.__modelData['toDistanceByOrigin'][idx, self.__scenarioData.microtypeIdToIdx[
-                odi.d]] = self.__distanceBins[odi.distBin]
-            # TODO: Expand through distance to have a mode dimension, then filter and reallocate
-            self.__modelData['toThroughDistance'][idx, :] = self.__transitionMatrices.assignmentMatrix(odi) * \
-                                                            self.__distanceBins[odi.distBin]
 
     def __len__(self):
         return len(self.originDestination)

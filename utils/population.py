@@ -131,7 +131,7 @@ class Population:
         self.__transitLayerUtility = fixedData['transitLayerUtility']
         self.__toTripPurpose = fixedData['toTripPurpose']
         self.__toHomeMicrotype = fixedData['toHomeMicrotype']
-        self.__toODI = fixedData['toODI']
+        self.__toDI = fixedData['toDI']
         self.__modes = scenarioData.getPassengerModes()
         self.utilsToDollars = 200
         self.defaultValueOfTimePerHour = 45
@@ -173,8 +173,8 @@ class Population:
         return self.__toTripPurpose
 
     @property
-    def toODI(self) -> np.ndarray:
-        return self.__toODI
+    def toDI(self) -> np.ndarray:
+        return self.__toDI
 
     def __setitem__(self, key: DemandIndex, value: DemandClass):
         self.__demandClasses[key] = value
@@ -275,7 +275,7 @@ class Population:
                             idx, self.passengerModeToIdx[mode], [0, 1, 2, 3, 4, 5, 7]] = values.to_numpy()
                     self.__toTripPurpose[idx, self.tripPurposeToIdx[tripPurpose]] = True
                     self.__toHomeMicrotype[idx, self.__scenarioData.microtypeIdToIdx[homeMicrotypeID]] = True
-                    self.__toODI[idx, self.__scenarioData.microtypeIdToIdx[homeMicrotypeID], self.tripPurposeToIdx[
+                    self.__toDI[idx, self.__scenarioData.microtypeIdToIdx[homeMicrotypeID], self.tripPurposeToIdx[
                         tripPurpose], self.populationGroupToIdx[groupId]] = True
 
             for (groupId, tripPurpose), group in populationGroups.groupby(['PopulationGroupTypeID', 'TripPurposeID']):

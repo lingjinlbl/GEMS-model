@@ -889,6 +889,7 @@ class Optimizer:
         lb, ub, x0 = self.__domain.getBounds()
         return x0
 
+    @timebudget
     def fPrime(self, x0=None):
         lowerBounds, upperBounds, maybeX = self.__domain.getBounds()
         if x0 is None:

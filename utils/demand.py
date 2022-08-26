@@ -49,7 +49,7 @@ class Accessibility:
         self.__toEnds = fixedData["toEnds"]
         self.__toTripPurpose = fixedData["toTripPurpose"]
         self.__toHomeMicrotype = fixedData["toHomeMicrotype"]
-        self.__toODI = fixedData["toODI"]
+        self.__toDI = fixedData["toDI"]
         demand = data.getDemand()
         self.__tripRate = demand["tripRate"]
         self.__utilities = demand["utilities"]
@@ -85,7 +85,7 @@ class Accessibility:
 
     def calculate(self):
         activityDensity = self.__activityDensity
-        toODI = self.__toODI
+        toDI = self.__toDI
         toEnds = self.__toEnds
         inverseUtility = np.exp(self.__utilities)
         tripRate = self.__tripRate
@@ -106,7 +106,7 @@ class Accessibility:
              self.passengerModeToIdx.keys()],
             names=["Microtype ID", "Trip Purpose", "Population Group", "Mode"])
         accessibilityArray = np.einsum("tiom,tio,od,ihpg,dp->thpgm", inverseUtility,
-                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toODI,
+                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), toEnds, toDI,
                                        activityDensity,
                                        optimize=['einsum_path', (0, 1), (0, 2), (1, 2), (0, 1)])
         out = pd.DataFrame(accessibilityArray.reshape((accessibilityArray.shape[0], -1)).T, index=midx)
@@ -114,7 +114,7 @@ class Accessibility:
 
     def calculateByDI(self):
         activityDensity = self.__activityDensity
-        toODI = self.__toODI
+        toDI = self.__toDI
         toEnds = self.__toEnds
         inverseUtility = np.exp(self.__utilities)
         modeSplit = self.__modeSplit
@@ -135,7 +135,7 @@ class Accessibility:
             [self.microtypeIdToIdx.keys(), self.populationGroupToIdx.keys(), self.tripPurposeToIdx.keys()],
             names=["Microtype ID", "Population Group", "Trip Purpose"])
         accessibilityArray = np.einsum("tiom,tio,tiom,ihpg,od,dp->hpg", inverseUtility,
-                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), modeSplit, toODI, toEnds,
+                                       tripRate / (tripRate.sum(axis=2)[:, :, None] + 1.), modeSplit, toDI, toEnds,
                                        activityDensity,
                                        optimize=['einsum_path', (0, 2), (0, 4), (1, 2), (1, 2), (0, 1)])
         out = dict()

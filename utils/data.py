@@ -62,6 +62,7 @@ class ScenarioData:
         self.__transitLayerToIdx = dict()
         self.__subNetworkIdToIdx = dict()
         self.__distanceBinToDistance = dict()
+        self.__distanceBinToIdx = dict()
         self.__populationGroupToIdx = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
@@ -122,6 +123,10 @@ class ScenarioData:
     @property
     def firstFreightIdx(self):
         return len(self.passengerModeToIdx)
+
+    @property
+    def distanceBinToIdx(self):
+        return self.__distanceBinToIdx
 
     # @property
     # def costTypeToIdx(self):
@@ -277,6 +282,7 @@ class ScenarioData:
 
         self.__distanceBinToDistance = {bd.DistanceBinID: bd.MeanDistanceInMiles for db, bd in
                                         self["distanceBins"].iterrows()}
+        self.__distanceBinToIdx = {dbID: idx for idx, dbID in enumerate(self["distanceBins"].DistanceBinID)}
         uniqueTransitLayers = self.data['modeAvailability'].TransitLayer.unique()
         self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
         self.__populationGroupToIdx = {grp: idx for idx, grp in
@@ -317,6 +323,7 @@ class ShapeParams:
         self.nCostTypes = len(scenarioData.costTypeToIdx)
         self.nTripPurposes = len(scenarioData.tripPurposeToIdx)
         self.nPopulationGroups = len(scenarioData.populationGroupToIdx)
+        self.nDistanceBins = len(scenarioData.distanceBinToIdx)
 
 
 class Data:
@@ -348,8 +355,11 @@ class Data:
             dtype=float)
         self.__toTripPurpose = np.zeros((self.params.nDIs, self.params.nTripPurposes), dtype=bool)
         self.__toHomeMicrotype = np.zeros((self.params.nDIs, self.params.nMicrotypes), dtype=bool)
-        self.__toODI = np.zeros(
+        self.__toDI = np.zeros(
             (self.params.nDIs, self.params.nMicrotypes, self.params.nTripPurposes, self.params.nPopulationGroups),
+            dtype=bool)
+        self.__toODI = np.zeros(
+            (self.params.nODIs, self.params.nMicrotypes, self.params.nMicrotypes, self.params.nDistanceBins),
             dtype=bool)
         self.__microtypeCosts = np.zeros(
             (self.params.nMicrotypes, self.params.nDIs, self.params.nModesTotal, self.params.nCostTypes), dtype=float)
@@ -653,6 +663,7 @@ class Data:
         fixedData['toDistanceByOrigin'] = self.__toDistanceByOrigin
         fixedData['toTripPurpose'] = self.__toTripPurpose
         fixedData['toHomeMicrotype'] = self.__toHomeMicrotype
+        fixedData['toDI'] = self.__toDI
         fixedData['toODI'] = self.__toODI
         fixedData['choiceParameters'] = self.__choiceParameters
         fixedData['choiceParametersFixed'] = self.__choiceParametersFixed
