@@ -3,6 +3,7 @@ import pandas as pd
 
 from utils.OD import DemandIndex
 from utils.choiceCharacteristics import ModalChoiceCharacteristics
+from timebudget import timebudget
 
 
 class PopulationGroup:
@@ -225,6 +226,7 @@ class Population:
                         di = DemandIndex(mID, popGroup, tp)
                         self.__numpy[self.diToIdx[di], self.passengerModeToIdx[mode], self.paramToIdx[param]] = value
 
+    @timebudget
     def importPopulation(self, populations: pd.DataFrame, populationGroups: pd.DataFrame):
         for row in populations.itertuples():
             homeMicrotypeID = row.MicrotypeID
