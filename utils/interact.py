@@ -802,7 +802,7 @@ class Interact:
             self.model.clearCostCache("throughCosts")
         if changeType[0] == 'perMileCost':
             microtype, modeName = changeType[1]
-            self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=True)
+            self.model.data.setModePerMileCosts(modeName.lower(), microtype, newValue, public=False)
             self.model.clearCostCache("throughCosts")
         if changeType[0] == 'parkingCost':
             microtype, modeName = changeType[1]

@@ -9,8 +9,8 @@ class TimePeriods:
     """
 
     def __init__(self):
-        self.__timePeriods = OrderedDict()
-        self.__ids = OrderedDict()
+        self.__timePeriods = dict()
+        self.__ids = dict()
 
     def __setitem__(self, key: int, value: float):
         self.__timePeriods[key] = value
@@ -20,6 +20,9 @@ class TimePeriods:
 
     def __iter__(self):
         return iter(self.__timePeriods.items())
+
+    def toDict(self):
+        return self.__timePeriods
 
     def importTimePeriods(self, df: pd.DataFrame, nSubBins=1):
         idx = 0

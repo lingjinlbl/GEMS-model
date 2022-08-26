@@ -4,6 +4,7 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 from scipy.sparse.linalg import eigs
+from timebudget import timebudget
 
 # from utils.microtype import Microtype
 from .choiceCharacteristics import ChoiceCharacteristics
@@ -172,6 +173,7 @@ class OriginDestination:
             self.__originDestination[self.__currentTimePeriod] = dict()
         return self.__originDestination[self.__currentTimePeriod]
 
+    @timebudget
     def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame, modeAvailability: pd.DataFrame):
         self.__ods = ods
         self.__distances = distances
@@ -431,6 +433,7 @@ class TransitionMatrices:
         else:
             return np.zeros_like(self.transitionMatrix) + 1. / (len(self.microtypeIdToIdx) ** 2)
 
+    @timebudget
     def importTransitionMatrices(self, matrices: pd.DataFrame, microtypeIDs: pd.DataFrame, distanceBins: pd.DataFrame):
         default = pd.DataFrame(0.0, index=microtypeIDs.MicrotypeID, columns=microtypeIDs.MicrotypeID)
         for key, val in matrices.groupby(level=[0, 1, 2]):
@@ -460,5 +463,8 @@ class TransitionMatrices:
                 # realLengths = np.squeeze((np.eye(len(microtypeIDs)) - df.values).T @ np.ones_like(startVec.T))
                 # meanSteps = np.linalg.inv(np.eye(len(microtypeIDs)) - df.values.transpose()) @ \
                 #             np.ones((len(microtypeIDs), 1))
+        goodAssignments = np.isclose(self.__assignmentMatrices.sum(axis=1), 1.0)
+        meanDistribution = np.mean(self.__assignmentMatrices[goodAssignments, :], axis=0)
+        self.__assignmentMatrices[~goodAssignments, :] = meanDistribution
         print("|  Loaded ", str(matrices.size), " transition probabilities")
         print("-------------------------------")

@@ -5,9 +5,12 @@ import ipywidgets as widgets
 import numpy as np
 import pandas as pd
 # from noisyopt import minimizeCompass, minimizeSPSA
-from scipy.optimize import root, minimize, Bounds, shgo, least_squares
+from scipy.optimize import root, minimize, Bounds, shgo, least_squares, approx_fprime
 # from mock import Mock
 import os
+
+from tqdm import tqdm
+
 # from skopt import gp_minimize, forest_minimize
 
 from utils.OD import OriginDestination, TripGeneration, TransitionMatrices
@@ -19,6 +22,11 @@ from utils.misc import TimePeriods, DistanceBins
 from utils.population import Population
 from utils.data import Data, ScenarioData
 
+from timebudget import timebudget
+
+timebudget.set_quiet()  # don't show measurements as they happen
+timebudget.report_at_exit()
+
 
 class OptimizationDomain:
     def __init__(self, modifications: list):
@@ -26,7 +34,7 @@ class OptimizationDomain:
         self.modesAndMicrotypes = []
         self.modificationToIdx = dict()
         self.__scalingDefaults = {"headway": 0.01, "dedicated": 1.0, "fare": 0.1, "fareSenior": 0.1, "coverage": 1.0,
-                                  "fleetSize": 1.0}
+                                  "fleetSize": 1.0, "perMileFee": 0.1, "stopSpacing": 0.001}
         for idx, (changeType, changeDetails) in enumerate(modifications):
             if changeType == "dedicated":
                 self.modesAndMicrotypes.append(changeDetails)
@@ -37,6 +45,10 @@ class OptimizationDomain:
             elif (changeType == "coverage") & (changeDetails[1].lower() == "bus"):
                 pass
             elif (changeType == "fleetSize") & (changeDetails[1].lower() == "bike"):
+                pass
+            elif (changeType == "perMileFee") & (changeDetails[1].lower() == "auto"):
+                pass
+            elif (changeType == "stopSpacing") & (changeDetails[1].lower() == "bus"):
                 pass
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
@@ -72,6 +84,14 @@ class OptimizationDomain:
                 lowerBounds.append(0.001 * self.__scalingDefaults[changeType])
                 upperBounds.append(1.2 * self.__scalingDefaults[changeType])
                 defaults.append(0.5 * self.__scalingDefaults[changeType])
+            elif (changeType == "perMileFee") & (changeDetails[1].lower() == "auto"):
+                lowerBounds.append(0.0 * self.__scalingDefaults[changeType])
+                upperBounds.append(5.0 * self.__scalingDefaults[changeType])
+                defaults.append(0.0 * self.__scalingDefaults[changeType])
+            elif (changeType == "stopSpacing") & (changeDetails[1].lower() == "bus"):
+                lowerBounds.append(200.0 * self.__scalingDefaults[changeType])
+                upperBounds.append(1600.0 * self.__scalingDefaults[changeType])
+                defaults.append(400.0 * self.__scalingDefaults[changeType])
             else:
                 raise NotImplementedError("Optimization value {0} not yet included".format(changeType))
 
@@ -149,6 +169,7 @@ class Model:
         Returns speeds for each mode in each microtype
     """
 
+    @timebudget
     def __init__(self, path: str, nSubBins=2, interactive=False):
         self.__path = path
         self.__nSubBins = nSubBins
@@ -174,7 +195,7 @@ class Model:
         self.__accessibility = Accessibility(self.scenarioData, self.data)
         self.__printLoc = stdout
         self.__interactive = interactive
-        self.__tolerance = 2e-11
+        self.__tolerance = 4e-11
         self.interact = Interact(self, figure=interactive)
         self.readFiles()
         self.initializeAllTimePeriods()
@@ -255,6 +276,7 @@ class Model:
     def getCurrentTimePeriodDuration(self):
         return self.__timePeriods[self.currentTimePeriod]
 
+    @timebudget
     def readFiles(self):
         # self.__trips.importTrips(self.scenarioData["microtypeAssignment"])
         self.__population.importPopulation(self.scenarioData["populations"], self.scenarioData["populationGroups"])
@@ -281,6 +303,7 @@ class Model:
                                      self.__timePeriods, self.__currentTimePeriod, dict(), 1.0)
         self.choice.initializeChoiceCharacteristics(self.microtypes, self.__distanceBins)
 
+    @timebudget
     def initializeAllTimePeriods(self, override=False):
         self.__externalities.init()
         self.__accessibility.init()
@@ -292,11 +315,13 @@ class Model:
     def fromVector(self, flatUtilitiesArray):
         return np.reshape(flatUtilitiesArray, self.demand.currentUtilities().shape)
 
+    @timebudget
     def supplySide(self, modeSplitArray):
         self.demand.updateMFD(self.microtypes, modeSplitArray=modeSplitArray)
         choiceCharacteristicsArray = self.choice.updateChoiceCharacteristics(self.microtypes)
         return choiceCharacteristicsArray
 
+    @timebudget
     def demandSide(self, choiceCharacteristicsArray):
         utilitiesArray = self.demand.calculateUtilities(choiceCharacteristicsArray, True)
         modeSplitArray = modeSplitFromUtilsWithExcludedModes(utilitiesArray, self.__fixedData['toTransitLayer'])
@@ -317,6 +342,7 @@ class Model:
         modeSplitArray = self.demandSide(choiceCharacteristicsArray)
         return self.toObjectiveFunction(modeSplitArray)
 
+    @timebudget
     def g(self, flatModeSplitArray):
         output = self.f(flatModeSplitArray)
         diff = output - flatModeSplitArray
@@ -335,6 +361,7 @@ class Model:
     def timePeriodNames(self):
         return {a: self.__timePeriods.getTimePeriodName(a) for a, _ in self.__timePeriods}
 
+    @timebudget
     def findEquilibrium(self):
 
         """
@@ -487,6 +514,7 @@ class Model:
             self.setTimePeriod(timePeriod, preserve=True)
             self.demand.updateTripGeneration(self.microtypes)
 
+    @timebudget
     def calculateAccessibility(self, normalize=False):
         acc = self.__accessibility.calculateByDI()
         if normalize:
@@ -500,7 +528,10 @@ class Model:
         utilities = []
         keepGoing = True
         self.__successful = True
-        for timePeriod, durationInHours in self.__timePeriods:
+        pb = tqdm(self.__timePeriods.toDict().items(), leave=True, desc="Iteration progress", unit=" Time period")
+
+        for timePeriod, durationInHours in pb:
+            pb.set_description("Solving time period {0}".format(timePeriod))
             self.setTimePeriod(timePeriod, init)
             if keepGoing:
                 self.microtypes.updateNetworkData()
@@ -518,8 +549,10 @@ class Model:
                 # self.__networkStateData[timePeriod] = self.microtypes.getStateData().resetAll()
                 vectorUserCosts *= np.nan
                 utilities.append(utility * np.nan)
+        pb.disable = True
         return vectorUserCosts, np.stack(utilities)
 
+    @timebudget
     def toPandas(self):
         modeSplitData = dict()
         speedData = dict()
@@ -816,7 +849,7 @@ class Optimizer:
         allCosts.index.set_names(['Microtype'], inplace=True)
         return allCosts
 
-    def evaluate(self, reallocations: np.ndarray) -> float:
+    def evaluate(self, reallocations: np.ndarray, vectorValued=False) -> float:
         if np.any(np.isnan(reallocations)):
             print('SOMETHING WENT WRONG')
         scaling = self.__domain.scaling()
@@ -836,14 +869,18 @@ class Optimizer:
         # print(operatorCosts)
         # print({a: b.sum() for a, b in externalities.items()})
         allCosts = self.sumAllCosts()
-        outcome = allCosts.to_numpy().sum()
+        if vectorValued:
+            outcome = allCosts.to_numpy().sum(axis=1)
+        else:
+            outcome = allCosts.to_numpy().sum()
+
         if self.__objectiveFunctionValues:
             self.__isImprovement.append(outcome < min(self.__objectiveFunctionValues))
         else:
             self.__isImprovement.append(True)
         self.__trialParams.append(reallocations)
         self.__objectiveFunctionValues.append(outcome)
-        if np.isnan(outcome):
+        if np.any(np.isnan(outcome)):
             self.model.interact.hardReset()
         print([str(reallocations), outcome])
         return outcome
@@ -851,6 +888,12 @@ class Optimizer:
     def x0(self) -> np.ndarray:
         lb, ub, x0 = self.__domain.getBounds()
         return x0
+
+    def fPrime(self, x0=None):
+        lowerBounds, upperBounds, maybeX = self.__domain.getBounds()
+        if x0 is None:
+            x0 = maybeX
+        return approx_fprime(x0, self.evaluate, epsilon=0.001)
 
     def minimize(self, x0=None):
         self.__objectiveFunctionValues = []
@@ -881,7 +924,7 @@ class Optimizer:
             #                 options={'eps': 0.002, 'iprint': 1})
             bounds = Bounds(lowerBounds, upperBounds)
             return minimize(self.evaluate, x0, method='TNC', bounds=bounds,
-                            options={'eps': 0.0005, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
+                            options={'eps': 0.001, 'eta': 0.025, 'disp': True, 'maxiter': 500, 'maxfev': 2000})
             # options={'initial_tr_radius': 0.6, 'finite_diff_rel_step': 0.002, 'maxiter': 2000,
             #          'xtol': 0.002, 'barrier_tol': 0.002, 'verbose': 3})
 
@@ -920,15 +963,35 @@ def startBar():
 
 
 if __name__ == "__main__":
-    model = Model("input-data", 1, True)
+    model = Model("input-data-california-A", 1, False)
     optimizer = Optimizer(model, domain=OptimizationDomain(
-        [('dedicated', ('A', 'Bus')),
-         ('headway', ('A', 'Bus')),
-         ('fare', ('A', 'Bus'))
+        [('dedicated', ('1', 'Bus')),
+         ('headway', ('1', 'Bus')),
+         ('fare', ('1', 'Bus')),
+         ('perMileFee', ('1', 'Auto')),
+         ('stopSpacing', ('1', 'Bus')),
          ]),
                           method="opt")
     # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
     # x, y = model.plotAllDynamicStats("production")
-    model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
-    outcome = optimizer.minimize()
+    # model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
+    # outcome = optimizer.minimize()
+    outcome = optimizer.fPrime()
+    timebudget.report('findEquilibrium')
     print(outcome)
+
+    # model = Model("input-data", 1, False)
+    # optimizer = Optimizer(model, domain=OptimizationDomain(
+    #     [('dedicated', ('A', 'Bus')),
+    #      ('headway', ('A', 'Bus')),
+    #      ('fare', ('A', 'Bus')),
+    #      ('perMileFee', ('A', 'Auto')),
+    #      ('stopSpacing', ('A', 'Bus'))
+    #      ]),
+    #                       method="opt")
+    # # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
+    # # x, y = model.plotAllDynamicStats("production")
+    # # model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
+    # outcome = optimizer.fPrime()
+    # # outcome = optimizer.minimize()
+    # print(outcome)
