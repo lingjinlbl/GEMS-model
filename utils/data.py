@@ -64,6 +64,7 @@ class ScenarioData:
         self.__distanceBinToDistance = dict()
         self.__distanceBinToIdx = dict()
         self.__populationGroupToIdx = dict()
+        self.__timePeriodIdToIdx = dict()
         self.timeStepInSeconds = timeStepInSeconds
         if data is None:
             self.data = dict()
@@ -127,6 +128,10 @@ class ScenarioData:
     @property
     def distanceBinToIdx(self):
         return self.__distanceBinToIdx
+
+    @property
+    def timePeriodIdToIdx(self):
+        return self.__timePeriodIdToIdx
 
     # @property
     # def costTypeToIdx(self):
@@ -287,6 +292,7 @@ class ScenarioData:
         self.__transitLayerToIdx = {transitLayer: idx for idx, transitLayer in enumerate(uniqueTransitLayers)}
         self.__populationGroupToIdx = {grp: idx for idx, grp in
                                        enumerate(self['populationGroups']['PopulationGroupTypeID'].unique())}
+        self.__timePeriodIdToIdx = {tpID: idx for idx, tpID in enumerate(self["timePeriods"].TimePeriodID)}
 
     def copy(self):
         """
@@ -309,6 +315,7 @@ class ShapeParams:
         self.nSubBins = nSubBins
         self.timeStepInSeconds = timeStepInSeconds
         self.nTimePeriods = len(scenarioData['timePeriods']) * nSubBins
+        self.nTimePeriodIDs = len(scenarioData['timePeriods'])
         self.nTimeSteps = int(scenarioData['timePeriods']['DurationInHours'].sum() * 3600 / timeStepInSeconds)
         self.nPassengerModes = len(scenarioData.passengerModeToIdx)
         self.nFreightModes = len(scenarioData.freightModeToIdx)
@@ -349,6 +356,8 @@ class Data:
         self.__toTransitLayer = np.zeros((self.params.nODIs, self.params.nTransitLayers), dtype=float)
         self.__utilities = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes), dtype=float)
+        self.__tripDistribution = np.zeros(
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs), dtype=float)
         self.__choiceCharacteristics = np.zeros(
             (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs, self.params.nPassengerModes,
              self.params.nParams),
@@ -369,6 +378,9 @@ class Data:
         self.__choiceParametersFixed = np.zeros((self.params.nDIs, self.params.nPassengerModes, self.params.nParams),
                                                 dtype=float)
         self.__activityDensity = np.zeros((self.params.nMicrotypes, self.params.nTripPurposes), dtype=float)
+
+        self.__timePeriodIdToTimePeriod = scenarioData['timePeriods']['TimePeriodID'].values[:, None] == np.tile(
+            scenarioData['timePeriods']['TimePeriodID'].values, (nSubBins, 1)).T.flatten()
 
         #############
         # Supply side
@@ -618,6 +630,7 @@ class Data:
         demand = dict()
         if timePeriodIdx is None:
             demand['demandData'] = self.__demandData
+            demand['tripDistribution'] = self.__tripDistribution
             demand['modeSplit'] = self.__modeSplit
             demand['tripRate'] = self.__tripRate
             demand['fleetSize'] = self.__fleetSize
@@ -675,6 +688,8 @@ class Data:
         fixedData['accessDistance'] = self.__accessDistance
         fixedData['activityDensity'] = self.__activityDensity
         fixedData['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
+        fixedData['tripDistribution'] = self.__tripDistribution
+        fixedData['timePeriodIdToTimePeriod'] = self.__timePeriodIdToTimePeriod
         return fixedData
 
     def updateNetworkLength(self, networkId, newLength):

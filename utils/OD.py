@@ -163,6 +163,7 @@ class OriginDestination:
         self.__transitionMatrices = transitionMatrices
         self.__modelData = modelData
         self.__scenarioData = scenarioData
+        self.__tripDistribution = modelData['tripDistribution']
 
     def setTimePeriod(self, timePeriod: int):
         self.__currentTimePeriod = timePeriod
@@ -192,7 +193,7 @@ class OriginDestination:
             # TODO: Expand through distance to have a mode dimension, then filter and reallocate
             self.__modelData['toThroughDistance'][idx, :] = self.__transitionMatrices.assignmentMatrix(odi) * \
                                                             self.__distanceBins[odi.distBin]
-
+        self.initializeDistribution()
         for timePeriodId, duration in self.__timePeriods:
             self.initializeTimePeriod(timePeriodId, self.__timePeriods.getTimePeriodName(timePeriodId))
 
@@ -228,6 +229,11 @@ class OriginDestination:
         self.originDestination[key] = value
 
     def __getitem__(self, item: DemandIndex):
+        idx = self.__scenarioData.diToIdx[item]
+        shouldReturn = self.__tripDistribution[self.__currentTimePeriod, idx, :]
+        sm = shouldReturn
+        newtot = self.__tripDistribution[:, idx, :].sum(axis=0)
+        newtot = newtot / newtot.sum()
         if item not in self.originDestination:
             # print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
             subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
@@ -239,13 +245,37 @@ class OriginDestination:
             self.originDestination[item] = out
             return out
         else:
+            compare = np.zeros_like(shouldReturn)
+            for odi, val in self.originDestination[item].items():
+                compare[self.__scenarioData.odiToIdx[odi]] = val
             return self.originDestination[item]
 
     def __contains__(self, item):
         return item in self.originDestination
 
+    def initializeDistribution(self):
+        mergedBig = self.__ods.merge(self.__distances,
+                                     on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
+                                     suffixes=("_OD", "_Dist"),
+                                     how="inner")
+        mergedBig["tot"] = mergedBig["Portion_OD"] * mergedBig["Portion_Dist"]
+        mergedBig.set_index(['HomeMicrotypeID', 'TimePeriodID', 'PopulationGroupTypeID',
+                             'TripPurposeID', 'OriginMicrotypeID', 'DestinationMicrotypeID', 'DistanceBinID'],
+                            drop=True, inplace=True)
+        odiIndex = pd.MultiIndex.from_tuples(
+            [(odi.o, odi.d, odi.distBin) for odi in self.__scenarioData.odiToIdx.keys()])
+        diIndex = pd.MultiIndex.from_tuples(
+            [(di.homeMicrotype, di.populationGroupType, di.tripPurpose) for di in
+             self.__scenarioData.diToIdx.keys()])
+        for timePeriodID, sub in mergedBig['tot'].unstack(level=[4, 5, 6]).reorder_levels([1, 0, 2, 3]).loc[:,
+                                 odiIndex].fillna(0).groupby('TimePeriodID', as_index=False):
+            tpMask = self.__modelData['timePeriodIdToTimePeriod'][self.__scenarioData.timePeriodIdToIdx[timePeriodID],
+                     :]
+            self.__tripDistribution[tpMask, :, :] = sub.loc[timePeriodID].reindex(diIndex, fill_value=0.0).values
+
     def initializeTimePeriod(self, timePeriod, timePeriodID):
         self.__currentTimePeriod = timePeriod
+
         if timePeriod not in self.__originDestination:
             # print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]), " distance bins")
             relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]
