@@ -364,6 +364,9 @@ class Data:
             dtype=float)
         self.__toTripPurpose = np.zeros((self.params.nDIs, self.params.nTripPurposes), dtype=bool)
         self.__toHomeMicrotype = np.zeros((self.params.nDIs, self.params.nMicrotypes), dtype=bool)
+        self.__tripGeneration = np.zeros(
+            (self.params.nTimePeriods, self.params.nTripPurposes, self.params.nPopulationGroups), dtype=float)
+        self.__populationSize = np.zeros((self.params.nMicrotypes, self.params.nPopulationGroups), dtype=float)
         self.__toDI = np.zeros(
             (self.params.nDIs, self.params.nMicrotypes, self.params.nTripPurposes, self.params.nPopulationGroups),
             dtype=bool)
@@ -636,6 +639,7 @@ class Data:
             demand['fleetSize'] = self.__fleetSize
             demand['toStarts'] = self.__toStarts
             demand['toEnds'] = self.__toEnds
+            demand['toDI'] = self.__toDI
             demand['toThroughDistance'] = self.__toThroughDistance
             demand['toDistanceByOrigin'] = self.__toDistanceByOrigin
             demand['utilities'] = self.__utilities
@@ -645,6 +649,9 @@ class Data:
             demand['toTransitLayer'] = self.__toTransitLayer
             demand['transitLayerUtility'] = self.__transitLayerUtility
             demand['microtypeCosts'] = self.__microtypeCosts
+            demand['tripGeneration'] = self.__tripGeneration
+            demand['timePeriodIdToTimePeriod'] = self.__timePeriodIdToTimePeriod
+            demand['populationSize'] = self.__populationSize
         else:
             demand['demandData'] = self.__demandData[timePeriodIdx, :, :, :]
             demand['modeSplit'] = self.__modeSplit[timePeriodIdx, :, :, :]
@@ -652,6 +659,7 @@ class Data:
             demand['fleetSize'] = self.__fleetSize[timePeriodIdx, :, :]
             demand['toStarts'] = self.__toStarts
             demand['toEnds'] = self.__toEnds
+            demand['toDI'] = self.__toDI
             demand['toThroughDistance'] = self.__toThroughDistance
             demand['toDistanceByOrigin'] = self.__toDistanceByOrigin
             demand['utilities'] = self.__utilities[timePeriodIdx, :, :, :]
@@ -661,6 +669,9 @@ class Data:
             demand['toTransitLayer'] = self.__toTransitLayer
             demand['transitLayerUtility'] = self.__transitLayerUtility
             demand['microtypeCosts'] = self.__microtypeCosts
+            demand['tripGeneration'] = self.__tripGeneration[timePeriodIdx, :, :]
+            demand['timePeriodIdToTimePeriod'] = self.__timePeriodIdToTimePeriod
+            demand['populationSize'] = self.__populationSize
         return demand
 
     def getInvariants(self):
@@ -690,6 +701,7 @@ class Data:
         fixedData['microtypeDiameterInMeters'] = self.__microtypeDiameterInMeters
         fixedData['tripDistribution'] = self.__tripDistribution
         fixedData['timePeriodIdToTimePeriod'] = self.__timePeriodIdToTimePeriod
+        fixedData['populationSize'] = self.__populationSize
         return fixedData
 
     def updateNetworkLength(self, networkId, newLength):

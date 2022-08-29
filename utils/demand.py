@@ -157,6 +157,8 @@ class Demand:
         self.__tripRate = numpyData['tripRate']
         self.__toStarts = numpyData['toStarts']
         self.__toEnds = numpyData['toEnds']
+        self.__toDI = numpyData['toDI']
+        self.__toDistanceByODI = numpyData['toThroughDistance'].sum(axis=1)
         self.__toThroughDistance = numpyData['toThroughDistance']
         self.__microtypeCosts = numpyData['microtypeCosts']
         self.__seniorODIs = np.array([di.isSenior() for di in self.diToIdx.keys()])
@@ -282,60 +284,94 @@ class Demand:
             self.__modeSplitData[:, :, self.modeToIdx['bus']] = 0.3  # // TODO: CHANGE BACK
         else:
             raise NotImplementedError("Currently the model doesn't work without either a walk or bus mode")
+        """
 
-        for demandIndex, utilityParams in population:
-            od = originDestination[demandIndex]
-            ratePerHourPerCapita = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
-            pop = population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
+        self.__tripGeneration = np.zeros(
+            (self.params.nTimePeriods, self.params.nTripPurposes, self.params.nPopulationGroups), dtype=float)
+        self.__populationSize = np.zeros((self.params.nMicrotypes, self.params.nPopulationGroups), dtype=float)
+        self.__toDI = np.zeros(
+            (self.params.nDIs, self.params.nMicrotypes, self.params.nTripPurposes, self.params.nPopulationGroups),
+            dtype=bool)
+        self.__tripDistribution = np.zeros(
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs), dtype=float)
+            
+                    self.__tripRate = np.zeros(
+            (self.params.nTimePeriods, self.params.nDIs, self.params.nODIs), dtype=float)
+        """
 
-            for odi, portion in od.items():
-                tripRatePerHour = ratePerHourPerCapita * pop * portion
-                if tripRatePerHour <= 0.0:
-                    continue
-                self.tripRate += tripRatePerHour
-                demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
+        populationByGroup = population.populationByGroup
+        tripGenerationRate = tripGeneration.tripGenerationRate * multiplier
+        tripDistribution = originDestination.tripDistribution
+        toDI = self.__toDI
 
-                self.demandForPMT += demandForPMT
-                self.pop += pop
-                if odi in self.odiToIdx:
-                    currentODindex = self.odiToIdx[odi]
-                    if demandIndex in self.diToIdx:
-                        currentPopIndex = self.diToIdx[demandIndex]
-                        weights[currentODindex] += demandForPMT  # tripRatePerHour  # demandForPMT # CHANGED
-                        self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
-                    else:
-                        if tripRatePerHour > 0:
-                            print("What do we have here? Lost {} trips".format(tripRatePerHour))
-                else:
-                    print("Lost {} trips from ODI ".format(tripRatePerHour), str(odi))
+        tripRate = np.einsum("ij,mj,dmij,dk->dk", tripGenerationRate, populationByGroup, toDI, tripDistribution)
+        np.copyto(self.__tripRate, tripRate)
+
+        # for popIdx, (demandIndex, utilityParams) in enumerate(population):
+        #     if demandIndex not in self.diToIdx:
+        #         print(popIdx, str(demandIndex))
+        #         continue
+        #     od = originDestination[demandIndex]
+        #     ratePerHourPerCapita = tripGeneration[demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
+        #     ratePerHourPerCapita2 = tripGenerationRate[
+        #         self.__scenarioData.tripPurposeToIdx[demandIndex.tripPurpose], self.__scenarioData.populationGroupToIdx[
+        #             demandIndex.populationGroupType]]
+        #     pop = population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
+        #     pop2 = populationByGroup[
+        #         self.microtypeIdToIdx[demandIndex.homeMicrotype], self.__scenarioData.populationGroupToIdx[
+        #             demandIndex.populationGroupType]]
+        #     for odi, idx in self.odiToIdx.items():
+        #         portion = od[idx]
+        #         # for odi, portion in od.items():
+        #         tripRatePerHour = ratePerHourPerCapita * pop * portion
+        #         if tripRatePerHour <= 0.0:
+        #             continue
+        #         self.tripRate += tripRatePerHour
+        #         demandForPMT = ratePerHourPerCapita * pop * portion * distanceBins[odi.distBin]
+        #
+        #         self.demandForPMT += demandForPMT
+        #         self.pop += pop
+        #         if odi in self.odiToIdx:
+        #             currentODindex = self.odiToIdx[odi]
+        #             if demandIndex in self.diToIdx:
+        #                 currentPopIndex = self.diToIdx[demandIndex]
+        #                 weights[currentODindex] += demandForPMT  # tripRatePerHour  # demandForPMT # CHANGED
+        #                 self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+        #             else:
+        #                 if tripRatePerHour > 0:
+        #                     print("What do we have here? Lost {} trips".format(tripRatePerHour))
+        #         else:
+        #             print("Lost {} trips from ODI ".format(tripRatePerHour), str(odi))
+        # oldTripRate = self.__tripRate
+        weights = tripRate.sum(axis=0) * self.__toDistanceByODI
         microtypes.updateTransitionMatrix(transitionMatrices.averageMatrix(weights))
 
     def updateTripGeneration(self, microtypes: MicrotypeCollection, multiplier=1.0):
-        self.tripRate = 0.0
-        self.pop = 0.0
-        self.demandForPMT = 0.0
-        weights = np.zeros(len(self.odiToIdx), dtype=float)
-
-        # TODO: Vectorize this
-        for demandIndex, utilityParams in self.__population:
-            od = self.__originDestination[demandIndex]
-            ratePerHourPerCapita = self.__tripGeneration[
-                                       demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
-            pop = self.__population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
-
-            for odi, portion in od.items():
-                tripRatePerHour = ratePerHourPerCapita * pop * portion
-                self.tripRate += tripRatePerHour
-                demandForPMT = ratePerHourPerCapita * pop * portion * self.__distanceBins[odi.distBin]
-
-                self.demandForPMT += demandForPMT
-                self.pop += pop
-
-                currentODindex = self.odiToIdx[odi]
-                currentPopIndex = self.diToIdx[demandIndex]
-                weights[currentODindex] += demandForPMT  # tripRatePerHour
-                self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
-
+        # self.tripRate = 0.0
+        # self.pop = 0.0
+        # self.demandForPMT = 0.0
+        # weights = np.zeros(len(self.odiToIdx), dtype=float)
+        #
+        # # TODO: Vectorize this
+        # for demandIndex, utilityParams in self.__population:
+        #     od = self.__originDestination[demandIndex]
+        #     ratePerHourPerCapita = self.__tripGeneration[
+        #                                demandIndex.populationGroupType, demandIndex.tripPurpose] * multiplier
+        #     pop = self.__population.getPopulation(demandIndex.homeMicrotype, demandIndex.populationGroupType)
+        #
+        #     for odi, portion in od.items():
+        #         tripRatePerHour = ratePerHourPerCapita * pop * portion
+        #         self.tripRate += tripRatePerHour
+        #         demandForPMT = ratePerHourPerCapita * pop * portion * self.__distanceBins[odi.distBin]
+        #
+        #         self.demandForPMT += demandForPMT
+        #         self.pop += pop
+        #
+        #         currentODindex = self.odiToIdx[odi]
+        #         currentPopIndex = self.diToIdx[demandIndex]
+        #         weights[currentODindex] += demandForPMT  # tripRatePerHour
+        #         self.__tripRate[currentPopIndex, currentODindex] = tripRatePerHour
+        weights = self.__tripRate.sum(axis=0) * self.__toDistanceByODI
         microtypes.updateTransitionMatrix(self.__transitionMatrices.averageMatrix(weights))
 
     def updateMFD(self, microtypes: MicrotypeCollection, nIters=2, utilitiesArray=None, modeSplitArray=None):

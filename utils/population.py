@@ -6,18 +6,6 @@ from utils.choiceCharacteristics import ModalChoiceCharacteristics
 from timebudget import timebudget
 
 
-class PopulationGroup:
-    def __init__(self, homeLocation: str, populationGroupType: str, df: pd.DataFrame, idx: int):
-        self.homeLocation = homeLocation
-        self.populationGroupType = populationGroupType
-        self.__data = df
-        self.__idx = idx
-
-    @property
-    def population(self):
-        return self.__data.iloc[self.__idx].Population
-
-
 class DemandClass:
     def __init__(self, params: pd.DataFrame):
         self.__params = params.to_dict(orient="index")
@@ -131,6 +119,8 @@ class Population:
         self.__transitLayerUtility = fixedData['transitLayerUtility']
         self.__toTripPurpose = fixedData['toTripPurpose']
         self.__toHomeMicrotype = fixedData['toHomeMicrotype']
+        self.__numpyPopulationSize = fixedData['populationSize']
+        self.__toDistanceByODI = fixedData['toThroughDistance'].sum(axis=1)
         self.__toDI = fixedData['toDI']
         self.__modes = scenarioData.getPassengerModes()
         self.utilsToDollars = 200
@@ -175,6 +165,10 @@ class Population:
     @property
     def toDI(self) -> np.ndarray:
         return self.__toDI
+
+    @property
+    def populationByGroup(self):
+        return self.__numpyPopulationSize
 
     def __setitem__(self, key: DemandIndex, value: DemandClass):
         self.__demandClasses[key] = value
@@ -228,13 +222,19 @@ class Population:
 
     @timebudget
     def importPopulation(self, populations: pd.DataFrame, populationGroups: pd.DataFrame):
-        for row in populations.itertuples():
-            homeMicrotypeID = row.MicrotypeID
-            populationGroupType = row.PopulationGroupTypeID
-            self.__populationGroups[homeMicrotypeID, populationGroupType] = PopulationGroup(homeMicrotypeID,
-                                                                                            populationGroupType,
-                                                                                            populations, row.Index)
-            self.totalPopulation += row.Population
+        mat = populations.set_index(['MicrotypeID', 'PopulationGroupTypeID']).unstack(fill_value=0)['Population']
+        popGroupIndex = pd.Index([grp for grp in self.__scenarioData.populationGroupToIdx.keys()])
+        microtypeIndex = pd.Index([mtp for mtp in self.__scenarioData.microtypeIdToIdx.keys()])
+        np.copyto(self.__numpyPopulationSize,
+                  mat.reindex(index=microtypeIndex, columns=popGroupIndex, fill_value=0.0).values)
+        self.totalPopulation = mat.sum()
+        # for row in populations.itertuples():
+        #     homeMicrotypeID = row.MicrotypeID
+        #     populationGroupType = row.PopulationGroupTypeID
+        #     self.__populationGroups[homeMicrotypeID, populationGroupType] = PopulationGroup(homeMicrotypeID,
+        #                                                                                     populationGroupType,
+        #                                                                                     populations, row.Index)
+        # self.totalPopulation += row.Population
 
         if 'BikeShare_Bike' not in populationGroups.columns:
             populationGroups['BikeShare_Bike'] = 0.0

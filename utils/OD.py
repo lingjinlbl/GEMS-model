@@ -106,8 +106,12 @@ class TripGeneration:
     Class to import and initialize trips from data.
     """
 
-    def __init__(self):
+    def __init__(self, scenarioData, demandData):
+        self.__scenarioData = scenarioData
         self.__data = pd.DataFrame()
+        self.__numpyTripGenerationRate = demandData['tripGeneration']
+        self.__timePeriodIdToTimePeriod = demandData['timePeriodIdToTimePeriod']
+        self.__timePeriodIdToIdx = scenarioData.timePeriodIdToIdx
         self.__tripClasses = dict()
         self.__currentTimePeriod = "BAD"
 
@@ -116,6 +120,10 @@ class TripGeneration:
         if self.__currentTimePeriod not in self.__tripClasses:
             self.__tripClasses[self.__currentTimePeriod] = dict()
         return self.__tripClasses[self.__currentTimePeriod]
+
+    @property
+    def tripGenerationRate(self):
+        return self.__numpyTripGenerationRate[self.__timePeriodIdToIdx[self.__currentTimePeriod], :, :]
 
     def setTimePeriod(self, timePeriod: int):
         self.__currentTimePeriod = timePeriod
@@ -130,18 +138,27 @@ class TripGeneration:
         return item in self.__tripClasses
 
     def importTripGeneration(self, df: pd.DataFrame):
-        self.__data = df
+        self.__data = df  # .set_index(['TimePeriodID', 'PopulationGroupTypeID', 'TripPurposeID'])
+        popGroupIndex = pd.Index([grp for grp in self.__scenarioData.populationGroupToIdx.keys()])
+        tripPurpIndex = pd.Index([purp for purp in self.__scenarioData.tripPurposeToIdx.keys()])
+        for tp, sub in self.__data.set_index(['TimePeriodID', 'PopulationGroupTypeID', 'TripPurposeID'])[
+            'TripGenerationRatePerHour'].groupby('TimePeriodID'):
+            toFill = sub.loc[tp].unstack(level=0, fill_value=0.0).reindex(columns=popGroupIndex, index=tripPurpIndex,
+                                                                          fill_value=0.0).values
+            tpMask = self.__timePeriodIdToTimePeriod[self.__scenarioData.timePeriodIdToIdx[tp], :]
+            self.__numpyTripGenerationRate[tpMask, :, :] = toFill
+
         print("|  Loaded ", len(df), " trip generation rates")
         print("-------------------------------")
 
     def initializeTimePeriod(self, timePeriod, timePeriodID):
         # self.__tripClasses = dict()
-        self.__currentTimePeriod = timePeriod
-        if timePeriod not in self:
-            relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriodID]
-            for row in relevantDemand.itertuples():
-                self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
-            # print("|  Loaded ", len(relevantDemand), " demand classes")
+        self.__currentTimePeriod = timePeriodID
+        # if timePeriod not in self:
+        #     relevantDemand = self.__data.loc[self.__data["TimePeriodID"] == timePeriodID]
+        #     for row in relevantDemand.itertuples():
+        #         self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
+        # print("|  Loaded ", len(relevantDemand), " demand classes")
 
     def __iter__(self):
         return iter(self.tripClasses.items())
@@ -163,7 +180,9 @@ class OriginDestination:
         self.__transitionMatrices = transitionMatrices
         self.__modelData = modelData
         self.__scenarioData = scenarioData
+        self.__timePeriodIdToIdx = scenarioData.timePeriodIdToIdx
         self.__tripDistribution = modelData['tripDistribution']
+        self.__initialized = False
 
     def setTimePeriod(self, timePeriod: int):
         self.__currentTimePeriod = timePeriod
@@ -173,6 +192,10 @@ class OriginDestination:
         if self.__currentTimePeriod not in self.__originDestination:
             self.__originDestination[self.__currentTimePeriod] = dict()
         return self.__originDestination[self.__currentTimePeriod]
+
+    @property
+    def tripDistribution(self):
+        return self.__tripDistribution[self.__timePeriodIdToIdx[self.__currentTimePeriod], :, :]
 
     @timebudget
     def importOriginDestination(self, ods: pd.DataFrame, distances: pd.DataFrame, modeAvailability: pd.DataFrame):
@@ -193,7 +216,8 @@ class OriginDestination:
             # TODO: Expand through distance to have a mode dimension, then filter and reallocate
             self.__modelData['toThroughDistance'][idx, :] = self.__transitionMatrices.assignmentMatrix(odi) * \
                                                             self.__distanceBins[odi.distBin]
-        self.initializeDistribution()
+        if ~self.__initialized:
+            self.initializeDistribution()
         for timePeriodId, duration in self.__timePeriods:
             self.initializeTimePeriod(timePeriodId, self.__timePeriods.getTimePeriodName(timePeriodId))
 
@@ -230,25 +254,36 @@ class OriginDestination:
 
     def __getitem__(self, item: DemandIndex):
         idx = self.__scenarioData.diToIdx[item]
-        shouldReturn = self.__tripDistribution[self.__currentTimePeriod, idx, :]
-        sm = shouldReturn
-        newtot = self.__tripDistribution[:, idx, :].sum(axis=0)
-        newtot = newtot / newtot.sum()
-        if item not in self.originDestination:
-            # print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
-            subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
-                    self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
-                                                   self.__distances["TripPurposeID"] == item.tripPurpose)]
-            out = dict()
-            for row in subitem.itertuples():
-                out[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.Portion
-            self.originDestination[item] = out
-            return out
-        else:
-            compare = np.zeros_like(shouldReturn)
-            for odi, val in self.originDestination[item].items():
-                compare[self.__scenarioData.odiToIdx[odi]] = val
-            return self.originDestination[item]
+        out = self.__tripDistribution[self.__currentTimePeriod, idx, :]
+        if ~np.any(out > 0):
+            relevant = self.__modelData['toDI'][:, self.__scenarioData.microtypeIdToIdx[item.homeMicrotype], :, :].sum(
+                axis=1).sum(axis=1)
+            look = []
+            for di, idx in self.__scenarioData.diToIdx.items():
+                if relevant[idx] > 0:
+                    look.append(str(di))
+            out = self.__tripDistribution[self.__currentTimePeriod, relevant > 0, :].sum(axis=0)
+            if ~np.any(out > 0):
+                out = self.__tripDistribution[:, relevant > 0, :].sum(axis=0).sum(axis=0)
+            out = out / out.sum()
+        if np.any(np.isnan(out)):
+            print('huh')
+        return out
+        # if item not in self.originDestination:
+        #     # print("OH NO, no origin destination defined for ", str(item), " in ", self.__currentTimePeriod)
+        #     subitem = self.__distances.loc[(self.__distances["OriginMicrotypeID"] == item.homeMicrotype) & (
+        #             self.__distances["DestinationMicrotypeID"] == item.homeMicrotype) & (
+        #                                            self.__distances["TripPurposeID"] == item.tripPurpose)]
+        #     out = dict()
+        #     for row in subitem.itertuples():
+        #         out[ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.Portion
+        #     self.originDestination[item] = out
+        #     return out
+        # else:
+        #     compare = np.zeros_like(shouldReturn)
+        #     for odi, val in self.originDestination[item].items():
+        #         compare[self.__scenarioData.odiToIdx[odi]] = val
+        #     return self.originDestination[item]
 
     def __contains__(self, item):
         return item in self.originDestination
@@ -269,31 +304,34 @@ class OriginDestination:
              self.__scenarioData.diToIdx.keys()])
         for timePeriodID, sub in mergedBig['tot'].unstack(level=[4, 5, 6]).reorder_levels([1, 0, 2, 3]).loc[:,
                                  odiIndex].fillna(0).groupby('TimePeriodID', as_index=False):
-            tpMask = self.__modelData['timePeriodIdToTimePeriod'][self.__scenarioData.timePeriodIdToIdx[timePeriodID],
-                     :]
-            self.__tripDistribution[tpMask, :, :] = sub.loc[timePeriodID].reindex(diIndex, fill_value=0.0).values
+            if timePeriodID in self.__scenarioData.timePeriodIdToIdx:
+                tpMask = self.__modelData['timePeriodIdToTimePeriod'][
+                         self.__scenarioData.timePeriodIdToIdx[timePeriodID],
+                         :]
+                self.__tripDistribution[tpMask, :, :] = sub.loc[timePeriodID].reindex(diIndex, fill_value=0.0).values
+        self.__initialized = True
 
     def initializeTimePeriod(self, timePeriod, timePeriodID):
-        self.__currentTimePeriod = timePeriod
+        self.__currentTimePeriod = timePeriodID
 
-        if timePeriod not in self.__originDestination:
-            # print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]), " distance bins")
-            relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]
-            merged = relevantODs.merge(self.__distances,
-                                       on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
-                                       suffixes=("_OD", "_Dist"),
-                                       how="inner")
-            for tripClass, grouped in merged.groupby(["HomeMicrotypeID", "PopulationGroupTypeID", "TripPurposeID"]):
-                grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
-                tot = np.sum(grouped["tot"])
-                grouped["tot"] = grouped["tot"] / tot
-                # if abs(tot - 1) > 0.1:  # TODO: FIX
-                #     print(f"Oops, totals for {tripClass} add up to {tot}")
-                distribution = dict()
-                for row in grouped.itertuples():
-                    distribution[
-                        ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
-                self[DemandIndex(*tripClass)] = distribution
+        # if timePeriod not in self.__originDestination:
+        #     # print("|  Loaded ", len(self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]), " distance bins")
+        #     relevantODs = self.__ods.loc[self.__ods["TimePeriodID"] == timePeriodID]
+        #     merged = relevantODs.merge(self.__distances,
+        #                                on=["TripPurposeID", "OriginMicrotypeID", "DestinationMicrotypeID"],
+        #                                suffixes=("_OD", "_Dist"),
+        #                                how="inner")
+        #     for tripClass, grouped in merged.groupby(["HomeMicrotypeID", "PopulationGroupTypeID", "TripPurposeID"]):
+        #         grouped["tot"] = grouped["Portion_OD"] * grouped["Portion_Dist"]
+        #         tot = np.sum(grouped["tot"])
+        #         grouped["tot"] = grouped["tot"] / tot
+        #         # if abs(tot - 1) > 0.1:  # TODO: FIX
+        #         #     print(f"Oops, totals for {tripClass} add up to {tot}")
+        #         distribution = dict()
+        #         for row in grouped.itertuples():
+        #             distribution[
+        #                 ODindex(row.OriginMicrotypeID, row.DestinationMicrotypeID, row.DistanceBinID)] = row.tot
+        #         self[DemandIndex(*tripClass)] = distribution
         # for row in relevantDemand.itertuples():
         #     self[row.PopulationGroupTypeID, row.TripPurposeID] = row.TripGenerationRatePerHour
 
