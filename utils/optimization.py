@@ -219,7 +219,7 @@ class Calibrator:
         self.model = model
         self.optimizationVariables = optimizationVariables
         self.calibrationVariables = CalibrationValues(optimizationVariables=optimizationVariables,
-                                                      regularize=regularization, speedScaling)
+                                                      regularize=regularization)
         self.calibrationVariables.loadData(path=model.path)
 
     def f(self, x: np.ndarray) -> np.ndarray:
