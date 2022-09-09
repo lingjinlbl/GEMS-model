@@ -160,6 +160,10 @@ class CollectedChoiceCharacteristics:
         self.__fixedData = fixedData
         self.__broken = False
         self.__cache = dict()
+        self.__columnsToResetToZero = np.zeros(len(scenarioData.paramToIdx), dtype=bool)
+        for param, idx in scenarioData.paramToIdx.items():
+            if param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:
+                self.__columnsToResetToZero[idx] = True
 
     def clearCache(self, category=None):
         if category is None:
@@ -227,8 +231,9 @@ class CollectedChoiceCharacteristics:
     def resetChoiceCharacteristics(self):
         # {'intercept': 0, 'travel_time': 1, 'cost': 2, 'wait_time': 3, 'access_time': 4,
         #  'unprotected_travel_time': 5, 'distance': 6}
-        for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:  # TODO: vectorize
-            self.__numpy[:, :, :, self.paramToIdx[param]] = 0.0
+        self.__numpy[:, :, :, self.__columnsToResetToZero] = 0.0
+        # for param in ['travel_time', 'cost', 'wait_time', 'access_time', 'unprotected_travel_time']:  # TODO: vectorize
+        #     self.__numpy[:, :, :, self.paramToIdx[param]] = 0.0
         # self.__numpy[~np.isnan(self.__numpy)] *= 0.0
         self.__numpy[:, :, :, self.paramToIdx['intercept']] = 1
 

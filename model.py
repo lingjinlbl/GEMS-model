@@ -186,7 +186,7 @@ class Model:
         self.__population = Population(self.scenarioData, self.__fixedData)
         self.__distanceBins = DistanceBins()
         self.__timePeriods = TimePeriods()
-        self.__tripGeneration = TripGeneration()
+        self.__tripGeneration = TripGeneration(self.scenarioData, self.data.getDemand())
         self.__transitionMatrices = TransitionMatrices(self.scenarioData, self.data.getSupply())
         self.__originDestination = OriginDestination(self.__timePeriods, self.__distanceBins, self.__population,
                                                      self.__transitionMatrices, self.__fixedData,
@@ -973,10 +973,6 @@ if __name__ == "__main__":
          ('stopSpacing', ('1', 'Bus')),
          ]),
                           method="opt")
-    # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
-    # x, y = model.plotAllDynamicStats("production")
-    # model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
-    # outcome = optimizer.minimize()
     outcome = optimizer.fPrime()
     timebudget.report('findEquilibrium')
     print(outcome)
@@ -990,9 +986,7 @@ if __name__ == "__main__":
     #      ('stopSpacing', ('A', 'Bus'))
     #      ]),
     #                       method="opt")
-    # # optimizer.updateAndRunModel(np.array([0.05, 250, 1.25]))
-    # # x, y = model.plotAllDynamicStats("production")
-    # # model.interact.modifyModel(('maxInflowPerMeterPerHour', 1), 1.5)
+    #
     # outcome = optimizer.fPrime()
     # # outcome = optimizer.minimize()
     # print(outcome)
