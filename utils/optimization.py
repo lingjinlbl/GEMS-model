@@ -82,9 +82,9 @@ class OptimizationVariables:
         elif changeType == "accessDistanceMultiplier":
             return 0.0, 2.0, 0.3
         elif changeType == "minStopTime":
-            return 0.0, 60.0, 10.0
+            return 0.0, 60.0, 7.0
         elif changeType == "passengerWait":
-            return 0.0, 15.0, 5.0
+            return 0.0, 15.0, 6.0
         elif changeType == "stopSpacing":
             return 100.0, 3200.0, 400.0
         elif changeType == "networkLength":
@@ -111,9 +111,13 @@ class OptimizationVariables:
 
 
 class CalibrationValues:
-    def __init__(self, speed=pd.DataFrame(), modeSplit=pd.DataFrame(), travelTime=pd.DataFrame(),
+    def __init__(self, model: Model, speed=pd.DataFrame(), modeSplit=pd.DataFrame(), travelTime=pd.DataFrame(),
                  columnsFromTravelTime=('avg_speed (mph)',), optimizationVariables=None, regularize=0,
                  speedScaling=1.0):
+        self.__passengerModeToIdx = model.passengerModeToIdx
+        self.__microtypeIdToIdx = model.microtypeIdToIdx
+        self.modeIndex = pd.Index(self.__passengerModeToIdx.keys())
+        self.microtypeIndex = pd.Index(self.__microtypeIdToIdx.keys())
         self.__speedData = speed
         self.__modeSplitData = modeSplit
         self.__travelTimeData = travelTime
@@ -132,6 +136,11 @@ class CalibrationValues:
                                 dtype={"origin microtype": str}).set_index(['origin microtype', 'mode'])
         travelTime = pd.read_csv(os.path.join(path, "calibration", "NHTS_trip_travel_time.csv"),
                                  dtype={"origin microtype": str}).set_index(['origin microtype', 'mode'])
+        speed = speed.reindex(self.microtypeIndex, level=0)
+        modeSplit = modeSplit.reindex(self.microtypeIndex, level=0)
+        modeSplit = modeSplit.reindex(self.modeIndex, level=1)
+        travelTime = travelTime.reindex(self.microtypeIndex, level=0)
+        travelTime = travelTime.reindex(self.modeIndex, level=1)
         self.__speedData = speed
         self.__modeSplitData = modeSplit
         self.__travelTimeData = travelTime
@@ -175,6 +184,7 @@ class CalibrationValues:
         yHat = np.zeros_like(self.values)
         if len(self.__speedData) > 0:
             autoSpeedByMicrotypeAndTimePeriod = speedData.stack(level=0)['Speed'].unstack(level=1)['auto'] * 3600 / 1609
+            autoSpeedByMicrotypeAndTimePeriod = autoSpeedByMicrotypeAndTimePeriod.reindex(self.microtypeIndex, level=0)
             newIndex = self.__speedData.index
             yHat[startIdx:(startIdx + len(autoSpeedByMicrotypeAndTimePeriod))] = autoSpeedByMicrotypeAndTimePeriod.loc[
                                                                                      newIndex].values / self.__speedScaling / 24.
@@ -182,6 +192,7 @@ class CalibrationValues:
         if len(self.__modeSplitData) > 0:
             tripsByModeAndOrigin = modeSplitData.stack(level=0)['Trips'].groupby(level=['originMicrotype', 'mode']).agg(
                 sum).unstack(level=0)
+            tripsByModeAndOrigin = tripsByModeAndOrigin.reindex(self.modeIndex)
             modeSplit = (tripsByModeAndOrigin / tripsByModeAndOrigin.sum(axis=0)).unstack()
             filteredModeSplit = modeSplit.loc[self.__modeSplitData.index].values
             yHat[startIdx:(startIdx + len(modeSplit))] = filteredModeSplit
@@ -192,7 +203,11 @@ class CalibrationValues:
             travelTimePerTrip = timeData['access_time'] + timeData['travel_time'] + timeData['wait_time']
             totalDistance = (timeData['distance'] * totalTrips).sum(axis=1).groupby(
                 level=['originMicrotype', 'mode']).agg(sum)
+            totalDistance = totalDistance.reindex(self.microtypeIndex, level=0)
+            totalDistance = totalDistance.reindex(self.modeIndex, level=1)
             totalTime = (travelTimePerTrip * totalTrips).sum(axis=1).groupby(level=['originMicrotype', 'mode']).agg(sum)
+            totalTime = totalTime.reindex(self.microtypeIndex, level=0)
+            totalTime = totalTime.reindex(self.modeIndex, level=1)
             for column in self.__columnsFromTravelTime:
                 if column == "avg_speed (mph)":
                     out = totalDistance / totalTime / self.__speedScaling
@@ -218,7 +233,7 @@ class Calibrator:
                  speedScaling=1.0):
         self.model = model
         self.optimizationVariables = optimizationVariables
-        self.calibrationVariables = CalibrationValues(optimizationVariables=optimizationVariables,
+        self.calibrationVariables = CalibrationValues(model=model, optimizationVariables=optimizationVariables,
                                                       regularize=regularization)
         self.calibrationVariables.loadData(path=model.path)
 
